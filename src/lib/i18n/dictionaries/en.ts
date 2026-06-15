@@ -1,0 +1,70 @@
+const en = {
+  common: {
+    appName: "Gladen HR",
+    save: "Save",
+    cancel: "Cancel",
+    submit: "Submit",
+    back: "Back",
+    next: "Next",
+    loading: "Loading...",
+    error: "Something went wrong. Please try again.",
+    confirm: "Confirm",
+    close: "Close",
+    signOut: "Sign Out",
+    comingSoon: "Coming soon.",
+  },
+  auth: {
+    welcome: "Welcome to Gladen HR",
+    phoneLabel: "Mobile Number",
+    phonePlaceholder: "+65 9123 4567",
+    sendCode: "Send Code",
+    otpLabel: "Verification Code",
+    otpPlaceholder: "Enter 6-digit code",
+    otpHint: "We've sent a code to your mobile number via SMS.",
+    verify: "Verify & Sign In",
+    resendCode: "Resend Code",
+    invalidPhone: "Please enter a valid mobile number.",
+    invalidOtp: "Invalid code. Please try again.",
+  },
+  nav: {
+    home: "Home",
+    employees: "Employees",
+    payroll: "Payroll",
+    leave: "Leave",
+    contracts: "Contracts",
+    announcements: "Announcements",
+    profile: "Profile",
+    payslips: "Payslips",
+    documents: "Documents",
+    more: "More",
+  },
+  dashboard: {
+    managerTitle: "Manager Dashboard",
+    employeeTitle: "My Dashboard",
+  },
+  more: {
+    managerTitle: "More",
+    contracts: "Contracts & P&L",
+    announcements: "Announcements",
+    documents: "Employee Documents",
+    rates: "Statutory Rates (CPF/FWL/SDL)",
+    employeeTitle: "More",
+    documentsDesc: "Work permits, passports, MOM documents",
+  },
+  summary: {
+    totalEmployees: "Total Employees",
+    onLeaveToday: "On Leave Today",
+    pendingApprovals: "Pending Approvals",
+    expiringDocuments: "Expiring Documents",
+    leaveBalance: "Annual Leave Balance",
+    sickBalance: "Sick Leave Balance",
+    hospitalizationBalance: "Hospitalization Leave Balance",
+    latestPayslip: "Latest Payslip",
+    unreadAnnouncements: "Unread Announcements",
+  },
+} as const;
+
+type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
+
+export default en;
+export type Dictionary = Widen<typeof en>;

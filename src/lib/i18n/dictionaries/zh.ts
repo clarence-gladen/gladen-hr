@@ -1,0 +1,70 @@
+import type { Dictionary } from "./en";
+
+// Partial translation - any key not present here falls back to English.
+const zh: Partial<Dictionary> = {
+  common: {
+    appName: "Gladen HR",
+    save: "保存",
+    cancel: "取消",
+    submit: "提交",
+    back: "返回",
+    next: "下一步",
+    loading: "加载中...",
+    error: "出现错误，请重试。",
+    confirm: "确认",
+    close: "关闭",
+    signOut: "登出",
+    comingSoon: "即将推出。",
+  },
+  auth: {
+    welcome: "欢迎使用 Gladen HR",
+    phoneLabel: "手机号码",
+    phonePlaceholder: "+65 9123 4567",
+    sendCode: "发送验证码",
+    otpLabel: "验证码",
+    otpPlaceholder: "输入6位验证码",
+    otpHint: "验证码已通过短信发送到您的手机。",
+    verify: "验证并登录",
+    resendCode: "重新发送验证码",
+    invalidPhone: "请输入有效的手机号码。",
+    invalidOtp: "验证码无效，请重试。",
+  },
+  nav: {
+    home: "首页",
+    employees: "员工",
+    payroll: "薪资",
+    leave: "请假",
+    contracts: "合同",
+    announcements: "公告",
+    profile: "我的",
+    payslips: "工资单",
+    documents: "文件",
+    more: "更多",
+  },
+  dashboard: {
+    managerTitle: "管理仪表板",
+    employeeTitle: "我的仪表板",
+  },
+  more: {
+    managerTitle: "更多",
+    contracts: "合同与盈亏",
+    announcements: "公告",
+    documents: "员工文件",
+    rates: "法定费率 (CPF/FWL/SDL)",
+    employeeTitle: "更多",
+    documentsDesc: "工作准证、护照、人力部文件",
+  },
+  summary: {
+    totalEmployees: "员工总数",
+    onLeaveToday: "今日请假人数",
+    pendingApprovals: "待批准事项",
+    expiringDocuments: "即将到期文件",
+    leaveBalance: "年假余额",
+    sickBalance: "病假余额",
+    hospitalizationBalance: "住院假余额",
+    latestPayslip: "最新工资单",
+    unreadAnnouncements: "未读公告",
+  },
+};
+
+export default zh;

@@ -1,0 +1,201 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/language-provider";
+import { LanguageToggle } from "@/components/language-toggle";
+
+function normalizePhone(input: string): string {
+  const trimmed = input.replace(/[\s-]/g, "");
+  if (trimmed.startsWith("+")) return trimmed;
+  // Default to Singapore country code for local 8-digit numbers
+  return `+65${trimmed}`;
+}
+
+export default function LoginPage() {
+  const { t } = useLanguage();
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSendCode(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const formatted = normalizePhone(phone);
+    if (!/^\+\d{8,15}$/.test(formatted)) {
+      setError(t("auth.invalidPhone"));
+      return;
+    }
+
+    setLoading(true);
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      phone: formatted,
+    });
+    setLoading(false);
+
+    if (otpError) {
+      setError(otpError.message);
+      return;
+    }
+
+    setPhone(formatted);
+    setStep("otp");
+  }
+
+  async function handleVerifyCode(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (!/^\d{4,8}$/.test(otp)) {
+      setError(t("auth.invalidOtp"));
+      return;
+    }
+
+    setLoading(true);
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      phone,
+      token: otp,
+      type: "sms",
+    });
+
+    if (verifyError || !data.user) {
+      setLoading(false);
+      setError(verifyError?.message ?? t("auth.invalidOtp"));
+      return;
+    }
+
+    // Ensure a profile row exists for this user
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (!profile) {
+      await supabase.from("profiles").insert({
+        id: data.user.id,
+        role: "employee",
+      });
+    }
+
+    setLoading(false);
+    const role = profile?.role ?? "employee";
+    router.push(role === "manager" ? "/manager" : "/employee");
+    router.refresh();
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background px-6 py-10">
+      <div className="flex justify-end">
+        <LanguageToggle />
+      </div>
+
+      <div className="mt-12 flex flex-1 flex-col items-center">
+        <div className="relative h-24 w-full max-w-xs">
+          <Image
+            src="/images/logo-blue.png"
+            alt="Gladen Maintenance Services"
+            fill
+            className="object-contain"
+            priority
+          />
+        </div>
+
+        <h1 className="mt-8 text-center text-xl font-semibold text-foreground">
+          {t("auth.welcome")}
+        </h1>
+
+        {step === "phone" && (
+          <form
+            onSubmit={handleSendCode}
+            className="mt-8 w-full max-w-sm space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="phone"
+                className="mb-1 block text-sm font-medium text-foreground"
+              >
+                {t("auth.phoneLabel")}
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder={t("auth.phonePlaceholder")}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-brand py-3 text-base font-semibold text-white transition disabled:opacity-60"
+            >
+              {loading ? t("common.loading") : t("auth.sendCode")}
+            </button>
+          </form>
+        )}
+
+        {step === "otp" && (
+          <form
+            onSubmit={handleVerifyCode}
+            className="mt-8 w-full max-w-sm space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="otp"
+                className="mb-1 block text-sm font-medium text-foreground"
+              >
+                {t("auth.otpLabel")}
+              </label>
+              <p className="mb-2 text-sm text-foreground/60">
+                {t("auth.otpHint")}
+              </p>
+              <input
+                id="otp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder={t("auth.otpPlaceholder")}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-center text-lg tracking-widest focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-brand py-3 text-base font-semibold text-white transition disabled:opacity-60"
+            >
+              {loading ? t("common.loading") : t("auth.verify")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStep("phone")}
+              className="w-full text-center text-sm text-brand"
+            >
+              {t("common.back")}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
