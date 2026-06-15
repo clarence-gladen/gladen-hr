@@ -1,7 +1,12 @@
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { createClient } from "@/lib/supabase/server";
+import { EmployeesListClient } from "./employees-list-client";
 
-export default function ManagerEmployeesPage() {
-  return (
-    <PagePlaceholder titleKey="nav.employees" descriptionKey="common.comingSoon" />
-  );
+export default async function EmployeesPage() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("employees")
+    .select("id, full_name, nric_last4, mobile_number, residency_status, designation, status")
+    .order("full_name");
+
+  return <EmployeesListClient employees={data ?? []} />;
 }
