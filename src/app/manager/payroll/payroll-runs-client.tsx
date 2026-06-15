@@ -1,0 +1,113 @@
+"use client";
+
+import Link from "next/link";
+import { useActionState } from "react";
+import { Header } from "@/components/header";
+import { useLanguage } from "@/lib/i18n/language-provider";
+import { createPayrollRunAction } from "./actions";
+import type { PayrollStatus } from "@/lib/types/database";
+
+export interface PayrollRunRow {
+  id: string;
+  month: number;
+  year: number;
+  status: PayrollStatus;
+}
+
+const inputClass =
+  "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const labelClass = "mb-1 block text-sm font-medium text-foreground";
+
+export function PayrollRunsClient({ runs }: { runs: PayrollRunRow[] }) {
+  const { t } = useLanguage();
+  const [state, formAction, pending] = useActionState(createPayrollRunAction, {});
+
+  const statusLabel: Record<PayrollStatus, string> = {
+    draft: t("payroll.draft"),
+    processing: t("payroll.processing"),
+    completed: t("payroll.completed"),
+  };
+
+  const now = new Date();
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+
+  return (
+    <>
+      <Header titleKey="payroll.title" />
+      <main className="flex-1 px-4 py-6">
+        <h2 className="mb-2 text-sm font-semibold text-foreground/60">
+          {t("payroll.newRun")}
+        </h2>
+        <form action={formAction} className="mb-6 space-y-3 rounded-xl bg-white p-4 shadow-sm">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className={labelClass} htmlFor="month">
+                {t("payroll.month")}
+              </label>
+              <select
+                id="month"
+                name="month"
+                defaultValue={now.getMonth() + 1}
+                className={inputClass}
+              >
+                {monthNames.map((name, index) => (
+                  <option key={name} value={index + 1}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className={labelClass} htmlFor="year">
+                {t("payroll.year")}
+              </label>
+              <input
+                id="year"
+                name="year"
+                type="number"
+                defaultValue={now.getFullYear()}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-lg bg-brand py-3 text-base font-semibold text-white transition disabled:opacity-60"
+          >
+            {pending ? t("common.loading") : t("payroll.startRun")}
+          </button>
+        </form>
+
+        {runs.length === 0 ? (
+          <p className="text-center text-sm text-foreground/60">{t("payroll.noRuns")}</p>
+        ) : (
+          <ul className="space-y-3">
+            {runs.map((run) => (
+              <li key={run.id} className="rounded-xl bg-white p-4 shadow-sm">
+                <Link href={`/manager/payroll/${run.id}`} className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-foreground">
+                    {monthNames[run.month - 1]} {run.year}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+                      run.status === "completed"
+                        ? "bg-brand-surface text-brand"
+                        : "bg-black/5 text-foreground/60"
+                    }`}
+                  >
+                    {statusLabel[run.status]}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </>
+  );
+}

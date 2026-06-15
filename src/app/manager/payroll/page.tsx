@@ -1,7 +1,13 @@
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { createClient } from "@/lib/supabase/server";
+import { PayrollRunsClient } from "./payroll-runs-client";
 
-export default function ManagerPayrollPage() {
-  return (
-    <PagePlaceholder titleKey="nav.payroll" descriptionKey="common.comingSoon" />
-  );
+export default async function ManagerPayrollPage() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payroll_runs")
+    .select("id, month, year, status")
+    .order("year", { ascending: false })
+    .order("month", { ascending: false });
+
+  return <PayrollRunsClient runs={data ?? []} />;
 }
