@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { approveLeaveRequestAction, rejectLeaveRequestAction } from "./actions";
+import { LeaveCalendar, type LeaveCalendarEntry } from "@/components/leave-calendar";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 
 export interface LeaveRequestRow {
@@ -24,7 +25,13 @@ function employeeName(row: LeaveRequestRow): string {
   return employee?.full_name ?? "—";
 }
 
-export function LeaveApprovalsClient({ requests }: { requests: LeaveRequestRow[] }) {
+export function LeaveApprovalsClient({
+  requests,
+  calendarEntries,
+}: {
+  requests: LeaveRequestRow[];
+  calendarEntries: LeaveCalendarEntry[];
+}) {
   const { t } = useLanguage();
   const [isPending, startTransition] = useTransition();
 
@@ -59,6 +66,13 @@ export function LeaveApprovalsClient({ requests }: { requests: LeaveRequestRow[]
     <>
       <Header titleKey="leave.managerTitle" />
       <main className="flex-1 px-4 py-6">
+        <h2 className="mb-2 text-sm font-semibold text-foreground/60">
+          {t("leave.peopleOnLeave")}
+        </h2>
+        <div className="mb-6">
+          <LeaveCalendar entries={calendarEntries} />
+        </div>
+
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">
           {t("leave.pendingRequests")}
         </h2>

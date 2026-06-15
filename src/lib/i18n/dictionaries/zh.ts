@@ -44,12 +44,18 @@ const zh: Partial<Dictionary> = {
   dashboard: {
     managerTitle: "管理仪表板",
     employeeTitle: "我的仪表板",
+    greeting: "欢迎回来",
+    onLeaveToday: "今日请假",
+    sickLeaveToday: "今日病假",
+    noOneOnLeaveToday: "今天大家都在。",
+    viewLeaveCalendar: "查看请假日历",
   },
   more: {
     managerTitle: "更多",
     contracts: "合同与盈亏",
     announcements: "公告",
     documents: "员工文件",
+    salaryAdvances: "薪资预支",
     rates: "法定费率 (CPF/FWL/SDL)",
     employeeTitle: "更多",
     documentsDesc: "工作准证、护照、人力部文件",

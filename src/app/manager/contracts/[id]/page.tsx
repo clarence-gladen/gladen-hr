@@ -38,12 +38,19 @@ export default async function ContractDetailPage({
       .order("full_name"),
   ]);
 
+  const assignedEmployeeIds = new Set(
+    (assignmentsRes.data ?? []).map((assignment) => assignment.employee_id)
+  );
+  const unassignedEmployees = (employeesRes.data ?? []).filter(
+    (employee) => !assignedEmployeeIds.has(employee.id)
+  );
+
   return (
     <ContractDetailClient
       contract={contract}
       assignments={assignmentsRes.data ?? []}
       expenses={expensesRes.data ?? []}
-      employees={employeesRes.data ?? []}
+      employees={unassignedEmployees}
     />
   );
 }

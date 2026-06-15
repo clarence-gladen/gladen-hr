@@ -3,12 +3,30 @@ import { LeaveApprovalsClient } from "./leave-approvals-client";
 
 export default async function ManagerLeavePage() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("leave_requests")
-    .select(
-      "id, employee_id, leave_type, start_date, end_date, days, reason, status, created_at, employees(full_name)"
-    )
-    .order("created_at", { ascending: false });
 
-  return <LeaveApprovalsClient requests={data ?? []} />;
+  const [requestsRes, approvedRes] = await Promise.all([
+    supabase
+      .from("leave_requests")
+      .select(
+        "id, employee_id, leave_type, start_date, end_date, days, reason, status, created_at, employees(full_name)"
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("leave_requests")
+      .select("id, leave_type, start_date, end_date, employees(full_name)")
+      .eq("status", "approved"),
+  ]);
+
+  const calendarEntries = (approvedRes.data ?? []).map((row) => {
+    const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+    return {
+      id: row.id,
+      full_name: employee?.full_name ?? "—",
+      leave_type: row.leave_type,
+      start_date: row.start_date,
+      end_date: row.end_date,
+    };
+  });
+
+  return <LeaveApprovalsClient requests={requestsRes.data ?? []} calendarEntries={calendarEntries} />;
 }

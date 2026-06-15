@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { calculatePayslip } from "@/lib/payroll/payslip";
 import { getCpfRates, getFwlRates, getSdlConfig } from "@/lib/payroll/rates";
+import {
+  getOutstandingAdvances,
+  recordRepayments,
+  suggestedDeduction,
+} from "@/lib/payroll/salary-advances";
 
 function payDateForRun(month: number, year: number): string {
   // Last day of the payroll month.
@@ -75,6 +80,12 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
   if (!sdlConfig) return;
 
   const employees = employeesRes.data ?? [];
+  const outstandingAdvances = await getOutstandingAdvances(supabase);
+  const advancesByEmployee = new Map<string, number>();
+  for (const advance of outstandingAdvances) {
+    const current = advancesByEmployee.get(advance.employee_id) ?? 0;
+    advancesByEmployee.set(advance.employee_id, current + suggestedDeduction(advance));
+  }
 
   const rows = employees.map((employee) => {
     const result = calculatePayslip(
@@ -84,7 +95,7 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
         allowances: 0,
         reimbursements: 0,
         deductions: 0,
-        salaryAdvanceDeduction: 0,
+        salaryAdvanceDeduction: advancesByEmployee.get(employee.id) ?? 0,
         dateOfBirth: employee.date_of_birth,
         residencyStatus: employee.residency_status,
         skillLevel: employee.skill_level,
@@ -200,7 +211,37 @@ export async function updatePayslipAction(
 
 export async function finalizePayrollRunAction(runId: string): Promise<void> {
   const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("status")
+    .eq("id", runId)
+    .single();
+
+  if (run?.status !== "completed") {
+    const { data: payslips } = await supabase
+      .from("payslips")
+      .select("id, employee_id, salary_advance_deduction")
+      .eq("payroll_run_id", runId);
+
+    const outstandingAdvances = await getOutstandingAdvances(supabase);
+    const advancesByEmployee = new Map<string, typeof outstandingAdvances>();
+    for (const advance of outstandingAdvances) {
+      const list = advancesByEmployee.get(advance.employee_id) ?? [];
+      list.push(advance);
+      advancesByEmployee.set(advance.employee_id, list);
+    }
+
+    for (const payslip of payslips ?? []) {
+      const deduction = Number(payslip.salary_advance_deduction);
+      if (deduction <= 0) continue;
+      const employeeAdvances = advancesByEmployee.get(payslip.employee_id) ?? [];
+      await recordRepayments(supabase, payslip.id, employeeAdvances, deduction);
+    }
+  }
+
   await supabase.from("payroll_runs").update({ status: "completed" }).eq("id", runId);
   revalidatePath(`/manager/payroll/${runId}`);
   revalidatePath("/manager/payroll");
+  revalidatePath("/manager/salary-advances");
 }

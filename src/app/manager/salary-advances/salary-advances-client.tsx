@@ -1,0 +1,227 @@
+"use client";
+
+import { useActionState, useTransition } from "react";
+import { Header } from "@/components/header";
+import { useLanguage } from "@/lib/i18n/language-provider";
+import { cancelSalaryAdvanceAction, createSalaryAdvanceAction } from "./actions";
+import type { ApprovalStatus } from "@/lib/types/database";
+
+interface Repayment {
+  id: string;
+  amount: number;
+  created_at: string;
+}
+
+interface AdvanceRow {
+  id: string;
+  employee_id: string;
+  amount: number;
+  repayment_amount_per_month: number | null;
+  status: ApprovalStatus;
+  notes: string | null;
+  created_at: string;
+  employees: { full_name: string } | { full_name: string }[] | null;
+  salary_advance_repayments: Repayment[];
+  repaid: number;
+  outstanding: number;
+}
+
+interface EmployeeOption {
+  id: string;
+  full_name: string;
+}
+
+function employeeName(row: AdvanceRow): string {
+  const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+  return employee?.full_name ?? "—";
+}
+
+const inputClass =
+  "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const labelClass = "mb-1 block text-sm font-medium text-foreground";
+
+export function SalaryAdvancesClient({
+  advances,
+  employees,
+}: {
+  advances: AdvanceRow[];
+  employees: EmployeeOption[];
+}) {
+  const { t } = useLanguage();
+  const [state, formAction, pending] = useActionState(createSalaryAdvanceAction, {});
+  const [isPending, startTransition] = useTransition();
+
+  const statusLabel: Record<ApprovalStatus, string> = {
+    pending: t("salaryAdvances.pending"),
+    approved: t("salaryAdvances.approved"),
+    rejected: t("salaryAdvances.rejected"),
+  };
+
+  const statusClass: Record<ApprovalStatus, string> = {
+    pending: "bg-amber-100 text-amber-700",
+    approved: "bg-brand/10 text-brand",
+    rejected: "bg-black/5 text-foreground/60",
+  };
+
+  const totalOutstanding = advances
+    .filter((advance) => advance.status === "approved")
+    .reduce((sum, advance) => sum + Math.max(advance.outstanding, 0), 0);
+
+  function handleCancel(advanceId: string) {
+    startTransition(() => {
+      cancelSalaryAdvanceAction(advanceId);
+    });
+  }
+
+  return (
+    <>
+      <Header titleKey="salaryAdvances.title" />
+      <main className="flex-1 px-4 py-6">
+        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
+          <p className="text-2xl font-semibold text-brand">
+            S${totalOutstanding.toFixed(2)}
+          </p>
+          <p className="mt-1 text-sm text-foreground/60">
+            {t("salaryAdvances.totalOutstanding")}
+          </p>
+        </div>
+
+        <h2 className="mb-2 text-sm font-semibold text-foreground/60">
+          {t("salaryAdvances.newAdvance")}
+        </h2>
+        <form action={formAction} className="mb-6 space-y-4 rounded-xl bg-white p-4 shadow-sm">
+          <div>
+            <label className={labelClass} htmlFor="employeeId">
+              {t("salaryAdvances.employee")}
+            </label>
+            <select id="employeeId" name="employeeId" className={inputClass} defaultValue="">
+              <option value="" disabled>
+                {t("salaryAdvances.employee")}
+              </option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="amount">
+              {t("salaryAdvances.amount")}
+            </label>
+            <input
+              id="amount"
+              name="amount"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="repaymentAmountPerMonth">
+              {t("salaryAdvances.repaymentPerMonth")}
+            </label>
+            <input
+              id="repaymentAmountPerMonth"
+              name="repaymentAmountPerMonth"
+              type="number"
+              min="0"
+              step="0.01"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-foreground/50">{t("salaryAdvances.repaymentHint")}</p>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="notes">
+              {t("salaryAdvances.notes")}
+            </label>
+            <textarea id="notes" name="notes" rows={2} className={inputClass} />
+          </div>
+
+          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-lg bg-brand py-3 text-base font-semibold text-white transition disabled:opacity-60"
+          >
+            {pending ? t("common.loading") : t("salaryAdvances.record")}
+          </button>
+        </form>
+
+        {advances.length === 0 ? (
+          <p className="text-center text-sm text-foreground/60">{t("salaryAdvances.noAdvances")}</p>
+        ) : (
+          <ul className="space-y-3">
+            {advances.map((advance) => (
+              <li key={advance.id} className="rounded-xl bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{employeeName(advance)}</p>
+                    <p className="text-sm text-foreground/60">
+                      S${advance.amount.toFixed(2)}
+                      {advance.repayment_amount_per_month != null
+                        ? ` · S$${advance.repayment_amount_per_month.toFixed(2)}/mo`
+                        : ""}
+                    </p>
+                    <p className="text-xs text-foreground/40">
+                      {t("salaryAdvances.requestedOn")} {new Date(advance.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusClass[advance.status]}`}
+                  >
+                    {statusLabel[advance.status]}
+                  </span>
+                </div>
+
+                <div className="mt-3 rounded-lg bg-black/5 p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-foreground/60">{t("salaryAdvances.outstanding")}</span>
+                    <span className="font-semibold text-foreground">
+                      {advance.outstanding > 0.001
+                        ? `S$${advance.outstanding.toFixed(2)}`
+                        : t("salaryAdvances.fullyRepaid")}
+                    </span>
+                  </div>
+                </div>
+
+                {advance.salary_advance_repayments.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-1 text-xs font-semibold text-foreground/60">
+                      {t("salaryAdvances.repaymentHistory")}
+                    </p>
+                    <ul className="space-y-1">
+                      {advance.salary_advance_repayments.map((repayment) => (
+                        <li key={repayment.id} className="flex justify-between text-xs text-foreground/60">
+                          <span>{new Date(repayment.created_at).toLocaleDateString()}</span>
+                          <span>S${repayment.amount.toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {advance.status === "approved" && advance.outstanding > 0.001 && (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleCancel(advance.id)}
+                    className="mt-3 rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-foreground disabled:opacity-60"
+                  >
+                    {t("salaryAdvances.cancelAdvance")}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </>
+  );
+}

@@ -1,38 +1,44 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
+import { getExpiringDocuments } from "@/lib/documents/expiry";
+import { DashboardClient } from "./dashboard-client";
 
-import { Header } from "@/components/header";
-import { useLanguage } from "@/lib/i18n/language-provider";
+export default async function ManagerDashboardPage() {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
 
-const summaryCards = [
-  { labelKey: "summary.totalEmployees", value: "50" },
-  { labelKey: "summary.onLeaveToday", value: "0" },
-  { labelKey: "summary.pendingApprovals", value: "0" },
-  { labelKey: "summary.expiringDocuments", value: "0" },
-];
+  const [employeesRes, onLeaveTodayRes, pendingRes, expiringDocs] = await Promise.all([
+    supabase
+      .from("employees")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active"),
+    supabase
+      .from("leave_requests")
+      .select("id, leave_type, employees(full_name)")
+      .eq("status", "approved")
+      .lte("start_date", today)
+      .gte("end_date", today),
+    supabase
+      .from("leave_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
+    getExpiringDocuments(supabase),
+  ]);
 
-export default function ManagerDashboardPage() {
-  const { t } = useLanguage();
+  const onLeaveToday = (onLeaveTodayRes.data ?? []).map((row) => {
+    const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+    return {
+      id: row.id,
+      full_name: employee?.full_name ?? "—",
+      leave_type: row.leave_type,
+    };
+  });
 
   return (
-    <>
-      <Header titleKey="dashboard.managerTitle" />
-      <main className="flex-1 px-4 py-6">
-        <div className="grid grid-cols-2 gap-4">
-          {summaryCards.map((card) => (
-            <div
-              key={card.labelKey}
-              className="rounded-xl bg-white p-4 shadow-sm"
-            >
-              <p className="text-2xl font-semibold text-brand">
-                {card.value}
-              </p>
-              <p className="mt-1 text-sm text-foreground/60">
-                {t(card.labelKey)}
-              </p>
-            </div>
-          ))}
-        </div>
-      </main>
-    </>
+    <DashboardClient
+      totalEmployees={employeesRes.count ?? 0}
+      onLeaveToday={onLeaveToday}
+      pendingApprovals={pendingRes.count ?? 0}
+      expiringDocuments={expiringDocs.length}
+    />
   );
 }
