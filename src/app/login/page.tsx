@@ -8,10 +8,8 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 import { LanguageToggle } from "@/components/language-toggle";
 
 function normalizePhone(input: string): string {
-  const trimmed = input.replace(/[\s-]/g, "");
-  if (trimmed.startsWith("+")) return trimmed;
-  // Default to Singapore country code for local 8-digit numbers
-  return `+65${trimmed}`;
+  const digits = input.replace(/\D/g, "");
+  return `+65${digits}`;
 }
 
 export default function LoginPage() {
@@ -125,16 +123,21 @@ export default function LoginPage() {
               >
                 {t("auth.phoneLabel")}
               </label>
-              <input
-                id="phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder={t("auth.phonePlaceholder")}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-              />
+              <div className="flex items-center rounded-lg border border-black/10 bg-white focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+                <span className="pl-4 pr-2 text-base text-foreground/60">
+                  +65
+                </span>
+                <input
+                  id="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder="9123 4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-transparent py-3 pr-4 text-base focus:outline-none"
+                />
+              </div>
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
