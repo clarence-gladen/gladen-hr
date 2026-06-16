@@ -83,7 +83,7 @@ export function PayslipDetailClient({ slip }: { slip: PayslipDetail }) {
               </>
             )}
 
-            {(slip.cpf_employer > 0 || slip.fwl_amount > 0 || slip.sdl_amount > 0) && (
+            {(slip.cpf_employer > 0 || slip.fwl_amount > 0) && (
               <>
                 <div className="px-4 py-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-foreground/40">
@@ -92,7 +92,6 @@ export function PayslipDetailClient({ slip }: { slip: PayslipDetail }) {
                 </div>
                 <LineItem label={t("payroll.cpfEmployer")} amount={slip.cpf_employer} />
                 <LineItem label={t("payroll.fwl")} amount={slip.fwl_amount} />
-                <LineItem label={t("payroll.sdl")} amount={slip.sdl_amount} />
               </>
             )}
 
