@@ -1,8 +1,6 @@
-import Image from "next/image";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Header } from "@/components/header";
 import { getConfirmationDate } from "@/lib/leave/entitlement";
+import { EmployeeDashboardClient } from "./dashboard-client";
 
 export default async function EmployeeDashboardPage() {
   const supabase = await createClient();
@@ -17,7 +15,6 @@ export default async function EmployeeDashboardPage() {
   const employeeId = profile?.employee_id;
   const currentYear = new Date().getFullYear();
   const todayStr = new Date().toISOString().slice(0, 10);
-
   const todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
@@ -26,18 +23,12 @@ export default async function EmployeeDashboardPage() {
 
   const [employeeRes, balanceRes, payslipRes, announcementsRes, readsRes] = await Promise.all([
     employeeId
-      ? supabase
-          .from("employees")
-          .select("employment_start_date")
-          .eq("id", employeeId)
-          .maybeSingle()
+      ? supabase.from("employees").select("employment_start_date").eq("id", employeeId).maybeSingle()
       : Promise.resolve({ data: null }),
     employeeId
       ? supabase
           .from("leave_balances")
-          .select(
-            "annual_entitlement, annual_used, sick_entitlement, sick_used"
-          )
+          .select("annual_entitlement, annual_used, sick_entitlement, sick_used")
           .eq("employee_id", employeeId)
           .eq("year", currentYear)
           .maybeSingle()
@@ -53,10 +44,7 @@ export default async function EmployeeDashboardPage() {
       : Promise.resolve({ data: null }),
     supabase.from("announcements").select("id"),
     employeeId
-      ? supabase
-          .from("announcement_reads")
-          .select("announcement_id")
-          .eq("employee_id", employeeId)
+      ? supabase.from("announcement_reads").select("announcement_id").eq("employee_id", employeeId)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -83,60 +71,19 @@ export default async function EmployeeDashboardPage() {
     ? new Date(runData.year, runData.month - 1).toLocaleDateString(undefined, { month: "short", year: "numeric" })
     : null;
 
+  const firstName = profile?.full_name?.split(" ")[0] ?? null;
+
   return (
-    <>
-      <Header titleKey="dashboard.employeeTitle" />
-      <main className="flex-1 px-4 py-6">
-        <div className="mb-6 flex items-center gap-4 rounded-xl bg-white p-4 shadow-sm">
-          <div className="relative h-12 w-12 shrink-0">
-            <Image
-              src="/images/logo-blue.png"
-              alt="Gladen Maintenance Services"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-          <div>
-            <p className="text-base font-semibold text-foreground">
-              {profile?.full_name ? `Hi, ${profile.full_name.split(" ")[0]}` : "Welcome"}
-            </p>
-            <p className="text-sm text-foreground/60">{todayLabel}</p>
-          </div>
-        </div>
-
-        {onProbation && confirmDateLabel && (
-          <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            You are on probation until <span className="font-semibold">{confirmDateLabel}</span>. Leave entitlements will be available after confirmation.
-          </div>
-        )}
-
-        <div className="mb-6 grid grid-cols-2 gap-4">
-          <Link href="/employee/leave/annual" className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-2xl font-semibold text-brand">{annualAvail}</p>
-            <p className="mt-1 text-sm text-foreground/60">Annual Leave Left</p>
-          </Link>
-
-          <Link href="/employee/leave/sick" className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-2xl font-semibold text-brand">{sickAvail}</p>
-            <p className="mt-1 text-sm text-foreground/60">Sick Leave Left</p>
-          </Link>
-
-          <Link href="/employee/announcements" className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-2xl font-semibold text-brand">{unreadCount}</p>
-            <p className="mt-1 text-sm text-foreground/60">Unread Announcements</p>
-          </Link>
-
-          <Link href="/employee/payslips" className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-2xl font-semibold text-brand">
-              {payslip ? `S$${Number(payslip.net_pay).toFixed(2)}` : "—"}
-            </p>
-            <p className="mt-1 text-sm text-foreground/60">
-              {payslipLabel ? `Last Pay (${payslipLabel})` : "Latest Payslip"}
-            </p>
-          </Link>
-        </div>
-      </main>
-    </>
+    <EmployeeDashboardClient
+      firstName={firstName}
+      todayLabel={todayLabel}
+      annualAvail={annualAvail}
+      sickAvail={sickAvail}
+      unreadCount={unreadCount}
+      netPay={payslip ? Number(payslip.net_pay) : null}
+      payslipLabel={payslipLabel}
+      onProbation={onProbation}
+      confirmDateLabel={confirmDateLabel}
+    />
   );
 }

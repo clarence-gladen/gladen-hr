@@ -80,7 +80,7 @@ export function LeaveHistoryClient({
       <main className="flex-1 px-4 py-6">
         {onProbation && confirmDateLabel && selectedYear === currentYear && (
           <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            On probation until <span className="font-semibold">{confirmDateLabel}</span>. Leave available after confirmation.
+            {t("leave.probationUntil")} <span className="font-semibold">{confirmDateLabel}</span>. {t("leave.leaveAvailableAfter")}
           </div>
         )}
 
@@ -89,9 +89,9 @@ export function LeaveHistoryClient({
             {available !== null ? `${available}` : "—"}
           </p>
           <p className="mt-1 text-sm text-foreground/60">
-            days available
+            {t("leave.daysAvailable")}
             {balance && !onProbation
-              ? ` · ${balance.used} used of ${balance.entitlement}`
+              ? ` · ${balance.used} ${t("leave.used")} of ${balance.entitlement}`
               : ""}
           </p>
           {balance && !onProbation && balance.entitlement > 0 && (
@@ -122,10 +122,10 @@ export function LeaveHistoryClient({
         </div>
 
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">
-          Leave Taken in {selectedYear}
+          {t("leave.leaveTakenIn")} {selectedYear}
         </h2>
         {yearRequests.length === 0 ? (
-          <p className="text-sm text-foreground/60">No {title.toLowerCase()} taken in {selectedYear}.</p>
+          <p className="text-sm text-foreground/60">{t("leave.noRequests")}</p>
         ) : (
           <ul className="space-y-3">
             {yearRequests.map((req) => (
@@ -151,7 +151,7 @@ export function LeaveHistoryClient({
 
         <div className="mt-6">
           <Link href="/employee/leave" className="block text-center text-sm font-medium text-brand">
-            ← Apply for Leave
+            ← {t("leave.applyLeave")}
           </Link>
         </div>
       </main>
