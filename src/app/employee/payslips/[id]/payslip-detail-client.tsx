@@ -16,11 +16,25 @@ export interface PayslipDetail {
   cpf_employee: number;
   cpf_employer: number;
   net_pay: number;
-  periodLabel: string;
+  month: number | null;
+  year: number | null;
 }
 
 export function PayslipDetailClient({ slip, downloadUrl }: { slip: PayslipDetail; downloadUrl?: string }) {
   const { t } = useLanguage();
+
+  const periodLabel = slip.month && slip.year
+    ? new Date(slip.year, slip.month - 1).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    : "—";
+
+  const periodRange = slip.month && slip.year
+    ? (() => {
+        const lastDay = new Date(slip.year!, slip.month!, 0).getDate();
+        const start = new Date(slip.year!, slip.month! - 1, 1).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+        const end = new Date(slip.year!, slip.month! - 1, lastDay).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+        return `${start} – ${end}`;
+      })()
+    : null;
 
   function LineItem({
     label,
@@ -54,14 +68,17 @@ export function PayslipDetailClient({ slip, downloadUrl }: { slip: PayslipDetail
 
   return (
     <>
-      <Header title={`${t("payslips.payslipFor")} – ${slip.periodLabel}`} />
+      <Header title={`${t("payslips.payslipFor")} – ${periodLabel}`} />
       <main className="flex-1 px-4 py-6">
         <div className="mb-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="bg-brand px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
               {t("payslips.period")}
             </p>
-            <p className="text-lg font-semibold text-white">{slip.periodLabel}</p>
+            <p className="text-lg font-semibold text-white">{periodLabel}</p>
+            {periodRange && (
+              <p className="text-xs text-white/60">{periodRange}</p>
+            )}
           </div>
 
           <div className="divide-y divide-black/5">

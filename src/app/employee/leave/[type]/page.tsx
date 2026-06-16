@@ -4,7 +4,7 @@ import { getConfirmationDate } from "@/lib/leave/entitlement";
 import { LeaveHistoryClient } from "./leave-history-client";
 import type { LeaveType } from "@/lib/types/database";
 
-const VALID_TYPES: LeaveType[] = ["annual", "sick", "hospitalization"];
+const VALID_TYPES: LeaveType[] = ["annual", "sick", "hospitalization", "no_pay"];
 
 export default async function LeaveTypePage({
   params,
@@ -54,7 +54,7 @@ export default async function LeaveTypePage({
     ? confirmationDate.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : null;
 
-  const balancesByYear = (balancesRes.data ?? []).map((b) => {
+  const balancesByYear = leaveType === "no_pay" ? [] : (balancesRes.data ?? []).map((b) => {
     let entitlement = 0;
     let used = 0;
     if (leaveType === "annual") { entitlement = b.annual_entitlement; used = b.annual_used; }

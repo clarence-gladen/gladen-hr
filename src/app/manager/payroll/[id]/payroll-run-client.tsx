@@ -41,10 +41,9 @@ function employeeName(row: PayslipRow): string {
   return e?.full_name ?? "—";
 }
 
-const monthNames = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+const monthNames = Array.from({ length: 12 }, (_, i) =>
+  new Date(2024, i, 1).toLocaleDateString(undefined, { month: "long" })
+);
 
 const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";

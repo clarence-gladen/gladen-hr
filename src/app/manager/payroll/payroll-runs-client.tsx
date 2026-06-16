@@ -29,10 +29,9 @@ export function PayrollRunsClient({ runs }: { runs: PayrollRunRow[] }) {
   };
 
   const now = new Date();
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
+  const monthNames = Array.from({ length: 12 }, (_, i) =>
+    new Date(2024, i, 1).toLocaleDateString(undefined, { month: "long" })
+  );
 
   return (
     <>
