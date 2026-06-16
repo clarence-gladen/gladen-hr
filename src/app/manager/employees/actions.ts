@@ -143,7 +143,8 @@ export async function updateEmployeeAction(
   );
 
   revalidatePath("/manager/employees");
-  redirect("/manager/employees");
+  revalidatePath(`/manager/employees/${id}`);
+  redirect(`/manager/employees/${id}`);
 }
 
 export async function setEmployeeStatusAction(
@@ -153,4 +154,19 @@ export async function setEmployeeStatusAction(
   const supabase = await createClient();
   await supabase.from("employees").update({ status }).eq("id", id);
   revalidatePath("/manager/employees");
+}
+
+export async function offboardEmployeeAction(
+  id: string,
+  endDate: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("employees")
+    .update({ status: "inactive", employment_end_date: endDate })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/manager/employees");
+  revalidatePath(`/manager/employees/${id}`);
+  return {};
 }

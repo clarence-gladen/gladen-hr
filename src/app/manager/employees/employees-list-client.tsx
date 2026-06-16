@@ -15,6 +15,7 @@ export interface EmployeeRow {
   residency_status: ResidencyStatus;
   designation: string | null;
   status: EmployeeStatus;
+  employment_end_date: string | null;
 }
 
 export function EmployeesListClient({ employees }: { employees: EmployeeRow[] }) {
@@ -69,6 +70,11 @@ export function EmployeesListClient({ employees }: { employees: EmployeeRow[] })
                     <p className="mt-1 text-sm text-foreground/60">
                       +{employee.mobile_number} · NRIC •••{employee.nric_last4}
                     </p>
+                    {employee.status === "inactive" && employee.employment_end_date && (
+                      <p className="mt-1 text-xs text-foreground/40">
+                        {t("employees.endedOn")} {employee.employment_end_date}
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"

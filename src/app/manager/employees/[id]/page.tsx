@@ -1,45 +1,42 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { EmployeeForm, type EmployeeFormDefaults } from "../employee-form";
-import { updateEmployeeAction } from "../actions";
+import { EmployeeDetailClient } from "./employee-detail-client";
+import type { EmployeeDetail, ResidencyStatus, SkillLevel, EmployeeStatus } from "@/lib/types/database";
 
-export default async function EditEmployeePage({
+export default async function EmployeeDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: employee } = await supabase
+
+  const { data } = await supabase
     .from("employees")
     .select(
-      "full_name, date_of_birth, mobile_number, residency_status, designation, employment_start_date, base_salary, skill_level, bank_name, bank_account_number"
+      "id, full_name, nric_last4, date_of_birth, mobile_number, residency_status, designation, employment_start_date, employment_end_date, base_salary, skill_level, bank_name, bank_account_number, status"
     )
     .eq("id", id)
     .maybeSingle();
 
-  if (!employee) notFound();
+  if (!data) notFound();
 
-  const defaultValues: EmployeeFormDefaults = {
-    fullName: employee.full_name,
-    nric: "",
-    dateOfBirth: employee.date_of_birth,
-    mobileNumber: employee.mobile_number.replace(/^65/, ""),
-    residencyStatus: employee.residency_status,
-    designation: employee.designation ?? "",
-    employmentStartDate: employee.employment_start_date,
-    baseSalary: String(employee.base_salary),
-    skillLevel: employee.skill_level,
-    bankName: employee.bank_name ?? "",
-    bankAccountNumber: employee.bank_account_number ?? "",
+  const employee: EmployeeDetail = {
+    id: data.id,
+    full_name: data.full_name,
+    nric_last4: data.nric_last4,
+    date_of_birth: data.date_of_birth,
+    mobile_number: data.mobile_number,
+    residency_status: data.residency_status as ResidencyStatus,
+    designation: data.designation,
+    employment_start_date: data.employment_start_date,
+    employment_end_date: data.employment_end_date,
+    base_salary: Number(data.base_salary),
+    skill_level: data.skill_level as SkillLevel,
+    bank_name: data.bank_name,
+    bank_account_number: data.bank_account_number,
+    status: data.status as EmployeeStatus,
   };
 
-  return (
-    <EmployeeForm
-      titleKey="employees.editEmployee"
-      action={updateEmployeeAction.bind(null, id)}
-      defaultValues={defaultValues}
-      isEdit
-    />
-  );
+  return <EmployeeDetailClient employee={employee} />;
 }
