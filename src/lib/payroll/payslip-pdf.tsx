@@ -197,7 +197,7 @@ function PayslipDocument({ data }: { data: PayslipPdfData }) {
           <Image src={logoPath} style={styles.logo} />
           <View style={styles.headerRight}>
             <Text style={styles.companyName}>Gladen Maintenance Services (S) Pte Ltd</Text>
-            <Text style={styles.companyDetail}>UEN: (your UEN here)</Text>
+            <Text style={styles.companyDetail}>UEN: 199604077R</Text>
             <Text style={styles.companyDetail}>Singapore</Text>
           </View>
         </View>
