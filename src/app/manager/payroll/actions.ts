@@ -225,10 +225,14 @@ export async function generatePdfsAction(runId: string): Promise<{ error?: strin
 
   if (!run) return { error: "Payroll run not found." };
 
-  const periodLabel = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
-    month: "long",
-    year: "numeric",
-  });
+  const lastDay = new Date(run.year, run.month, 0).getDate();
+  const monthName = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", { month: "long" });
+  function ord(n: number) {
+    const v = n % 100;
+    const s = v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+    return `${n}${s}`;
+  }
+  const periodLabel = `${ord(1)} ${monthName} ${run.year} to ${ord(lastDay)} ${monthName} ${run.year}`;
 
   const { data: payslips } = await supabase
     .from("payslips")

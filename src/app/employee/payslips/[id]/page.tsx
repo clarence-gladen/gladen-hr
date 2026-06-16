@@ -2,6 +2,18 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PayslipDetailClient } from "./payslip-detail-client";
 
+function ordinal(n: number): string {
+  const v = n % 100;
+  const suffix = v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+  return `${n}${suffix}`;
+}
+
+function payPeriodRange(month: number, year: number): string {
+  const lastDay = new Date(year, month, 0).getDate();
+  const monthName = new Date(year, month - 1).toLocaleDateString("en-SG", { month: "long" });
+  return `${ordinal(1)} ${monthName} ${year} to ${ordinal(lastDay)} ${monthName} ${year}`;
+}
+
 export default async function EmployeePayslipDetailPage({
   params,
 }: {
@@ -32,9 +44,7 @@ export default async function EmployeePayslipDetailPage({
   if (!slip) notFound();
 
   const run = Array.isArray(slip.payroll_runs) ? slip.payroll_runs[0] : slip.payroll_runs;
-  const periodLabel = run
-    ? new Date(run.year, run.month - 1).toLocaleDateString(undefined, { month: "long", year: "numeric" })
-    : "—";
+  const periodLabel = run ? payPeriodRange(run.month, run.year) : "—";
 
   let downloadUrl: string | undefined;
   if (slip.pdf_url) {

@@ -8,6 +8,7 @@ export interface PayslipRow {
   id: string;
   net_pay: number;
   label: string;
+  periodRange: string | null;
 }
 
 export function PayslipsClient({ payslips }: { payslips: PayslipRow[] }) {
@@ -29,6 +30,9 @@ export function PayslipsClient({ payslips }: { payslips: PayslipRow[] }) {
                 >
                   <div>
                     <p className="font-semibold text-foreground">{slip.label}</p>
+                    {slip.periodRange && (
+                      <p className="text-xs text-foreground/50">{slip.periodRange}</p>
+                    )}
                     <p className="mt-1 text-sm text-foreground/60">
                       {t("payroll.netPay")}: S${slip.net_pay.toFixed(2)}
                     </p>
