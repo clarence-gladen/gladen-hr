@@ -290,6 +290,14 @@ const en = {
     fullName: "Full Name",
     mobile: "Mobile",
   },
+  notifications: {
+    title: "Notifications",
+    none: "No notifications yet.",
+    justNow: "Just now",
+    minsAgo: "m ago",
+    hoursAgo: "h ago",
+    daysAgo: "d ago",
+  },
   documents: {
     title: "Employee Documents",
     expiringSoon: "Expiring Soon",

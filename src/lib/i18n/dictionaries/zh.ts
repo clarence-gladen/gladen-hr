@@ -253,6 +253,14 @@ const zh: Partial<Dictionary> = {
     markRead: "标为已读",
     unread: "未读",
   },
+  notifications: {
+    title: "通知",
+    none: "暂无通知。",
+    justNow: "刚刚",
+    minsAgo: "分钟前",
+    hoursAgo: "小时前",
+    daysAgo: "天前",
+  },
   documents: {
     title: "员工文件",
     expiringSoon: "即将到期",
