@@ -12,25 +12,14 @@ create table if not exists notifications (
 
 alter table notifications enable row level security;
 
--- Users see only their own notifications
-do $$ begin
-  if not exists (
-    select 1 from pg_policies where tablename = 'notifications' and policyname = 'notifications_self_select'
-  ) then
-    create policy "notifications_self_select" on notifications
-      for select using (user_id = auth.uid());
-  end if;
-end $$;
+-- Drop and recreate policies so this script is safe to re-run
+drop policy if exists "notifications_self_select" on notifications;
+create policy "notifications_self_select" on notifications
+  for select using (user_id = auth.uid());
 
--- Users can mark their own notifications as read
-do $$ begin
-  if not exists (
-    select 1 from pg_policies where tablename = 'notifications' and policyname = 'notifications_self_update'
-  ) then
-    create policy "notifications_self_update" on notifications
-      for update using (user_id = auth.uid());
-  end if;
-end $$;
+drop policy if exists "notifications_self_update" on notifications;
+create policy "notifications_self_update" on notifications
+  for update using (user_id = auth.uid());
 
 -- Trigger: when an employee submits a leave request, notify all managers
 create or replace function notify_managers_of_leave_request()
