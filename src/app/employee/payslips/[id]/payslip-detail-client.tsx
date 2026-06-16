@@ -20,7 +20,7 @@ export interface PayslipDetail {
   periodLabel: string;
 }
 
-export function PayslipDetailClient({ slip }: { slip: PayslipDetail }) {
+export function PayslipDetailClient({ slip, downloadUrl }: { slip: PayslipDetail; downloadUrl?: string }) {
   const { t } = useLanguage();
 
   function LineItem({
@@ -103,6 +103,17 @@ export function PayslipDetailClient({ slip }: { slip: PayslipDetail }) {
             </div>
           </div>
         </div>
+
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-3 block w-full rounded-lg bg-brand py-3 text-center text-sm font-semibold text-white"
+          >
+            {t("payslips.download")}
+          </a>
+        )}
 
         <Link href="/employee/payslips" className="block text-center text-sm font-medium text-brand">
           ← {t("payslips.backToPayslips")}

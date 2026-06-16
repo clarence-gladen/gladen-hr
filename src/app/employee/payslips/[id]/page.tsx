@@ -23,7 +23,7 @@ export default async function EmployeePayslipDetailPage({
   const { data: slip } = await supabase
     .from("payslips")
     .select(
-      "id, basic_salary, overtime_amount, allowances, reimbursements, deductions, salary_advance_deduction, cpf_employee, cpf_employer, fwl_amount, sdl_amount, net_pay, payroll_runs(month, year)"
+      "id, basic_salary, overtime_amount, allowances, reimbursements, deductions, salary_advance_deduction, cpf_employee, cpf_employer, fwl_amount, sdl_amount, net_pay, pdf_url, payroll_runs(month, year)"
     )
     .eq("id", id)
     .eq("employee_id", employeeId)
@@ -35,6 +35,14 @@ export default async function EmployeePayslipDetailPage({
   const periodLabel = run
     ? new Date(run.year, run.month - 1).toLocaleDateString(undefined, { month: "long", year: "numeric" })
     : "—";
+
+  let downloadUrl: string | undefined;
+  if (slip.pdf_url) {
+    const { data: signed } = await supabase.storage
+      .from("payslips")
+      .createSignedUrl(slip.pdf_url, 3600);
+    downloadUrl = signed?.signedUrl;
+  }
 
   return (
     <PayslipDetailClient
@@ -53,6 +61,7 @@ export default async function EmployeePayslipDetailPage({
         net_pay: Number(slip.net_pay),
         periodLabel,
       }}
+      downloadUrl={downloadUrl}
     />
   );
 }

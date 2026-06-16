@@ -10,6 +10,7 @@ import {
   recordRepayments,
   suggestedDeduction,
 } from "@/lib/payroll/salary-advances";
+import { generatePayslipPdf } from "@/lib/payroll/payslip-pdf";
 
 function payDateForRun(month: number, year: number): string {
   // Last day of the payroll month.
@@ -206,6 +207,60 @@ export async function updatePayslipAction(
   }
 
   revalidatePath(`/manager/payroll/${payslip.payroll_run_id}`);
+  return {};
+}
+
+export async function generatePdfsAction(runId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("month, year")
+    .eq("id", runId)
+    .single();
+
+  if (!run) return { error: "Payroll run not found." };
+
+  const periodLabel = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const { data: payslips } = await supabase
+    .from("payslips")
+    .select("id, employee_id, basic_salary, overtime_amount, allowances, reimbursements, deductions, salary_advance_deduction, cpf_employee, cpf_employer, fwl_amount, sdl_amount, net_pay, employees(full_name)")
+    .eq("payroll_run_id", runId);
+
+  if (!payslips || payslips.length === 0) return { error: "No payslips to generate." };
+
+  for (const payslip of payslips) {
+    const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
+    const pdfBuffer = await generatePayslipPdf({
+      employeeName: emp?.full_name ?? "Unknown",
+      periodLabel,
+      basicSalary: Number(payslip.basic_salary),
+      overtimeAmount: Number(payslip.overtime_amount),
+      allowances: Number(payslip.allowances),
+      reimbursements: Number(payslip.reimbursements),
+      deductions: Number(payslip.deductions),
+      salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
+      cpfEmployee: Number(payslip.cpf_employee),
+      cpfEmployer: Number(payslip.cpf_employer),
+      fwlAmount: Number(payslip.fwl_amount),
+      netPay: Number(payslip.net_pay),
+    });
+
+    const path = `${payslip.employee_id}/${payslip.id}.pdf`;
+    const { error: uploadError } = await supabase.storage
+      .from("payslips")
+      .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
+
+    if (!uploadError) {
+      await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
+    }
+  }
+
+  revalidatePath(`/manager/payroll/${runId}`);
   return {};
 }
 

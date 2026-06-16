@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 import {
   finalizePayrollRunAction,
   generatePayslipsAction,
+  generatePdfsAction,
   updatePayslipAction,
 } from "../actions";
 import type { PayrollStatus } from "@/lib/types/database";
@@ -200,6 +201,7 @@ export function PayrollRunClient({
 }) {
   const { t } = useLanguage();
   const [isPending, startTransition] = useTransition();
+  const [pdfMessage, setPdfMessage] = useState<string | null>(null);
 
   function handleGenerate() {
     startTransition(() => {
@@ -210,6 +212,14 @@ export function PayrollRunClient({
   function handleFinalize() {
     startTransition(() => {
       finalizePayrollRunAction(run.id);
+    });
+  }
+
+  function handleGeneratePdfs() {
+    setPdfMessage(null);
+    startTransition(async () => {
+      const result = await generatePdfsAction(run.id);
+      setPdfMessage(result.error ?? t("payroll.pdfsGenerated"));
     });
   }
 
@@ -240,6 +250,21 @@ export function PayrollRunClient({
             </button>
           )}
         </div>
+        {payslips.length > 0 && (
+          <div className="mb-4">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleGeneratePdfs}
+              className="w-full rounded-lg border border-brand py-3 text-sm font-semibold text-brand disabled:opacity-60"
+            >
+              {isPending ? t("common.loading") : t("payroll.generatePdfs")}
+            </button>
+            {pdfMessage && (
+              <p className="mt-2 text-center text-sm text-foreground/60">{pdfMessage}</p>
+            )}
+          </div>
+        )}
 
         {payslips.length === 0 ? (
           <p className="text-center text-sm text-foreground/60">{t("payroll.noPayslips")}</p>

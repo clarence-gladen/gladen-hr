@@ -175,6 +175,8 @@ const en = {
     netPay: "Net Pay",
     save: "Save",
     back: "Back to Payroll Runs",
+    generatePdfs: "Generate PDF Payslips",
+    pdfsGenerated: "PDFs generated successfully.",
   },
   salaryAdvances: {
     title: "Salary Advances",
@@ -276,6 +278,7 @@ const en = {
     employerContributions: "Employer Contributions",
     backToPayslips: "Back to Payslips",
     payslipFor: "Payslip",
+    download: "Download PDF",
   },
   profile: {
     title: "My Profile",

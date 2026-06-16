@@ -177,6 +177,8 @@ const zh: Partial<Dictionary> = {
     netPay: "实发工资",
     save: "保存",
     back: "返回薪资周期",
+    generatePdfs: "生成PDF工资单",
+    pdfsGenerated: "PDF已成功生成。",
   },
   salaryAdvances: {
     title: "薪资预支",
@@ -309,6 +311,7 @@ const zh: Partial<Dictionary> = {
     employerContributions: "雇主缴费",
     backToPayslips: "返回工资单",
     payslipFor: "工资单",
+    download: "下载PDF",
   },
   profile: {
     title: "我的资料",
