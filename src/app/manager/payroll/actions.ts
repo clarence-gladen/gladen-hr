@@ -92,11 +92,12 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
     const result = calculatePayslip(
       {
         basicSalary: Number(employee.base_salary),
-        overtimeAmount: 0,
+        transportAllowance: 0,
         allowances: 0,
-        reimbursements: 0,
-        deductions: 0,
+        overtimeAmount: 0,
+        midMonthPayment: 0,
         salaryAdvanceDeduction: advancesByEmployee.get(employee.id) ?? 0,
+        deductions: 0,
         dateOfBirth: employee.date_of_birth,
         residencyStatus: employee.residency_status,
         skillLevel: employee.skill_level,
@@ -109,11 +110,12 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
       payroll_run_id: runId,
       employee_id: employee.id,
       basic_salary: result.basicSalary,
-      overtime_amount: result.overtimeAmount,
+      transport_allowance: result.transportAllowance,
       allowances: result.allowances,
-      reimbursements: result.reimbursements,
-      deductions: result.deductions,
+      overtime_amount: result.overtimeAmount,
+      mid_month_payment: result.midMonthPayment,
       salary_advance_deduction: result.salaryAdvanceDeduction,
+      deductions: result.deductions,
       cpf_employee: result.cpfEmployee,
       cpf_employer: result.cpfEmployer,
       fwl_amount: result.fwlAmount,
@@ -172,11 +174,12 @@ export async function updatePayslipAction(
   const result = calculatePayslip(
     {
       basicSalary: Number(formData.get("basicSalary")) || 0,
-      overtimeAmount: Number(formData.get("overtimeAmount")) || 0,
+      transportAllowance: Number(formData.get("transportAllowance")) || 0,
       allowances: Number(formData.get("allowances")) || 0,
-      reimbursements: Number(formData.get("reimbursements")) || 0,
-      deductions: Number(formData.get("deductions")) || 0,
+      overtimeAmount: Number(formData.get("overtimeAmount")) || 0,
+      midMonthPayment: Number(formData.get("midMonthPayment")) || 0,
       salaryAdvanceDeduction: Number(formData.get("salaryAdvanceDeduction")) || 0,
+      deductions: Number(formData.get("deductions")) || 0,
       dateOfBirth: employee.date_of_birth,
       residencyStatus: employee.residency_status,
       skillLevel: employee.skill_level,
@@ -189,11 +192,12 @@ export async function updatePayslipAction(
     .from("payslips")
     .update({
       basic_salary: result.basicSalary,
-      overtime_amount: result.overtimeAmount,
+      transport_allowance: result.transportAllowance,
       allowances: result.allowances,
-      reimbursements: result.reimbursements,
-      deductions: result.deductions,
+      overtime_amount: result.overtimeAmount,
+      mid_month_payment: result.midMonthPayment,
       salary_advance_deduction: result.salaryAdvanceDeduction,
+      deductions: result.deductions,
       cpf_employee: result.cpfEmployee,
       cpf_employer: result.cpfEmployer,
       fwl_amount: result.fwlAmount,
@@ -228,7 +232,7 @@ export async function generatePdfsAction(runId: string): Promise<{ error?: strin
 
   const { data: payslips } = await supabase
     .from("payslips")
-    .select("id, employee_id, basic_salary, overtime_amount, allowances, reimbursements, deductions, salary_advance_deduction, cpf_employee, cpf_employer, fwl_amount, sdl_amount, net_pay, employees(full_name)")
+    .select("id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)")
     .eq("payroll_run_id", runId);
 
   if (!payslips || payslips.length === 0) return { error: "No payslips to generate." };
@@ -242,14 +246,14 @@ export async function generatePdfsAction(runId: string): Promise<{ error?: strin
         employeeName: emp?.full_name ?? "Unknown",
         periodLabel,
         basicSalary: Number(payslip.basic_salary),
-        overtimeAmount: Number(payslip.overtime_amount),
+        transportAllowance: Number(payslip.transport_allowance),
         allowances: Number(payslip.allowances),
-        reimbursements: Number(payslip.reimbursements),
-        deductions: Number(payslip.deductions),
+        overtimeAmount: Number(payslip.overtime_amount),
+        midMonthPayment: Number(payslip.mid_month_payment),
         salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
+        deductions: Number(payslip.deductions),
         cpfEmployee: Number(payslip.cpf_employee),
         cpfEmployer: Number(payslip.cpf_employer),
-        fwlAmount: Number(payslip.fwl_amount),
         netPay: Number(payslip.net_pay),
       });
     } catch (e) {

@@ -11,11 +11,12 @@ import {
 
 export interface PayslipInputs {
   basicSalary: number;
+  transportAllowance: number;
+  allowances: number; // "Other Allowance"
   overtimeAmount: number;
-  allowances: number;
-  reimbursements: number;
-  deductions: number;
-  salaryAdvanceDeduction: number;
+  midMonthPayment: number;
+  salaryAdvanceDeduction: number; // "Salary Loan"
+  deductions: number; // "Other Deductions"
   dateOfBirth: string;
   residencyStatus: ResidencyStatus;
   skillLevel?: SkillLevel;
@@ -29,11 +30,12 @@ export interface PayslipRateTables {
 
 export interface PayslipResult {
   basicSalary: number;
-  overtimeAmount: number;
+  transportAllowance: number;
   allowances: number;
-  reimbursements: number;
-  deductions: number;
+  overtimeAmount: number;
+  midMonthPayment: number;
   salaryAdvanceDeduction: number;
+  deductions: number;
   cpfEmployee: number;
   cpfEmployer: number;
   fwlAmount: number;
@@ -48,19 +50,21 @@ function roundCurrency(value: number): number {
 /**
  * Computes a full payslip breakdown for one employee for one payroll run.
  *
- * - CPF applies only to citizens/PRs, on basic + OT + allowances (Ordinary Wage).
- * - FWL applies only to work permit / S Pass holders, as a flat monthly levy
- *   (an employer cost; it does not reduce the employee's net pay).
- * - SDL applies to every employee's wage and is also an employer-only cost.
- * - Net pay = wage + reimbursements - deductions - salary advance repayment
- *   - employee's own CPF contribution.
+ * Ordinary Wage (CPF basis) = basic + transport allowance + other allowance + overtime.
+ * FWL and SDL are employer-only costs and do not reduce employee net pay.
+ * Net pay = earnings - CPF(employee) - mid-month payment - salary loan - other deductions.
  */
 export function calculatePayslip(
   inputs: PayslipInputs,
   rates: PayslipRateTables,
   payDate: string = new Date().toISOString().slice(0, 10)
 ): PayslipResult {
-  const wage = inputs.basicSalary + inputs.overtimeAmount + inputs.allowances;
+  const ordinaryWage =
+    inputs.basicSalary +
+    inputs.transportAllowance +
+    inputs.allowances +
+    inputs.overtimeAmount;
+
   const isCpfEligible =
     inputs.residencyStatus === "citizen" || inputs.residencyStatus === "pr";
 
@@ -68,7 +72,7 @@ export function calculatePayslip(
   let cpfEmployer = 0;
   if (isCpfEligible) {
     const age = calculateAge(inputs.dateOfBirth, payDate);
-    const cpf = calculateCpf(wage, age, rates.cpfRates);
+    const cpf = calculateCpf(ordinaryWage, age, rates.cpfRates);
     cpfEmployee = cpf.employeeContribution;
     cpfEmployer = cpf.employerContribution;
   }
@@ -81,23 +85,24 @@ export function calculatePayslip(
         rates.fwlRates
       );
 
-  const sdlAmount = calculateSdl(wage, rates.sdlConfig);
+  const sdlAmount = calculateSdl(ordinaryWage, rates.sdlConfig);
 
   const netPay = roundCurrency(
-    wage +
-      inputs.reimbursements -
-      inputs.deductions -
+    ordinaryWage -
+      cpfEmployee -
+      inputs.midMonthPayment -
       inputs.salaryAdvanceDeduction -
-      cpfEmployee
+      inputs.deductions
   );
 
   return {
     basicSalary: inputs.basicSalary,
-    overtimeAmount: inputs.overtimeAmount,
+    transportAllowance: inputs.transportAllowance,
     allowances: inputs.allowances,
-    reimbursements: inputs.reimbursements,
-    deductions: inputs.deductions,
+    overtimeAmount: inputs.overtimeAmount,
+    midMonthPayment: inputs.midMonthPayment,
     salaryAdvanceDeduction: inputs.salaryAdvanceDeduction,
+    deductions: inputs.deductions,
     cpfEmployee,
     cpfEmployer,
     fwlAmount,

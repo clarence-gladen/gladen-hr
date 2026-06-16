@@ -23,7 +23,7 @@ export default async function EmployeePayslipDetailPage({
   const { data: slip } = await supabase
     .from("payslips")
     .select(
-      "id, basic_salary, overtime_amount, allowances, reimbursements, deductions, salary_advance_deduction, cpf_employee, cpf_employer, fwl_amount, sdl_amount, net_pay, pdf_url, payroll_runs(month, year)"
+      "id, basic_salary, transport_allowance, allowances, overtime_amount, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, pdf_url, payroll_runs(month, year)"
     )
     .eq("id", id)
     .eq("employee_id", employeeId)
@@ -49,15 +49,14 @@ export default async function EmployeePayslipDetailPage({
       slip={{
         id: slip.id,
         basic_salary: Number(slip.basic_salary),
-        overtime_amount: Number(slip.overtime_amount),
+        transport_allowance: Number(slip.transport_allowance),
         allowances: Number(slip.allowances),
-        reimbursements: Number(slip.reimbursements),
-        deductions: Number(slip.deductions),
+        overtime_amount: Number(slip.overtime_amount),
+        mid_month_payment: Number(slip.mid_month_payment),
         salary_advance_deduction: Number(slip.salary_advance_deduction),
+        deductions: Number(slip.deductions),
         cpf_employee: Number(slip.cpf_employee),
         cpf_employer: Number(slip.cpf_employer),
-        fwl_amount: Number(slip.fwl_amount),
-        sdl_amount: Number(slip.sdl_amount),
         net_pay: Number(slip.net_pay),
         periodLabel,
       }}

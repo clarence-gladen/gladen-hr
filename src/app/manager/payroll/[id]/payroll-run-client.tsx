@@ -16,11 +16,12 @@ interface PayslipRow {
   id: string;
   employee_id: string;
   basic_salary: number;
-  overtime_amount: number;
+  transport_allowance: number;
   allowances: number;
-  reimbursements: number;
-  deductions: number;
+  overtime_amount: number;
+  mid_month_payment: number;
   salary_advance_deduction: number;
+  deductions: number;
   cpf_employee: number;
   cpf_employer: number;
   fwl_amount: number;
@@ -50,6 +51,7 @@ const monthNames = [
 const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
+const sectionLabel = "mb-2 text-[10px] font-bold uppercase tracking-wider text-foreground/40";
 
 function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUrl?: string }) {
   const { t } = useLanguage();
@@ -64,7 +66,7 @@ function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUr
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => setExpanded((value) => !value)}
+          onClick={() => setExpanded((v) => !v)}
           className="flex flex-1 items-center justify-between gap-3 text-left"
         >
           <span className="font-semibold text-foreground">{employeeName(payslip)}</span>
@@ -85,88 +87,113 @@ function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUr
       </div>
 
       {expanded && (
-        <form action={formAction} className="mt-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass} htmlFor={`basicSalary-${payslip.id}`}>
-                {t("payroll.basicSalary")}
-              </label>
-              <input
-                id={`basicSalary-${payslip.id}`}
-                name="basicSalary"
-                type="number"
-                step="0.01"
-                defaultValue={payslip.basic_salary}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor={`overtimeAmount-${payslip.id}`}>
-                {t("payroll.overtime")}
-              </label>
-              <input
-                id={`overtimeAmount-${payslip.id}`}
-                name="overtimeAmount"
-                type="number"
-                step="0.01"
-                defaultValue={payslip.overtime_amount}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor={`allowances-${payslip.id}`}>
-                {t("payroll.allowances")}
-              </label>
-              <input
-                id={`allowances-${payslip.id}`}
-                name="allowances"
-                type="number"
-                step="0.01"
-                defaultValue={payslip.allowances}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor={`reimbursements-${payslip.id}`}>
-                {t("payroll.reimbursements")}
-              </label>
-              <input
-                id={`reimbursements-${payslip.id}`}
-                name="reimbursements"
-                type="number"
-                step="0.01"
-                defaultValue={payslip.reimbursements}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor={`deductions-${payslip.id}`}>
-                {t("payroll.deductions")}
-              </label>
-              <input
-                id={`deductions-${payslip.id}`}
-                name="deductions"
-                type="number"
-                step="0.01"
-                defaultValue={payslip.deductions}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor={`salaryAdvanceDeduction-${payslip.id}`}>
-                {t("payroll.salaryAdvance")}
-              </label>
-              <input
-                id={`salaryAdvanceDeduction-${payslip.id}`}
-                name="salaryAdvanceDeduction"
-                type="number"
-                step="0.01"
-                defaultValue={payslip.salary_advance_deduction}
-                className={inputClass}
-              />
+        <form action={formAction} className="mt-4 space-y-4">
+          {/* Earnings */}
+          <div>
+            <p className={sectionLabel}>{t("payroll.earningsSection")}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass} htmlFor={`basicSalary-${payslip.id}`}>
+                  {t("payroll.basicSalary")}
+                </label>
+                <input
+                  id={`basicSalary-${payslip.id}`}
+                  name="basicSalary"
+                  type="number"
+                  step="0.01"
+                  defaultValue={payslip.basic_salary}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor={`transportAllowance-${payslip.id}`}>
+                  {t("payroll.transportAllowance")}
+                </label>
+                <input
+                  id={`transportAllowance-${payslip.id}`}
+                  name="transportAllowance"
+                  type="number"
+                  step="0.01"
+                  defaultValue={payslip.transport_allowance}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor={`allowances-${payslip.id}`}>
+                  {t("payroll.otherAllowance")}
+                </label>
+                <input
+                  id={`allowances-${payslip.id}`}
+                  name="allowances"
+                  type="number"
+                  step="0.01"
+                  defaultValue={payslip.allowances}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor={`overtimeAmount-${payslip.id}`}>
+                  {t("payroll.overtime")}
+                </label>
+                <input
+                  id={`overtimeAmount-${payslip.id}`}
+                  name="overtimeAmount"
+                  type="number"
+                  step="0.01"
+                  defaultValue={payslip.overtime_amount}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
 
+          {/* Deductions */}
+          <div>
+            <p className={sectionLabel}>{t("payroll.deductionsSection")}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass} htmlFor={`midMonthPayment-${payslip.id}`}>
+                  {t("payroll.midMonthPayment")}
+                </label>
+                <input
+                  id={`midMonthPayment-${payslip.id}`}
+                  name="midMonthPayment"
+                  type="number"
+                  step="0.01"
+                  defaultValue={payslip.mid_month_payment}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor={`salaryAdvanceDeduction-${payslip.id}`}>
+                  {t("payroll.salaryLoan")}
+                </label>
+                <input
+                  id={`salaryAdvanceDeduction-${payslip.id}`}
+                  name="salaryAdvanceDeduction"
+                  type="number"
+                  step="0.01"
+                  defaultValue={payslip.salary_advance_deduction}
+                  className={inputClass}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className={labelClass} htmlFor={`deductions-${payslip.id}`}>
+                  {t("payroll.otherDeductions")}
+                </label>
+                <input
+                  id={`deductions-${payslip.id}`}
+                  name="deductions"
+                  type="number"
+                  step="0.01"
+                  defaultValue={payslip.deductions}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Auto-calculated */}
           <div className="space-y-1 rounded-lg bg-black/5 p-3 text-sm text-foreground/60">
             <div className="flex justify-between">
               <span>{t("payroll.cpfEmployee")}</span>

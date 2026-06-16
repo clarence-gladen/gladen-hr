@@ -1,51 +1,158 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import path from "path";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  Image,
+  StyleSheet,
+  renderToBuffer,
+} from "@react-pdf/renderer";
+
+const BRAND = "#1e3a5f";
+const BRAND_LIGHT = "#e8eef6";
+const DIVIDER = "#d0d9e8";
+const MUTED = "#6b7a8d";
+const RED = "#c0392b";
 
 const styles = StyleSheet.create({
-  page: { fontFamily: "Helvetica", padding: 48, fontSize: 10, color: "#222" },
-  header: { marginBottom: 24 },
-  company: { fontSize: 15, fontFamily: "Helvetica-Bold", color: "#2b3d6b" },
-  subtitle: { fontSize: 10, color: "#666", marginTop: 3 },
-  divider: { borderBottom: "1 solid #e0e0e0", marginVertical: 16 },
-  sectionTitle: {
+  page: {
+    fontFamily: "Helvetica",
     fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#2b3d6b",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 6,
+    color: "#1a1a1a",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 44,
+    paddingTop: 36,
+    paddingBottom: 48,
   },
-  section: { marginBottom: 16 },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
-  label: { color: "#555" },
-  amount: { fontFamily: "Helvetica-Bold" },
-  deductionAmount: { fontFamily: "Helvetica-Bold", color: "#cc2200" },
-  netRow: {
+
+  // ── Header ──────────────────────────────────────────────
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "#eef2ff",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginTop: 12,
-    borderRadius: 4,
+    alignItems: "flex-start",
+    marginBottom: 20,
   },
-  netLabel: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#2b3d6b" },
-  netAmount: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#2b3d6b" },
-  footer: { marginTop: 32, fontSize: 8, color: "#aaa", textAlign: "center" },
+  logo: { width: 110 },
+  headerRight: { alignItems: "flex-end" },
+  companyName: {
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    color: BRAND,
+    marginBottom: 2,
+  },
+  companyDetail: { fontSize: 8, color: MUTED, marginBottom: 1 },
+
+  // ── Title band ──────────────────────────────────────────
+  titleBand: {
+    backgroundColor: BRAND,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    marginBottom: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  titleText: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 13,
+    color: "#ffffff",
+    letterSpacing: 0.5,
+  },
+  titleSub: { fontSize: 9, color: "#b8ccdf" },
+
+  // ── Employee info box ────────────────────────────────────
+  infoBox: {
+    backgroundColor: BRAND_LIGHT,
+    borderRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 18,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  infoLabel: { fontSize: 8, color: MUTED, marginBottom: 2 },
+  infoValue: { fontSize: 9, fontFamily: "Helvetica-Bold", color: "#1a1a1a" },
+
+  // ── Section ──────────────────────────────────────────────
+  sectionHeader: {
+    backgroundColor: BRAND_LIGHT,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 3,
+    marginBottom: 1,
+  },
+  sectionTitle: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: BRAND,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  section: { marginBottom: 14 },
+
+  // ── Line items ───────────────────────────────────────────
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderBottom: `0.5 solid ${DIVIDER}`,
+  },
+  rowLabel: { color: "#333333", fontSize: 9 },
+  rowAmount: { fontFamily: "Helvetica-Bold", color: "#1a1a1a", fontSize: 9 },
+  rowDeduction: { fontFamily: "Helvetica-Bold", color: RED, fontSize: 9 },
+
+  // ── Subtotal ─────────────────────────────────────────────
+  subtotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderTop: `1 solid ${DIVIDER}`,
+    marginTop: 1,
+  },
+  subtotalLabel: { fontSize: 8.5, color: MUTED, fontFamily: "Helvetica-Bold" },
+  subtotalAmount: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: "#1a1a1a" },
+
+  // ── Net pay ──────────────────────────────────────────────
+  netPayBox: {
+    backgroundColor: BRAND,
+    borderRadius: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  netPayLabel: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#ffffff" },
+  netPayAmount: { fontSize: 16, fontFamily: "Helvetica-Bold", color: "#ffffff" },
+
+  // ── Footer ───────────────────────────────────────────────
+  footer: {
+    borderTop: `0.5 solid ${DIVIDER}`,
+    paddingTop: 8,
+    marginTop: "auto",
+  },
+  footerText: { fontSize: 7.5, color: MUTED, textAlign: "center" },
 });
 
 export interface PayslipPdfData {
   employeeName: string;
   periodLabel: string;
   basicSalary: number;
-  overtimeAmount: number;
+  transportAllowance: number;
   allowances: number;
-  reimbursements: number;
-  deductions: number;
+  overtimeAmount: number;
+  midMonthPayment: number;
   salaryAdvanceDeduction: number;
+  deductions: number;
   cpfEmployee: number;
   cpfEmployer: number;
-  fwlAmount: number;
   netPay: number;
 }
 
@@ -53,61 +160,119 @@ function fmt(n: number) {
   return `S$${n.toFixed(2)}`;
 }
 
-function LineItem({ label, amount, deduction }: { label: string; amount: number; deduction?: boolean }) {
+function LineItem({
+  label,
+  amount,
+  deduction,
+}: {
+  label: string;
+  amount: number;
+  deduction?: boolean;
+}) {
   if (amount === 0) return null;
   return (
     <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={deduction ? styles.deductionAmount : styles.amount}>
-        {deduction ? `−${fmt(amount)}` : fmt(amount)}
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={deduction ? styles.rowDeduction : styles.rowAmount}>
+        {deduction ? `(${fmt(amount)})` : fmt(amount)}
       </Text>
     </View>
   );
 }
 
 function PayslipDocument({ data }: { data: PayslipPdfData }) {
+  const logoPath = path.join(process.cwd(), "public", "images", "logo-blue.png");
+
+  const totalEarnings =
+    data.basicSalary + data.transportAllowance + data.allowances + data.overtimeAmount;
+  const totalDeductions =
+    data.cpfEmployee + data.midMonthPayment + data.salaryAdvanceDeduction + data.deductions;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.company}>Gladen Maintenance Services (S) Pte Ltd</Text>
-          <Text style={styles.subtitle}>Payslip for {data.periodLabel}</Text>
-          <Text style={{ ...styles.subtitle, marginTop: 8 }}>Employee: {data.employeeName}</Text>
+          <Image src={logoPath} style={styles.logo} />
+          <View style={styles.headerRight}>
+            <Text style={styles.companyName}>Gladen Maintenance Services (S) Pte Ltd</Text>
+            <Text style={styles.companyDetail}>UEN: (your UEN here)</Text>
+            <Text style={styles.companyDetail}>Singapore</Text>
+          </View>
         </View>
 
-        <View style={styles.divider} />
+        {/* Title band */}
+        <View style={styles.titleBand}>
+          <Text style={styles.titleText}>PAYSLIP</Text>
+          <Text style={styles.titleSub}>{data.periodLabel}</Text>
+        </View>
 
+        {/* Employee info */}
+        <View style={styles.infoBox}>
+          <View>
+            <Text style={styles.infoLabel}>Employee Name</Text>
+            <Text style={styles.infoValue}>{data.employeeName}</Text>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={styles.infoLabel}>Pay Period</Text>
+            <Text style={styles.infoValue}>{data.periodLabel}</Text>
+          </View>
+        </View>
+
+        {/* Earnings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Earnings</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Earnings</Text>
+          </View>
           <LineItem label="Basic Salary" amount={data.basicSalary} />
+          <LineItem label="Transport Allowance" amount={data.transportAllowance} />
+          <LineItem label="Other Allowance" amount={data.allowances} />
           <LineItem label="Overtime" amount={data.overtimeAmount} />
-          <LineItem label="Allowances" amount={data.allowances} />
-          <LineItem label="Reimbursements" amount={data.reimbursements} />
+          <View style={styles.subtotalRow}>
+            <Text style={styles.subtotalLabel}>Total Earnings</Text>
+            <Text style={styles.subtotalAmount}>{fmt(totalEarnings)}</Text>
+          </View>
         </View>
 
+        {/* Deductions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Deductions</Text>
-          <LineItem label="Deductions" amount={data.deductions} deduction />
-          <LineItem label="Salary Advance Deduction" amount={data.salaryAdvanceDeduction} deduction />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Deductions</Text>
+          </View>
           <LineItem label="CPF (Employee)" amount={data.cpfEmployee} deduction />
+          <LineItem label="Mid-Month Payment" amount={data.midMonthPayment} deduction />
+          <LineItem label="Salary Loan" amount={data.salaryAdvanceDeduction} deduction />
+          <LineItem label="Other Deductions" amount={data.deductions} deduction />
+          <View style={styles.subtotalRow}>
+            <Text style={styles.subtotalLabel}>Total Deductions</Text>
+            <Text style={{ ...styles.subtotalAmount, color: RED }}>{fmt(totalDeductions)}</Text>
+          </View>
         </View>
 
-        {(data.cpfEmployer > 0 || data.fwlAmount > 0) && (
+        {/* Employer contributions (info only) */}
+        {data.cpfEmployer > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Employer Contributions</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Employer Contribution</Text>
+            </View>
             <LineItem label="CPF (Employer)" amount={data.cpfEmployer} />
-            <LineItem label="Foreign Worker Levy" amount={data.fwlAmount} />
           </View>
         )}
 
-        <View style={styles.netRow}>
-          <Text style={styles.netLabel}>Net Pay</Text>
-          <Text style={styles.netAmount}>{fmt(data.netPay)}</Text>
+        {/* Net pay */}
+        <View style={styles.netPayBox}>
+          <Text style={styles.netPayLabel}>Net Pay</Text>
+          <Text style={styles.netPayAmount}>{fmt(data.netPay)}</Text>
         </View>
 
-        <Text style={styles.footer}>
-          This is a computer-generated payslip. No signature required.
-        </Text>
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            This is a computer-generated payslip. No signature required.
+          </Text>
+        </View>
+
       </Page>
     </Document>
   );
