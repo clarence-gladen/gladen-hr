@@ -152,19 +152,17 @@ export function LeaveClient({
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0">
-              <label className={labelClass} htmlFor="startDate">
-                {t("leave.startDate")}
-              </label>
-              <input id="startDate" name="startDate" type="date" required className={inputClass} />
-            </div>
-            <div className="min-w-0">
-              <label className={labelClass} htmlFor="endDate">
-                {t("leave.endDate")}
-              </label>
-              <input id="endDate" name="endDate" type="date" required className={inputClass} />
-            </div>
+          <div>
+            <label className={labelClass} htmlFor="startDate">
+              {t("leave.startDate")}
+            </label>
+            <input id="startDate" name="startDate" type="date" required className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="endDate">
+              {t("leave.endDate")}
+            </label>
+            <input id="endDate" name="endDate" type="date" required className={inputClass} />
           </div>
 
           <div>
