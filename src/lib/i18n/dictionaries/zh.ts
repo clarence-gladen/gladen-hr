@@ -70,6 +70,7 @@ const zh: Partial<Dictionary> = {
     hospitalizationBalance: "住院假余额",
     latestPayslip: "最新工资单",
     unreadAnnouncements: "未读公告",
+    noPayslipYet: "暂无工资单",
   },
 };
 
