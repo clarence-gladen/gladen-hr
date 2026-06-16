@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { approveLeaveRequestAction, rejectLeaveRequestAction } from "./actions";
@@ -66,6 +67,13 @@ export function LeaveApprovalsClient({
     <>
       <Header titleKey="leave.managerTitle" />
       <main className="flex-1 px-4 py-6">
+        <Link
+          href="/manager/leave/record"
+          className="mb-4 block rounded-lg bg-brand py-3 text-center text-base font-semibold text-white"
+        >
+          {t("leave.recordLeaveTitle")}
+        </Link>
+
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">
           {t("leave.peopleOnLeave")}
         </h2>

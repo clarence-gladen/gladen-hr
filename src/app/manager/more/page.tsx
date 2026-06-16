@@ -6,14 +6,11 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 
 const links = [
   { href: "/manager/contracts", labelKey: "more.contracts", icon: "📑" },
-  {
-    href: "/manager/announcements",
-    labelKey: "more.announcements",
-    icon: "🔔",
-  },
+  { href: "/manager/announcements", labelKey: "more.announcements", icon: "🔔" },
   { href: "/manager/documents", labelKey: "more.documents", icon: "📋" },
   { href: "/manager/salary-advances", labelKey: "more.salaryAdvances", icon: "💵" },
   { href: "/manager/rates", labelKey: "more.rates", icon: "⚙️" },
+  { href: "/manager/more/access", labelKey: "more.manageAccess", icon: "🔑" },
 ];
 
 export default function ManagerMorePage() {

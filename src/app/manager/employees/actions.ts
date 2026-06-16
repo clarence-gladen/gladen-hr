@@ -152,8 +152,11 @@ export async function setEmployeeStatusAction(
   status: EmployeeStatus
 ): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("employees").update({ status }).eq("id", id);
+  const update: Record<string, unknown> = { status };
+  if (status === "active") update.employment_end_date = null;
+  await supabase.from("employees").update(update).eq("id", id);
   revalidatePath("/manager/employees");
+  revalidatePath(`/manager/employees/${id}`);
 }
 
 export async function offboardEmployeeAction(
