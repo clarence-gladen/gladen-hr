@@ -26,6 +26,7 @@ interface PayslipRow {
   fwl_amount: number;
   sdl_amount: number;
   net_pay: number;
+  pdf_url?: string | null;
   employees: { full_name: string } | { full_name: string }[] | null;
 }
 
@@ -50,7 +51,7 @@ const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
 
-function PayslipCard({ payslip }: { payslip: PayslipRow }) {
+function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUrl?: string }) {
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -60,16 +61,28 @@ function PayslipCard({ payslip }: { payslip: PayslipRow }) {
 
   return (
     <li className="rounded-xl bg-white p-4 shadow-sm">
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <span className="font-semibold text-foreground">{employeeName(payslip)}</span>
-        <span className="shrink-0 text-sm font-semibold text-brand">
-          S${Number(payslip.net_pay).toFixed(2)}
-        </span>
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="flex flex-1 items-center justify-between gap-3 text-left"
+        >
+          <span className="font-semibold text-foreground">{employeeName(payslip)}</span>
+          <span className="shrink-0 text-sm font-semibold text-brand">
+            S${Number(payslip.net_pay).toFixed(2)}
+          </span>
+        </button>
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-lg bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand"
+          >
+            PDF
+          </a>
+        )}
+      </div>
 
       {expanded && (
         <form action={formAction} className="mt-4 space-y-3">
@@ -195,9 +208,11 @@ function PayslipCard({ payslip }: { payslip: PayslipRow }) {
 export function PayrollRunClient({
   run,
   payslips,
+  signedUrls = {},
 }: {
   run: PayrollRunInfo;
   payslips: PayslipRow[];
+  signedUrls?: Record<string, string>;
 }) {
   const { t } = useLanguage();
   const [isPending, startTransition] = useTransition();
@@ -271,7 +286,7 @@ export function PayrollRunClient({
         ) : (
           <ul className="space-y-3">
             {payslips.map((payslip) => (
-              <PayslipCard key={payslip.id} payslip={payslip} />
+              <PayslipCard key={payslip.id} payslip={payslip} downloadUrl={signedUrls[payslip.id]} />
             ))}
           </ul>
         )}

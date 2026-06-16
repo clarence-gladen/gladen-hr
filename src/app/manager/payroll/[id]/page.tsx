@@ -23,9 +23,29 @@ export default async function PayrollRunPage({
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, basic_salary, overtime_amount, allowances, reimbursements, deductions, salary_advance_deduction, cpf_employee, cpf_employer, fwl_amount, sdl_amount, net_pay, employees(full_name)"
+      "id, employee_id, basic_salary, overtime_amount, allowances, reimbursements, deductions, salary_advance_deduction, cpf_employee, cpf_employer, fwl_amount, sdl_amount, net_pay, pdf_url, employees(full_name)"
     )
     .eq("payroll_run_id", id);
 
-  return <PayrollRunClient run={run} payslips={payslips ?? []} />;
+  const signedUrls = new Map<string, string>();
+  if (payslips) {
+    await Promise.all(
+      payslips
+        .filter((p) => p.pdf_url)
+        .map(async (p) => {
+          const { data } = await supabase.storage
+            .from("payslips")
+            .createSignedUrl(p.pdf_url!, 3600);
+          if (data?.signedUrl) signedUrls.set(p.id, data.signedUrl);
+        })
+    );
+  }
+
+  return (
+    <PayrollRunClient
+      run={run}
+      payslips={payslips ?? []}
+      signedUrls={Object.fromEntries(signedUrls)}
+    />
+  );
 }
