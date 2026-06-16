@@ -22,12 +22,6 @@ export interface LeaveHistoryRow {
   status: ApprovalStatus;
 }
 
-const statusLabel: Record<ApprovalStatus, string> = {
-  pending: "Pending",
-  approved: "Approved",
-  rejected: "Rejected / Cancelled",
-};
-
 const statusClass: Record<ApprovalStatus, string> = {
   pending: "bg-amber-100 text-amber-700",
   approved: "bg-brand/10 text-brand",
@@ -50,6 +44,12 @@ export function LeaveHistoryClient({
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const statusLabel: Record<ApprovalStatus, string> = {
+    pending: t("leave.pending"),
+    approved: t("leave.approved"),
+    rejected: t("leave.rejected"),
+  };
 
   const leaveTypeLabel: Record<LeaveType, string> = {
     annual: t("leave.annual"),

@@ -96,7 +96,7 @@ export function LeaveClient({
       <main className="flex-1 px-4 py-6">
         {onProbation && confirmDateLabel && (
           <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            You are on probation until <span className="font-semibold">{confirmDateLabel}</span>. Leave entitlements are available after confirmation.
+            {t("leave.probationUntil")} <span className="font-semibold">{confirmDateLabel}</span>. {t("leave.leaveAvailableAfter")}
           </div>
         )}
         {balance && (
