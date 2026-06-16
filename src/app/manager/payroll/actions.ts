@@ -235,28 +235,43 @@ export async function generatePdfsAction(runId: string): Promise<{ error?: strin
 
   for (const payslip of payslips) {
     const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
-    const pdfBuffer = await generatePayslipPdf({
-      employeeName: emp?.full_name ?? "Unknown",
-      periodLabel,
-      basicSalary: Number(payslip.basic_salary),
-      overtimeAmount: Number(payslip.overtime_amount),
-      allowances: Number(payslip.allowances),
-      reimbursements: Number(payslip.reimbursements),
-      deductions: Number(payslip.deductions),
-      salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
-      cpfEmployee: Number(payslip.cpf_employee),
-      cpfEmployer: Number(payslip.cpf_employer),
-      fwlAmount: Number(payslip.fwl_amount),
-      netPay: Number(payslip.net_pay),
-    });
+
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await generatePayslipPdf({
+        employeeName: emp?.full_name ?? "Unknown",
+        periodLabel,
+        basicSalary: Number(payslip.basic_salary),
+        overtimeAmount: Number(payslip.overtime_amount),
+        allowances: Number(payslip.allowances),
+        reimbursements: Number(payslip.reimbursements),
+        deductions: Number(payslip.deductions),
+        salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
+        cpfEmployee: Number(payslip.cpf_employee),
+        cpfEmployer: Number(payslip.cpf_employer),
+        fwlAmount: Number(payslip.fwl_amount),
+        netPay: Number(payslip.net_pay),
+      });
+    } catch (e) {
+      return { error: `PDF render failed: ${e instanceof Error ? e.message : String(e)}` };
+    }
 
     const path = `${payslip.employee_id}/${payslip.id}.pdf`;
     const { error: uploadError } = await supabase.storage
       .from("payslips")
       .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
 
-    if (!uploadError) {
-      await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
+    if (uploadError) {
+      return { error: `Upload failed: ${uploadError.message}` };
+    }
+
+    const { error: updateError } = await supabase
+      .from("payslips")
+      .update({ pdf_url: path })
+      .eq("id", payslip.id);
+
+    if (updateError) {
+      return { error: `DB update failed: ${updateError.message}` };
     }
   }
 
