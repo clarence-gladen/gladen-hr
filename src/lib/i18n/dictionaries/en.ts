@@ -122,6 +122,7 @@ const en = {
     annual: "Annual Leave",
     sick: "Sick Leave",
     hospitalization: "Hospitalization Leave",
+    noPay: "No-Pay Leave",
     listView: "List",
     calendarView: "Calendar",
     peopleOnLeave: "On Leave",

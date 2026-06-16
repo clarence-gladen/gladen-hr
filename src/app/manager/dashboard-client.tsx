@@ -29,21 +29,23 @@ export function DashboardClient({
     annual: t("leave.annual"),
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
+    no_pay: t("leave.noPay"),
   };
 
   const leaveTypeClass: Record<LeaveType, string> = {
     annual: "bg-brand/10 text-brand",
     sick: "bg-amber-100 text-amber-700",
     hospitalization: "bg-amber-100 text-amber-700",
+    no_pay: "bg-black/5 text-foreground/60",
   };
 
   const sickToday = onLeaveToday.filter((entry) => entry.leave_type !== "annual");
 
   const summaryCards = [
-    { labelKey: "summary.totalEmployees", value: totalEmployees },
-    { labelKey: "summary.onLeaveToday", value: onLeaveToday.length },
-    { labelKey: "summary.pendingApprovals", value: pendingApprovals },
-    { labelKey: "summary.expiringDocuments", value: expiringDocuments },
+    { labelKey: "summary.totalEmployees", value: totalEmployees, href: null },
+    { labelKey: "summary.onLeaveToday", value: onLeaveToday.length, href: null },
+    { labelKey: "summary.pendingApprovals", value: pendingApprovals, href: "/manager/leave" },
+    { labelKey: "summary.expiringDocuments", value: expiringDocuments, href: null },
   ];
 
   const today = new Date().toLocaleDateString(undefined, {
@@ -73,19 +75,23 @@ export function DashboardClient({
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-4">
-          {summaryCards.map((card) => (
-            <div
-              key={card.labelKey}
-              className="rounded-xl bg-white p-4 shadow-sm"
-            >
-              <p className="text-2xl font-semibold text-brand">
-                {card.value}
-              </p>
-              <p className="mt-1 text-sm text-foreground/60">
-                {t(card.labelKey)}
-              </p>
-            </div>
-          ))}
+          {summaryCards.map((card) => {
+            const inner = (
+              <>
+                <p className="text-2xl font-semibold text-brand">{card.value}</p>
+                <p className="mt-1 text-sm text-foreground/60">{t(card.labelKey)}</p>
+              </>
+            );
+            return card.href ? (
+              <Link key={card.labelKey} href={card.href} className="rounded-xl bg-white p-4 shadow-sm">
+                {inner}
+              </Link>
+            ) : (
+              <div key={card.labelKey} className="rounded-xl bg-white p-4 shadow-sm">
+                {inner}
+              </div>
+            );
+          })}
         </div>
 
         <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">

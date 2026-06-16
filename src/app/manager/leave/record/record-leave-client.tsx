@@ -46,6 +46,7 @@ export function RecordLeaveClient({
               <option value="annual">{t("leave.annual")}</option>
               <option value="sick">{t("leave.sick")}</option>
               <option value="hospitalization">{t("leave.hospitalization")}</option>
+              <option value="no_pay">{t("leave.noPay")}</option>
             </select>
           </div>
 

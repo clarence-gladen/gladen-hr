@@ -49,6 +49,7 @@ export function LeaveClient({
     annual: t("leave.annual"),
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
+    no_pay: t("leave.noPay"),
   };
 
   const statusLabel: Record<ApprovalStatus, string> = {
@@ -142,13 +143,12 @@ export function LeaveClient({
             <label className={labelClass} htmlFor="leaveType">
               {t("leave.leaveType")}
             </label>
-            <select id="leaveType" name="leaveType" className={inputClass} defaultValue="">
-              <option value="" disabled>
-                {t("leave.leaveType")}
-              </option>
-              <option value="annual">{t("leave.annual")}</option>
-              <option value="sick">{t("leave.sick")}</option>
-              <option value="hospitalization">{t("leave.hospitalization")}</option>
+            <select id="leaveType" name="leaveType" required className={inputClass} defaultValue="">
+              <option value="" disabled>{t("leave.leaveType")}</option>
+              {!onProbation && <option value="annual">{t("leave.annual")}</option>}
+              {!onProbation && <option value="sick">{t("leave.sick")}</option>}
+              {!onProbation && <option value="hospitalization">{t("leave.hospitalization")}</option>}
+              <option value="no_pay">{t("leave.noPay")}</option>
             </select>
           </div>
 

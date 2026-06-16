@@ -40,6 +40,7 @@ export function LeaveApprovalsClient({
     annual: t("leave.annual"),
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
+    no_pay: t("leave.noPay"),
   };
 
   const statusLabel: Record<ApprovalStatus, string> = {

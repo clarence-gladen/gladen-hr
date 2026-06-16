@@ -52,6 +52,41 @@ export async function submitLeaveRequestAction(
     return { error: "No working days in selected range." };
   }
 
+  // Probation and balance checks (skip for no-pay leave)
+  if (leaveType !== "no_pay") {
+    const { data: emp } = await supabase
+      .from("employees")
+      .select("employment_start_date")
+      .eq("id", employeeId)
+      .maybeSingle();
+
+    if (emp) {
+      const confirmDate = new Date(emp.employment_start_date);
+      confirmDate.setMonth(confirmDate.getMonth() + 3);
+      if (new Date() < confirmDate) {
+        return { error: "You are on probation. Only no-pay leave is available during probation." };
+      }
+    }
+
+    const year = new Date(startDate).getFullYear();
+    const { data: bal } = await supabase
+      .from("leave_balances")
+      .select("annual_entitlement, annual_used, sick_entitlement, sick_used, hospitalization_entitlement, hospitalization_used")
+      .eq("employee_id", employeeId)
+      .eq("year", year)
+      .maybeSingle();
+
+    if (bal) {
+      const available =
+        leaveType === "annual" ? bal.annual_entitlement - bal.annual_used
+        : leaveType === "sick" ? bal.sick_entitlement - bal.sick_used
+        : bal.hospitalization_entitlement - bal.hospitalization_used;
+      if (days > available) {
+        return { error: `Insufficient leave balance. You have ${Math.max(0, available)} day(s) available.` };
+      }
+    }
+  }
+
   const { error } = await supabase.from("leave_requests").insert({
     employee_id: employeeId,
     leave_type: leaveType,
