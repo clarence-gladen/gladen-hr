@@ -3,7 +3,6 @@ import {
   calculateAge,
   calculateCpf,
   calculateFwl,
-  calculateSdl,
   type CpfRate,
   type FwlRate,
   type SdlConfig,
@@ -39,7 +38,7 @@ export interface PayslipResult {
   cpfEmployee: number;
   cpfEmployer: number;
   fwlAmount: number;
-  sdlAmount: number;
+  sdlAmount: number; // kept for DB column compatibility, always 0
   netPay: number;
 }
 
@@ -48,10 +47,11 @@ function roundCurrency(value: number): number {
 }
 
 /**
- * Computes a full payslip breakdown for one employee for one payroll run.
+ * Computes a full payslip breakdown for one employee.
  *
- * Ordinary Wage (CPF basis) = basic + transport allowance + other allowance + overtime.
- * FWL and SDL are employer-only costs and do not reduce employee net pay.
+ * CPF applies to citizens/PRs only (on ordinary wage).
+ * FWL applies to Work Permit / S Pass holders (employer cost only).
+ * SDL is an employer cost and is NOT calculated or deducted from employee pay.
  * Net pay = earnings - CPF(employee) - mid-month payment - salary loan - other deductions.
  */
 export function calculatePayslip(
@@ -85,8 +85,6 @@ export function calculatePayslip(
         rates.fwlRates
       );
 
-  const sdlAmount = calculateSdl(ordinaryWage, rates.sdlConfig);
-
   const netPay = roundCurrency(
     ordinaryWage -
       cpfEmployee -
@@ -106,7 +104,7 @@ export function calculatePayslip(
     cpfEmployee,
     cpfEmployer,
     fwlAmount,
-    sdlAmount,
+    sdlAmount: 0,
     netPay,
   };
 }

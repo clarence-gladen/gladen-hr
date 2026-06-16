@@ -153,22 +153,24 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
 
           {/* Auto-calculated */}
           <div className="space-y-1 rounded-lg bg-black/5 p-3 text-sm text-foreground/60">
-            <div className="flex justify-between">
-              <span>{t("payroll.cpfEmployee")}</span>
-              <span>S${Number(payslip.cpf_employee).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>{t("payroll.cpfEmployer")}</span>
-              <span>S${Number(payslip.cpf_employer).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>{t("payroll.fwl")}</span>
-              <span>S${Number(payslip.fwl_amount).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>{t("payroll.sdl")}</span>
-              <span>S${Number(payslip.sdl_amount).toFixed(2)}</span>
-            </div>
+            {Number(payslip.cpf_employee) > 0 && (
+              <div className="flex justify-between">
+                <span>{t("payroll.cpfEmployee")}</span>
+                <span>S${Number(payslip.cpf_employee).toFixed(2)}</span>
+              </div>
+            )}
+            {Number(payslip.cpf_employer) > 0 && (
+              <div className="flex justify-between">
+                <span>{t("payroll.cpfEmployer")}</span>
+                <span>S${Number(payslip.cpf_employer).toFixed(2)}</span>
+              </div>
+            )}
+            {Number(payslip.fwl_amount) > 0 && (
+              <div className="flex justify-between">
+                <span>{t("payroll.fwl")}</span>
+                <span>S${Number(payslip.fwl_amount).toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold text-foreground">
               <span>{t("payroll.netPay")}</span>
               <span>S${Number(payslip.net_pay).toFixed(2)}</span>
