@@ -2,7 +2,6 @@ import type { ResidencyStatus, SkillLevel } from "@/lib/types/database";
 import {
   calculateAge,
   calculateCpf,
-  calculateFwl,
   type CpfRate,
   type FwlRate,
   type SdlConfig,
@@ -77,13 +76,7 @@ export function calculatePayslip(
     cpfEmployer = cpf.employerContribution;
   }
 
-  const fwlAmount = isCpfEligible
-    ? 0
-    : calculateFwl(
-        inputs.residencyStatus,
-        inputs.skillLevel ?? "basic_skilled",
-        rates.fwlRates
-      );
+  const fwlAmount = 0; // employer cost only, not included in payroll calculation
 
   const netPay = roundCurrency(
     ordinaryWage -

@@ -234,6 +234,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
     .from("payslips")
     .select(
       "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)"
+
     )
     .eq("payroll_run_id", runId);
 

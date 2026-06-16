@@ -24,8 +24,6 @@ interface PayslipRow {
   deductions: number;
   cpf_employee: number;
   cpf_employer: number;
-  fwl_amount: number;
-  sdl_amount: number;
   net_pay: number;
   pdf_url?: string | null;
   employees: { full_name: string } | { full_name: string }[] | null;
@@ -163,12 +161,6 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
               <div className="flex justify-between">
                 <span>{t("payroll.cpfEmployer")}</span>
                 <span>S${Number(payslip.cpf_employer).toFixed(2)}</span>
-              </div>
-            )}
-            {Number(payslip.fwl_amount) > 0 && (
-              <div className="flex justify-between">
-                <span>{t("payroll.fwl")}</span>
-                <span>S${Number(payslip.fwl_amount).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between font-semibold text-foreground">
