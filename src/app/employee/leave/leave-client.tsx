@@ -153,13 +153,13 @@ export function LeaveClient({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="startDate">
                 {t("leave.startDate")}
               </label>
               <input id="startDate" name="startDate" type="date" required className={inputClass} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="endDate">
                 {t("leave.endDate")}
               </label>
