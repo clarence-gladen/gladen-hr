@@ -33,9 +33,13 @@ const labelClass = "mb-1 block text-sm font-medium text-foreground";
 export function LeaveClient({
   balance,
   requests,
+  onProbation,
+  confirmDateLabel,
 }: {
   balance: LeaveBalance | null;
   requests: LeaveRequestRow[];
+  onProbation?: boolean;
+  confirmDateLabel?: string | null;
 }) {
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(submitLeaveRequestAction, {});
@@ -90,6 +94,11 @@ export function LeaveClient({
     <>
       <Header titleKey="leave.employeeTitle" />
       <main className="flex-1 px-4 py-6">
+        {onProbation && confirmDateLabel && (
+          <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            You are on probation until <span className="font-semibold">{confirmDateLabel}</span>. Leave entitlements are available after confirmation.
+          </div>
+        )}
         {balance && (
           <div className="mb-6">
             <h2 className="mb-2 text-sm font-semibold text-foreground/60">
