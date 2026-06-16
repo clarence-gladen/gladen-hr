@@ -25,6 +25,7 @@ const en = {
     resendCode: "Resend Code",
     invalidPhone: "Please enter a valid mobile number.",
     invalidOtp: "Invalid code. Please try again.",
+    phoneNotRegistered: "This number is not registered. Please contact your manager.",
     sendFailed: "Failed to send code. Please try again.",
     otpRetryHint: "If you don't receive the code within 30 seconds, tap 'Send Code' again.",
   },

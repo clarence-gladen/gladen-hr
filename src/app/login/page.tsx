@@ -34,6 +34,18 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+
+    const { data: isRegistered, error: checkError } = await supabase.rpc(
+      "check_employee_phone",
+      { p_phone: formatted }
+    );
+
+    if (checkError || !isRegistered) {
+      setLoading(false);
+      setError(t("auth.phoneNotRegistered"));
+      return;
+    }
+
     const { error: otpError } = await supabase.auth.signInWithOtp({
       phone: formatted,
     });
