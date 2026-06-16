@@ -5,9 +5,9 @@ import { useActionState, useState, useTransition } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import {
-  finalizePayrollRunAction,
+  deletePayrollRunAction,
+  finalisePayrollAction,
   generatePayslipsAction,
-  generatePdfsAction,
   updatePayslipAction,
 } from "../actions";
 import type { PayrollStatus } from "@/lib/types/database";
@@ -39,8 +39,8 @@ interface PayrollRunInfo {
 }
 
 function employeeName(row: PayslipRow): string {
-  const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
-  return employee?.full_name ?? "—";
+  const e = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+  return e?.full_name ?? "—";
 }
 
 const monthNames = [
@@ -53,10 +53,10 @@ const inputClass =
 const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
 const sectionLabel = "mb-2 text-[10px] font-bold uppercase tracking-wider text-foreground/40";
 
-function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUrl?: string }) {
+function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; downloadUrl?: string; locked: boolean }) {
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, saving] = useActionState(
     updatePayslipAction.bind(null, payslip.id),
     {}
   );
@@ -96,53 +96,29 @@ function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUr
                 <label className={labelClass} htmlFor={`basicSalary-${payslip.id}`}>
                   {t("payroll.basicSalary")}
                 </label>
-                <input
-                  id={`basicSalary-${payslip.id}`}
-                  name="basicSalary"
-                  type="number"
-                  step="0.01"
-                  defaultValue={payslip.basic_salary}
-                  className={inputClass}
-                />
+                <input id={`basicSalary-${payslip.id}`} name="basicSalary" type="number" step="0.01"
+                  defaultValue={payslip.basic_salary} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`transportAllowance-${payslip.id}`}>
                   {t("payroll.transportAllowance")}
                 </label>
-                <input
-                  id={`transportAllowance-${payslip.id}`}
-                  name="transportAllowance"
-                  type="number"
-                  step="0.01"
-                  defaultValue={payslip.transport_allowance}
-                  className={inputClass}
-                />
+                <input id={`transportAllowance-${payslip.id}`} name="transportAllowance" type="number" step="0.01"
+                  defaultValue={payslip.transport_allowance} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`allowances-${payslip.id}`}>
                   {t("payroll.otherAllowance")}
                 </label>
-                <input
-                  id={`allowances-${payslip.id}`}
-                  name="allowances"
-                  type="number"
-                  step="0.01"
-                  defaultValue={payslip.allowances}
-                  className={inputClass}
-                />
+                <input id={`allowances-${payslip.id}`} name="allowances" type="number" step="0.01"
+                  defaultValue={payslip.allowances} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`overtimeAmount-${payslip.id}`}>
                   {t("payroll.overtime")}
                 </label>
-                <input
-                  id={`overtimeAmount-${payslip.id}`}
-                  name="overtimeAmount"
-                  type="number"
-                  step="0.01"
-                  defaultValue={payslip.overtime_amount}
-                  className={inputClass}
-                />
+                <input id={`overtimeAmount-${payslip.id}`} name="overtimeAmount" type="number" step="0.01"
+                  defaultValue={payslip.overtime_amount} className={inputClass} disabled={locked} />
               </div>
             </div>
           </div>
@@ -155,40 +131,22 @@ function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUr
                 <label className={labelClass} htmlFor={`midMonthPayment-${payslip.id}`}>
                   {t("payroll.midMonthPayment")}
                 </label>
-                <input
-                  id={`midMonthPayment-${payslip.id}`}
-                  name="midMonthPayment"
-                  type="number"
-                  step="0.01"
-                  defaultValue={payslip.mid_month_payment}
-                  className={inputClass}
-                />
+                <input id={`midMonthPayment-${payslip.id}`} name="midMonthPayment" type="number" step="0.01"
+                  defaultValue={payslip.mid_month_payment} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`salaryAdvanceDeduction-${payslip.id}`}>
                   {t("payroll.salaryLoan")}
                 </label>
-                <input
-                  id={`salaryAdvanceDeduction-${payslip.id}`}
-                  name="salaryAdvanceDeduction"
-                  type="number"
-                  step="0.01"
-                  defaultValue={payslip.salary_advance_deduction}
-                  className={inputClass}
-                />
+                <input id={`salaryAdvanceDeduction-${payslip.id}`} name="salaryAdvanceDeduction" type="number" step="0.01"
+                  defaultValue={payslip.salary_advance_deduction} className={inputClass} disabled={locked} />
               </div>
               <div className="col-span-2">
                 <label className={labelClass} htmlFor={`deductions-${payslip.id}`}>
                   {t("payroll.otherDeductions")}
                 </label>
-                <input
-                  id={`deductions-${payslip.id}`}
-                  name="deductions"
-                  type="number"
-                  step="0.01"
-                  defaultValue={payslip.deductions}
-                  className={inputClass}
-                />
+                <input id={`deductions-${payslip.id}`} name="deductions" type="number" step="0.01"
+                  defaultValue={payslip.deductions} className={inputClass} disabled={locked} />
               </div>
             </div>
           </div>
@@ -219,13 +177,12 @@ function PayslipCard({ payslip, downloadUrl }: { payslip: PayslipRow; downloadUr
 
           {state.error && <p className="text-sm text-red-600">{state.error}</p>}
 
-          <button
-            type="submit"
-            disabled={pending}
-            className="w-full rounded-lg bg-brand py-2 text-sm font-semibold text-white transition disabled:opacity-60"
-          >
-            {pending ? t("common.loading") : t("payroll.save")}
-          </button>
+          {!locked && (
+            <button type="submit" disabled={saving}
+              className="w-full rounded-lg bg-brand py-2 text-sm font-semibold text-white transition disabled:opacity-60">
+              {saving ? t("common.loading") : t("payroll.save")}
+            </button>
+          )}
         </form>
       )}
     </li>
@@ -243,25 +200,29 @@ export function PayrollRunClient({
 }) {
   const { t } = useLanguage();
   const [isPending, startTransition] = useTransition();
-  const [pdfMessage, setPdfMessage] = useState<string | null>(null);
+  const [finaliseMsg, setFinaliseMsg] = useState<{ error?: string } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+
+  const isCompleted = run.status === "completed";
+  const hasPayslips = payslips.length > 0;
 
   function handleGenerate() {
-    startTransition(() => {
-      generatePayslipsAction(run.id);
-    });
+    startTransition(() => { generatePayslipsAction(run.id); });
   }
 
-  function handleFinalize() {
-    startTransition(() => {
-      finalizePayrollRunAction(run.id);
-    });
-  }
-
-  function handleGeneratePdfs() {
-    setPdfMessage(null);
+  function handleFinalise() {
+    setFinaliseMsg(null);
     startTransition(async () => {
-      const result = await generatePdfsAction(run.id);
-      setPdfMessage(result.error ?? t("payroll.pdfsGenerated"));
+      const result = await finalisePayrollAction(run.id);
+      if (result.error) setFinaliseMsg(result);
+    });
+  }
+
+  function handleDelete() {
+    startTransition(async () => {
+      const result = await deletePayrollRunAction(run.id);
+      if (result?.error) setDeleteMsg(result.error);
     });
   }
 
@@ -272,52 +233,104 @@ export function PayrollRunClient({
         <Link href="/manager/payroll" className="mb-4 inline-block text-sm font-medium text-brand">
           ← {t("payroll.back")}
         </Link>
-        <div className="mb-4 flex gap-2">
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={handleGenerate}
-            className="flex-1 rounded-lg bg-brand py-3 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {t("payroll.generatePayslips")}
-          </button>
-          {run.status !== "completed" && (
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={handleFinalize}
-              className="flex-1 rounded-lg bg-black/5 py-3 text-sm font-semibold text-foreground disabled:opacity-60"
-            >
-              {t("payroll.finalize")}
-            </button>
-          )}
-        </div>
-        {payslips.length > 0 && (
-          <div className="mb-4">
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={handleGeneratePdfs}
-              className="w-full rounded-lg border border-brand py-3 text-sm font-semibold text-brand disabled:opacity-60"
-            >
-              {isPending ? t("common.loading") : t("payroll.generatePdfs")}
-            </button>
-            {pdfMessage && (
-              <p className="mt-2 text-center text-sm text-foreground/60">{pdfMessage}</p>
+
+        {/* Status banner */}
+        {isCompleted ? (
+          <div className="mb-4 flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3">
+            <span className="text-green-600">✓</span>
+            <span className="text-sm font-semibold text-green-700">{t("payroll.completedBanner")}</span>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-xl bg-white p-4 shadow-sm">
+            {/* Step indicators */}
+            <div className="mb-4 flex items-center gap-2 text-xs">
+              <StepDot done active={!hasPayslips} label="1" />
+              <div className={`h-px flex-1 ${hasPayslips ? "bg-brand" : "bg-black/10"}`} />
+              <StepDot done={hasPayslips} active={hasPayslips} label="2" />
+              <div className="h-px flex-1 bg-black/10" />
+              <StepDot done={false} active={false} label="3" />
+            </div>
+            <div className="mb-4 flex justify-between text-[10px] font-semibold uppercase tracking-wide text-foreground/40">
+              <span>{t("payroll.step1")}</span>
+              <span>{t("payroll.step2")}</span>
+              <span>{t("payroll.step3")}</span>
+            </div>
+
+            {/* Step 1: Generate payslips (only if none exist) */}
+            {!hasPayslips && (
+              <button type="button" disabled={isPending} onClick={handleGenerate}
+                className="w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white disabled:opacity-60">
+                {isPending ? t("common.loading") : t("payroll.generatePayslips")}
+              </button>
+            )}
+
+            {/* Step 3: Finalise (only if payslips exist) */}
+            {hasPayslips && (
+              <div>
+                <button type="button" disabled={isPending} onClick={handleFinalise}
+                  className="w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white disabled:opacity-60">
+                  {isPending ? t("common.loading") : t("payroll.finalise")}
+                </button>
+                {finaliseMsg?.error && (
+                  <p className="mt-2 text-center text-sm text-red-600">{finaliseMsg.error}</p>
+                )}
+              </div>
             )}
           </div>
         )}
 
+        {/* Payslip list */}
         {payslips.length === 0 ? (
           <p className="text-center text-sm text-foreground/60">{t("payroll.noPayslips")}</p>
         ) : (
           <ul className="space-y-3">
             {payslips.map((payslip) => (
-              <PayslipCard key={payslip.id} payslip={payslip} downloadUrl={signedUrls[payslip.id]} />
+              <PayslipCard
+                key={payslip.id}
+                payslip={payslip}
+                downloadUrl={signedUrls[payslip.id]}
+                locked={isCompleted}
+              />
             ))}
           </ul>
         )}
+
+        {/* Delete payroll run */}
+        {!isCompleted && (
+          <div className="mt-6">
+            {!showDeleteConfirm ? (
+              <button type="button" onClick={() => setShowDeleteConfirm(true)}
+                className="w-full rounded-lg border border-red-200 py-3 text-sm font-medium text-red-500">
+                {t("payroll.deleteRun")}
+              </button>
+            ) : (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                <p className="mb-3 text-sm font-semibold text-red-700">{t("payroll.deleteConfirm")}</p>
+                <div className="flex gap-2">
+                  <button type="button" disabled={isPending} onClick={handleDelete}
+                    className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+                    {isPending ? t("common.loading") : t("payroll.confirmDelete")}
+                  </button>
+                  <button type="button" onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 rounded-lg bg-black/5 py-2.5 text-sm font-semibold text-foreground">
+                    {t("common.cancel")}
+                  </button>
+                </div>
+                {deleteMsg && <p className="mt-2 text-sm text-red-600">{deleteMsg}</p>}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </>
+  );
+}
+
+function StepDot({ done, active, label }: { done: boolean; active: boolean; label: string }) {
+  return (
+    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold
+      ${done || active ? "bg-brand text-white" : "bg-black/10 text-foreground/40"}`}>
+      {label}
+    </div>
   );
 }

@@ -13,8 +13,18 @@ import {
 import { generatePayslipPdf } from "@/lib/payroll/payslip-pdf";
 
 function payDateForRun(month: number, year: number): string {
-  // Last day of the payroll month.
   return new Date(year, month, 0).toISOString().slice(0, 10);
+}
+
+function periodLabel(month: number, year: number): string {
+  const lastDay = new Date(year, month, 0).getDate();
+  const monthName = new Date(year, month - 1).toLocaleDateString("en-SG", { month: "long" });
+  function ord(n: number) {
+    const v = n % 100;
+    const s = v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+    return `${n}${s}`;
+  }
+  return `${ord(1)} ${monthName} ${year} to ${ord(lastDay)} ${monthName} ${year}`;
 }
 
 export async function createPayrollRunAction(
@@ -129,7 +139,6 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
   }
 
   await supabase.from("payroll_runs").update({ status: "processing" }).eq("id", runId);
-
   revalidatePath(`/manager/payroll/${runId}`);
 }
 
@@ -148,16 +157,12 @@ export async function updatePayslipAction(
     .eq("id", payslipId)
     .single();
 
-  if (!payslip) {
-    return { error: "Payslip not found." };
-  }
+  if (!payslip) return { error: "Payslip not found." };
 
   const employee = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
   const run = Array.isArray(payslip.payroll_runs) ? payslip.payroll_runs[0] : payslip.payroll_runs;
 
-  if (!employee || !run) {
-    return { error: "Payslip is missing related records." };
-  }
+  if (!employee || !run) return { error: "Payslip is missing related records." };
 
   const payDate = payDateForRun(run.month, run.year);
 
@@ -167,9 +172,7 @@ export async function updatePayslipAction(
     getSdlConfig(supabase, payDate),
   ]);
 
-  if (!sdlConfig) {
-    return { error: "Statutory rates are not configured." };
-  }
+  if (!sdlConfig) return { error: "Statutory rates are not configured." };
 
   const result = calculatePayslip(
     {
@@ -206,41 +209,37 @@ export async function updatePayslipAction(
     })
     .eq("id", payslipId);
 
-  if (error) {
-    return { error: error.message };
-  }
+  if (error) return { error: error.message };
 
   revalidatePath(`/manager/payroll/${payslip.payroll_run_id}`);
   return {};
 }
 
-export async function generatePdfsAction(runId: string): Promise<{ error?: string }> {
+/** Step 3: generate PDFs + record advance repayments + mark completed — all in one. */
+export async function finalisePayrollAction(runId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const { data: run } = await supabase
     .from("payroll_runs")
-    .select("month, year")
+    .select("month, year, status")
     .eq("id", runId)
     .single();
 
   if (!run) return { error: "Payroll run not found." };
+  if (run.status === "completed") return {};
 
-  const lastDay = new Date(run.year, run.month, 0).getDate();
-  const monthName = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", { month: "long" });
-  function ord(n: number) {
-    const v = n % 100;
-    const s = v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
-    return `${n}${s}`;
-  }
-  const periodLabel = `${ord(1)} ${monthName} ${run.year} to ${ord(lastDay)} ${monthName} ${run.year}`;
+  const label = periodLabel(run.month, run.year);
 
   const { data: payslips } = await supabase
     .from("payslips")
-    .select("id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)")
+    .select(
+      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)"
+    )
     .eq("payroll_run_id", runId);
 
-  if (!payslips || payslips.length === 0) return { error: "No payslips to generate." };
+  if (!payslips || payslips.length === 0) return { error: "No payslips to finalise." };
 
+  // Generate and upload PDFs
   for (const payslip of payslips) {
     const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
 
@@ -248,7 +247,7 @@ export async function generatePdfsAction(runId: string): Promise<{ error?: strin
     try {
       pdfBuffer = await generatePayslipPdf({
         employeeName: emp?.full_name ?? "Unknown",
-        periodLabel,
+        periodLabel: label,
         basicSalary: Number(payslip.basic_salary),
         transportAllowance: Number(payslip.transport_allowance),
         allowances: Number(payslip.allowances),
@@ -269,25 +268,35 @@ export async function generatePdfsAction(runId: string): Promise<{ error?: strin
       .from("payslips")
       .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
 
-    if (uploadError) {
-      return { error: `Upload failed: ${uploadError.message}` };
-    }
+    if (uploadError) return { error: `Upload failed: ${uploadError.message}` };
 
-    const { error: updateError } = await supabase
-      .from("payslips")
-      .update({ pdf_url: path })
-      .eq("id", payslip.id);
-
-    if (updateError) {
-      return { error: `DB update failed: ${updateError.message}` };
-    }
+    await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
   }
 
+  // Record salary advance repayments
+  const outstandingAdvances = await getOutstandingAdvances(supabase);
+  const advancesByEmployee = new Map<string, typeof outstandingAdvances>();
+  for (const advance of outstandingAdvances) {
+    const list = advancesByEmployee.get(advance.employee_id) ?? [];
+    list.push(advance);
+    advancesByEmployee.set(advance.employee_id, list);
+  }
+  for (const payslip of payslips) {
+    const deduction = Number(payslip.salary_advance_deduction);
+    if (deduction <= 0) continue;
+    const employeeAdvances = advancesByEmployee.get(payslip.employee_id) ?? [];
+    await recordRepayments(supabase, payslip.id, employeeAdvances, deduction);
+  }
+
+  await supabase.from("payroll_runs").update({ status: "completed" }).eq("id", runId);
+
   revalidatePath(`/manager/payroll/${runId}`);
+  revalidatePath("/manager/payroll");
+  revalidatePath("/manager/salary-advances");
   return {};
 }
 
-export async function finalizePayrollRunAction(runId: string): Promise<void> {
+export async function deletePayrollRunAction(runId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const { data: run } = await supabase
@@ -296,30 +305,11 @@ export async function finalizePayrollRunAction(runId: string): Promise<void> {
     .eq("id", runId)
     .single();
 
-  if (run?.status !== "completed") {
-    const { data: payslips } = await supabase
-      .from("payslips")
-      .select("id, employee_id, salary_advance_deduction")
-      .eq("payroll_run_id", runId);
+  if (!run) return { error: "Payroll run not found." };
+  if (run.status === "completed") return { error: "Completed payroll runs cannot be deleted." };
 
-    const outstandingAdvances = await getOutstandingAdvances(supabase);
-    const advancesByEmployee = new Map<string, typeof outstandingAdvances>();
-    for (const advance of outstandingAdvances) {
-      const list = advancesByEmployee.get(advance.employee_id) ?? [];
-      list.push(advance);
-      advancesByEmployee.set(advance.employee_id, list);
-    }
+  const { error } = await supabase.from("payroll_runs").delete().eq("id", runId);
+  if (error) return { error: error.message };
 
-    for (const payslip of payslips ?? []) {
-      const deduction = Number(payslip.salary_advance_deduction);
-      if (deduction <= 0) continue;
-      const employeeAdvances = advancesByEmployee.get(payslip.employee_id) ?? [];
-      await recordRepayments(supabase, payslip.id, employeeAdvances, deduction);
-    }
-  }
-
-  await supabase.from("payroll_runs").update({ status: "completed" }).eq("id", runId);
-  revalidatePath(`/manager/payroll/${runId}`);
-  revalidatePath("/manager/payroll");
-  revalidatePath("/manager/salary-advances");
+  redirect("/manager/payroll");
 }
