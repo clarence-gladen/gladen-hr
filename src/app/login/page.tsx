@@ -40,7 +40,21 @@ export default function LoginPage() {
     setLoading(false);
 
     if (otpError) {
-      setError(otpError.message);
+      // Twilio trial-account errors fire on first registration of a new number
+      // but the OTP is still queued. Advance to OTP step with a soft message
+      // so the employee doesn't need to click "Send OTP" twice.
+      const isTwilioFirstAttempt =
+        otpError.message.toLowerCase().includes("trial") ||
+        otpError.message.toLowerCase().includes("unverified");
+
+      if (isTwilioFirstAttempt) {
+        setPhone(formatted);
+        setStep("otp");
+        setError(t("auth.otpRetryHint"));
+        return;
+      }
+
+      setError(t("auth.sendFailed"));
       return;
     }
 

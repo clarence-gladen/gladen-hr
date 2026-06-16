@@ -27,6 +27,8 @@ const zh: Partial<Dictionary> = {
     resendCode: "重新发送验证码",
     invalidPhone: "请输入有效的手机号码。",
     invalidOtp: "验证码无效，请重试。",
+    sendFailed: "发送失败，请重试。",
+    otpRetryHint: "如果30秒内未收到验证码，请再次点击「发送验证码」。",
   },
   nav: {
     home: "首页",
