@@ -205,6 +205,9 @@ const zh: Partial<Dictionary> = {
     noRepayments: "暂无还款记录。",
     totalOutstanding: "总未还金额",
     cancelAdvance: "取消预支",
+    markFullyRepaid: "标记为已全额还款",
+    back: "返回薪资预支",
+    saved: "已保存。",
   },
   contracts: {
     title: "合同与盈亏",

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 interface SalaryAdvanceFormState {
   error?: string;
+  success?: boolean;
 }
 
 export async function createSalaryAdvanceAction(
@@ -51,4 +52,63 @@ export async function cancelSalaryAdvanceAction(advanceId: string): Promise<void
     .eq("id", advanceId)
     .eq("status", "approved");
   revalidatePath("/manager/salary-advances");
+  revalidatePath(`/manager/salary-advances/${advanceId}`);
+}
+
+export async function updateAdvanceAction(
+  advanceId: string,
+  _prevState: { error?: string; success?: boolean },
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
+
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const repaymentRaw = String(formData.get("repaymentAmountPerMonth") ?? "").trim();
+  const repaymentAmountPerMonth = repaymentRaw ? Number(repaymentRaw) : null;
+
+  const { error } = await supabase
+    .from("salary_advances")
+    .update({ notes, repayment_amount_per_month: repaymentAmountPerMonth })
+    .eq("id", advanceId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/manager/salary-advances/${advanceId}`);
+  revalidatePath("/manager/salary-advances");
+  return { success: true };
+}
+
+export async function markFullyRepaidAction(
+  advanceId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  // Fetch outstanding balance
+  const { data: advance } = await supabase
+    .from("salary_advances")
+    .select("amount, salary_advance_repayments(amount)")
+    .eq("id", advanceId)
+    .single();
+
+  if (!advance) return { error: "Advance not found." };
+
+  const repayments = Array.isArray(advance.salary_advance_repayments)
+    ? advance.salary_advance_repayments
+    : [];
+  const totalRepaid = repayments.reduce((sum: number, r: { amount: number }) => sum + Number(r.amount), 0);
+  const outstanding = Number(advance.amount) - totalRepaid;
+
+  if (outstanding <= 0.001) return {};
+
+  // Insert a final repayment record for the remaining balance
+  const { error } = await supabase.from("salary_advance_repayments").insert({
+    salary_advance_id: advanceId,
+    amount: outstanding,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/manager/salary-advances/${advanceId}`);
+  revalidatePath("/manager/salary-advances");
+  return {};
 }

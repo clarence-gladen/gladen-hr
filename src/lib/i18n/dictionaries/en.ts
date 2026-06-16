@@ -203,6 +203,9 @@ const en = {
     noRepayments: "No repayments recorded yet.",
     totalOutstanding: "Total Outstanding",
     cancelAdvance: "Cancel Advance",
+    markFullyRepaid: "Mark as Fully Repaid",
+    back: "Back to Salary Advances",
+    saved: "Changes saved.",
   },
   contracts: {
     title: "Contracts & P&L",

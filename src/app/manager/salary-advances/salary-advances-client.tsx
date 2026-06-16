@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useTransition } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
@@ -159,64 +160,34 @@ export function SalaryAdvancesClient({
         ) : (
           <ul className="space-y-3">
             {advances.map((advance) => (
-              <li key={advance.id} className="rounded-xl bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
+              <li key={advance.id}>
+                <Link
+                  href={`/manager/salary-advances/${advance.id}`}
+                  className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm"
+                >
                   <div>
                     <p className="font-semibold text-foreground">{employeeName(advance)}</p>
                     <p className="text-sm text-foreground/60">
-                      S${advance.amount.toFixed(2)}
+                      S${Number(advance.amount).toFixed(2)}
                       {advance.repayment_amount_per_month != null
-                        ? ` · S$${advance.repayment_amount_per_month.toFixed(2)}/mo`
+                        ? ` · S$${Number(advance.repayment_amount_per_month).toFixed(2)}/mo`
                         : ""}
                     </p>
                     <p className="text-xs text-foreground/40">
                       {t("salaryAdvances.requestedOn")} {new Date(advance.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusClass[advance.status]}`}
-                  >
-                    {statusLabel[advance.status]}
-                  </span>
-                </div>
-
-                <div className="mt-3 rounded-lg bg-black/5 p-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-foreground/60">{t("salaryAdvances.outstanding")}</span>
-                    <span className="font-semibold text-foreground">
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass[advance.status]}`}>
+                      {statusLabel[advance.status]}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
                       {advance.outstanding > 0.001
                         ? `S$${advance.outstanding.toFixed(2)}`
                         : t("salaryAdvances.fullyRepaid")}
                     </span>
                   </div>
-                </div>
-
-                {advance.salary_advance_repayments.length > 0 && (
-                  <div className="mt-3">
-                    <p className="mb-1 text-xs font-semibold text-foreground/60">
-                      {t("salaryAdvances.repaymentHistory")}
-                    </p>
-                    <ul className="space-y-1">
-                      {advance.salary_advance_repayments.map((repayment) => (
-                        <li key={repayment.id} className="flex justify-between text-xs text-foreground/60">
-                          <span>{new Date(repayment.created_at).toLocaleDateString()}</span>
-                          <span>S${repayment.amount.toFixed(2)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {advance.status === "approved" && advance.outstanding > 0.001 && (
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => handleCancel(advance.id)}
-                    className="mt-3 rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-foreground disabled:opacity-60"
-                  >
-                    {t("salaryAdvances.cancelAdvance")}
-                  </button>
-                )}
+                </Link>
               </li>
             ))}
           </ul>
