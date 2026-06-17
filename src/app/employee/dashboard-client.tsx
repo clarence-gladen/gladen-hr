@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/language-provider";
+import { NotificationBell } from "@/components/notification-bell";
+import { LanguageToggle } from "@/components/language-toggle";
 
 const QUOTES = [
   "The strength of the team is each individual member. The strength of each member is the team.",
@@ -59,13 +61,20 @@ export function EmployeeDashboardClient({
 
   return (
     <div className="flex flex-col">
-      {/* Blue header band — extends behind status bar */}
+      {/* Blue header — sticky + z-10 matches inner page <Header> so iOS status bar stays brand blue */}
       <div
-        className="bg-brand px-5 pb-5"
-        style={{ paddingTop: "calc(2.5rem + env(safe-area-inset-top))" }}
+        className="sticky top-0 z-10 bg-brand px-5 pb-4"
+        style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
       >
-        <div className="relative mx-auto mb-3 w-[70%] max-w-[240px]" style={{ aspectRatio: "2.5/1" }}>
-          <Image src="/images/logo-white-full.png" alt="Gladen Maintenance Services" fill className="object-contain" priority />
+        {/* Logo row with notification bell and language toggle */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="relative w-[55%] max-w-[180px]" style={{ aspectRatio: "2.5/1" }}>
+            <Image src="/images/logo-white-full.png" alt="Gladen Maintenance Services" fill className="object-contain" priority />
+          </div>
+          <div className="flex items-center gap-3">
+            <NotificationBell href="/employee/notifications" />
+            <LanguageToggle variant="light" />
+          </div>
         </div>
         <p className="text-base font-bold text-white">
           {firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋"}
