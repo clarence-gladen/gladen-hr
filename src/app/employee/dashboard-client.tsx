@@ -14,12 +14,12 @@ const QUOTES = [
   "Quality means doing it right when no one is looking.",
   "A clean environment is a productive environment.",
   "Great things in business are never done by one person — they're done by a team.",
-  "Your work is going to fill a large part of your life, and the only way to be truly satisfied is to do what you believe is great work.",
   "Excellence is not a skill, it's an attitude.",
-  "The way to get started is to quit talking and begin doing.",
   "Don't watch the clock; do what it does. Keep going.",
   "Opportunities are usually disguised as hard work, so most people don't recognise them.",
   "Pride in your work is the foundation of excellence.",
+  "Teamwork makes the dream work.",
+  "A good team can go far; a great team can go anywhere.",
 ];
 
 interface Announcement {
@@ -58,61 +58,47 @@ export function EmployeeDashboardClient({
   const quote = QUOTES[new Date().getDate() % QUOTES.length];
 
   return (
-    <main className="flex-1 overflow-y-auto pb-24">
-      {/* Hero banner */}
-      <div className="bg-white px-6 pt-8 pb-5 shadow-sm">
-        <div className="mb-5 flex justify-center">
-          <div className="relative w-[60%] max-w-[240px] aspect-[3/1]">
-            <Image
-              src="/images/logo-full.png"
-              alt="Gladen Maintenance Services"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
+    <div className="flex flex-col">
+      {/* Blue header band */}
+      <div className="bg-brand px-5 pt-10 pb-5">
+        <div className="relative mx-auto mb-3 w-[65%] max-w-[220px]" style={{ aspectRatio: "2.5/1" }}>
+          <Image src="/images/logo-white.png" alt="Gladen Maintenance Services" fill className="object-contain" priority />
         </div>
-        <p className="text-lg font-bold text-foreground">
+        <p className="text-base font-bold text-white">
           {firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋"}
         </p>
-        <p className="text-sm text-foreground/50">{todayLabel}</p>
+        <p className="text-xs text-white/60">{todayLabel}</p>
       </div>
 
-      <div className="px-4 pt-5 space-y-5">
+      {/* Page content */}
+      <div className="flex flex-col gap-3 px-4 py-3">
 
         {/* Probation notice */}
         {onProbation && confirmDateLabel && (
-          <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3">
-            <p className="text-sm text-amber-700">
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
+            <p className="text-xs text-amber-700">
               {t("leave.probationUntil")} <span className="font-semibold">{confirmDateLabel}</span>. {t("leave.leaveAvailableAfter")}
             </p>
           </div>
         )}
 
-        {/* Motivational quote */}
-        <div className="rounded-2xl bg-brand px-5 py-4 shadow-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/60">Quote of the Day</p>
-          <p className="text-sm font-medium leading-relaxed text-white">"{quote}"</p>
+        {/* Quote */}
+        <div className="rounded-xl bg-brand/10 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand/60">Quote of the Day</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-brand/90">"{quote}"</p>
         </div>
 
-        {/* Leave balances */}
-        <div>
-          <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-foreground/40">Leave Balance</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/employee/leave" className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-2xl font-bold text-brand">{annualAvail}</p>
-              <p className="mt-0.5 text-xs text-foreground/50">{t("summary.annualLeft")}</p>
-            </Link>
-            <Link href="/employee/leave" className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-2xl font-bold text-brand">{sickAvail}</p>
-              <p className="mt-0.5 text-xs text-foreground/50">{t("summary.sickLeft")}</p>
-            </Link>
-          </div>
-        </div>
-
-        {/* Payslip + announcements row */}
+        {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
-          <Link href="/employee/payslips" className="rounded-2xl bg-white p-4 shadow-sm">
+          <Link href="/employee/leave" className="rounded-xl bg-white p-3 shadow-sm">
+            <p className="text-2xl font-bold text-brand">{annualAvail}</p>
+            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.annualLeft")}</p>
+          </Link>
+          <Link href="/employee/leave" className="rounded-xl bg-white p-3 shadow-sm">
+            <p className="text-2xl font-bold text-brand">{sickAvail}</p>
+            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.sickLeft")}</p>
+          </Link>
+          <Link href="/employee/payslips" className="rounded-xl bg-white p-3 shadow-sm">
             <p className="text-xl font-bold text-brand">
               {netPay !== null ? `S$${netPay.toFixed(0)}` : "—"}
             </p>
@@ -120,85 +106,31 @@ export function EmployeeDashboardClient({
               {payslipLabel ? `Pay (${payslipLabel})` : t("summary.latestPayslip")}
             </p>
           </Link>
-          <Link href="/employee/announcements" className="rounded-2xl bg-white p-4 shadow-sm">
+          <Link href="/employee/announcements" className="rounded-xl bg-white p-3 shadow-sm">
             <p className="text-2xl font-bold text-brand">{unreadCount}</p>
             <p className="mt-0.5 text-xs text-foreground/50">{t("summary.unreadAnnouncements")}</p>
           </Link>
         </div>
 
-        {/* Latest announcements */}
+        {/* Latest Announcements */}
         {announcements.length > 0 && (
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Latest Announcements</h2>
-              <Link href="/employee/announcements" className="text-xs font-medium text-brand">
-                View all
-              </Link>
+          <div className="rounded-xl bg-white p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-foreground">Latest Announcements</p>
+              <Link href="/employee/announcements" className="text-xs font-medium text-brand">View all</Link>
             </div>
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {announcements.map((a) => (
-                <li key={a.id} className="border-l-2 border-brand/30 pl-3">
-                  <p className="text-sm font-semibold text-foreground">{a.title}</p>
-                  <p className="mt-0.5 text-xs text-foreground/60 line-clamp-2">{a.body}</p>
-                  <p className="mt-1 text-xs text-foreground/40">
-                    {new Date(a.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-                  </p>
+                <li key={a.id} className="border-l-2 border-brand/30 pl-2">
+                  <p className="text-xs font-semibold text-foreground">{a.title}</p>
+                  <p className="text-xs text-foreground/50 line-clamp-1">{a.body}</p>
                 </li>
               ))}
             </ul>
           </div>
         )}
 
-        {/* Quick actions */}
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-foreground">Quick Actions</h2>
-          <div className="grid grid-cols-3 gap-3">
-            <Link
-              href="/employee/leave"
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-brand/5 px-2 py-3 text-center"
-            >
-              <span className="text-2xl">🏖️</span>
-              <span className="text-xs font-medium text-foreground/70 leading-tight">Apply Leave</span>
-            </Link>
-            <Link
-              href="/employee/payslips"
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-brand/5 px-2 py-3 text-center"
-            >
-              <span className="text-2xl">💰</span>
-              <span className="text-xs font-medium text-foreground/70 leading-tight">Payslips</span>
-            </Link>
-            <Link
-              href="/employee/documents"
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-brand/5 px-2 py-3 text-center"
-            >
-              <span className="text-2xl">📄</span>
-              <span className="text-xs font-medium text-foreground/70 leading-tight">Documents</span>
-            </Link>
-            <Link
-              href="/employee/announcements"
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-brand/5 px-2 py-3 text-center"
-            >
-              <span className="text-2xl">📢</span>
-              <span className="text-xs font-medium text-foreground/70 leading-tight">Announcements</span>
-            </Link>
-            <Link
-              href="/employee/profile"
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-brand/5 px-2 py-3 text-center"
-            >
-              <span className="text-2xl">👤</span>
-              <span className="text-xs font-medium text-foreground/70 leading-tight">Profile</span>
-            </Link>
-            <Link
-              href="/employee/notifications"
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-brand/5 px-2 py-3 text-center"
-            >
-              <span className="text-2xl">🔔</span>
-              <span className="text-xs font-medium text-foreground/70 leading-tight">Notifications</span>
-            </Link>
-          </div>
-        </div>
-
       </div>
-    </main>
+    </div>
   );
 }
