@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export async function setUserRoleAction(
@@ -9,22 +8,33 @@ export async function setUserRoleAction(
 ): Promise<{ error?: string; success?: string }> {
   const supabase = await createClient();
   const digits = (formData.get("phone") as string).replace(/\D/g, "");
-  const role = formData.get("role") as string;
 
-  if (!digits || !role) return { error: "Phone number is required." };
+  if (!digits) return { error: "Phone number is required." };
 
-  const normalized = `65${digits}`;
+  const normalized = digits.startsWith("65") ? digits : `65${digits}`;
 
   const { data, error } = await supabase.rpc("set_user_role", {
     p_phone: normalized,
-    p_role: role,
+    p_role: "manager",
   });
 
   if (error) return { error: error.message };
-  if (data === "not_found") {
-    return { error: "No account found for that number. Ask them to log in to the app first." };
+  if (data === "pending") {
+    return { success: "Number saved. They'll get manager access automatically when they first log in." };
   }
 
-  revalidatePath("/manager/more/access");
-  return { success: role === "manager" ? "Manager access granted." : "Access removed." };
+  return { success: "Manager access granted." };
+}
+
+export async function removeManagerAccessAction(
+  userId: string | null,
+  phone: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_manager_access", {
+    p_user_id: userId ?? null,
+    p_phone: phone,
+  });
+  if (error) return { error: error.message };
+  return {};
 }

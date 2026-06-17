@@ -6,5 +6,5 @@ export default async function ManageAccessPage() {
 
   const { data: managers } = await supabase.rpc("get_manager_phones");
 
-  return <AccessClient managers={(managers ?? []) as { phone: string; user_id: string }[]} />;
+  return <AccessClient managers={(managers ?? []) as { phone: string; user_id: string | null; status: string }[]} />;
 }

@@ -66,9 +66,10 @@ const zh: Partial<Dictionary> = {
     noManagers: "暂无管理员账号。",
     addManager: "授予管理员权限",
     managerPhone: "手机号码",
-    managerPhoneHint: "该用户必须先登录过应用，才能授予权限。",
+    managerPhoneHint: "如果对方尚未登录，首次登录时将自动获得管理员权限。",
     grantAccess: "授予权限",
     removeAccess: "移除",
+    pendingAccess: "待登录",
   },
   employees: {
     title: "员工",

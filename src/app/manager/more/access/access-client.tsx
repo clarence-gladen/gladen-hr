@@ -1,29 +1,36 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
-import { setUserRoleAction } from "./actions";
+import { setUserRoleAction, removeManagerAccessAction } from "./actions";
 
-const inputClass =
-  "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-sm font-medium text-foreground";
 
 export function AccessClient({
   managers,
 }: {
-  managers: { phone: string; user_id: string }[];
+  managers: { phone: string; user_id: string | null; status: string }[];
 }) {
   const { t } = useLanguage();
+  const router = useRouter();
   const [addState, addAction, addPending] = useActionState(setUserRoleAction, {});
-  const [removeState, removeAction, removePending] = useActionState(setUserRoleAction, {});
-  const [, startTransition] = useTransition();
+  const [removeError, setRemoveError] = useState<string | undefined>();
+  const [removePending, startRemoveTransition] = useTransition();
 
-  function handleRemove(phone: string) {
-    const fd = new FormData();
-    fd.set("phone", phone);
-    fd.set("role", "employee");
-    startTransition(() => removeAction(fd));
+  // Refresh page after add form succeeds so the managers list updates
+  useEffect(() => {
+    if (addState.success) router.refresh();
+  }, [addState.success]);
+
+  function handleRemove(userId: string | null, phone: string) {
+    setRemoveError(undefined);
+    startRemoveTransition(async () => {
+      const result = await removeManagerAccessAction(userId, phone);
+      if (result.error) setRemoveError(result.error);
+      else router.refresh();
+    });
   }
 
   return (
@@ -41,12 +48,19 @@ export function AccessClient({
           ) : (
             <ul className="space-y-2">
               {managers.map((m) => (
-                <li key={m.user_id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
-                  <span className="text-sm font-medium text-foreground">{m.phone}</span>
+                <li key={m.phone} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">+{m.phone}</span>
+                    {m.status === "pending" && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        {t("more.pendingAccess")}
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     disabled={removePending}
-                    onClick={() => handleRemove(m.phone)}
+                    onClick={() => handleRemove(m.user_id, m.phone)}
                     className="text-xs font-medium text-red-500 disabled:opacity-60"
                   >
                     {t("more.removeAccess")}
@@ -55,11 +69,8 @@ export function AccessClient({
               ))}
             </ul>
           )}
-          {removeState.error && (
-            <p className="mt-2 text-sm text-red-600">{removeState.error}</p>
-          )}
-          {removeState.success && (
-            <p className="mt-2 text-sm text-brand">{removeState.success}</p>
+          {removeError && (
+            <p className="mt-2 text-sm text-red-600">{removeError}</p>
           )}
         </div>
 

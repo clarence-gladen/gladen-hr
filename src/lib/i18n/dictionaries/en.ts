@@ -64,9 +64,10 @@ const en = {
     noManagers: "No manager accounts yet.",
     addManager: "Grant Manager Access",
     managerPhone: "Mobile Number",
-    managerPhoneHint: "The person must have logged into the app at least once before you can grant access.",
+    managerPhoneHint: "If they haven't logged in yet, their access will be granted automatically when they first log in.",
     grantAccess: "Grant Access",
     removeAccess: "Remove",
+    pendingAccess: "Pending login",
   },
   employees: {
     title: "Employees",

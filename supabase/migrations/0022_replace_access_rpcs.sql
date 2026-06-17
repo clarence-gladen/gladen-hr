@@ -7,13 +7,15 @@ returns text language plpgsql security definer set search_path = public as $$
 declare
   v_user_id uuid;
 begin
-  select id into v_user_id from auth.users where phone = p_phone;
+  select id into v_user_id from auth.users
+    where phone = p_phone
+       or phone = '+' || p_phone
+       or phone = ltrim(p_phone, '+');
   if v_user_id is null then
     return 'not_found';
   end if;
-  -- Upsert so it works even if the profile row was never auto-created
-  insert into profiles (id, role) values (v_user_id, p_role)
-    on conflict (id) do update set role = p_role;
+  insert into profiles (id, role) values (v_user_id, p_role::user_role)
+    on conflict (id) do update set role = p_role::user_role;
   return 'ok';
 end;
 $$;

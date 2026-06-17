@@ -42,7 +42,11 @@ export default async function EmployeeDashboardPage() {
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.from("announcements").select("id"),
+    supabase
+      .from("announcements")
+      .select("id, title, body, created_at")
+      .order("created_at", { ascending: false })
+      .limit(2),
     employeeId
       ? supabase.from("announcement_reads").select("announcement_id").eq("employee_id", employeeId)
       : Promise.resolve({ data: [] }),
@@ -84,6 +88,7 @@ export default async function EmployeeDashboardPage() {
       payslipLabel={payslipLabel}
       onProbation={onProbation}
       confirmDateLabel={confirmDateLabel}
+      announcements={announcementsRes.data ?? []}
     />
   );
 }
