@@ -58,10 +58,10 @@ export function EmployeeDashboardClient({
   const quote = QUOTES[new Date().getDate() % QUOTES.length];
 
   return (
-    <div className="flex min-h-screen flex-col bg-brand">
+    <div className="flex flex-col">
       {/* Blue header band — extends behind status bar */}
       <div
-        className="px-5 pb-5"
+        className="bg-brand px-5 pb-5"
         style={{ paddingTop: "calc(2.5rem + env(safe-area-inset-top))" }}
       >
         <div className="relative mx-auto mb-3 w-[70%] max-w-[240px]" style={{ aspectRatio: "2.5/1" }}>
@@ -86,9 +86,9 @@ export function EmployeeDashboardClient({
         )}
 
         {/* Quote */}
-        <div className="rounded-xl bg-white/10 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Quote of the Day</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-white">"{quote}"</p>
+        <div className="rounded-xl bg-brand/10 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand/60">Quote of the Day</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-brand/90">"{quote}"</p>
         </div>
 
         {/* Stats grid */}
