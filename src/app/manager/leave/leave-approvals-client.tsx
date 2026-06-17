@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useTransition, useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
@@ -27,6 +28,7 @@ function employeeName(row: LeaveRequestRow): string {
 }
 
 const inputClass = "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const dateInputClass = "w-full rounded-lg border border-black/10 bg-white px-1 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
 
 function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; leaveTypeLabel: Record<LeaveType, string> }) {
@@ -59,13 +61,13 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div>
+            <div className="min-w-0">
               <label className={labelClass}>{t("leave.startDate")}</label>
-              <input name="startDate" type="date" defaultValue={request.start_date} required className={inputClass} />
+              <input name="startDate" type="date" defaultValue={request.start_date} required className={dateInputClass} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelClass}>{t("leave.endDate")}</label>
-              <input name="endDate" type="date" defaultValue={request.end_date} required className={inputClass} />
+              <input name="endDate" type="date" defaultValue={request.end_date} required className={dateInputClass} />
             </div>
           </div>
           <div>
@@ -120,6 +122,7 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
   statusLabel: Record<ApprovalStatus, string>;
 }) {
   const { t } = useLanguage();
+  const router = useRouter();
   const [mode, setMode] = useState<"view" | "cancelConfirm">("view");
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -127,10 +130,11 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
   function handleCancel() {
     setCancelError(null);
     startTransition(async () => {
-      try {
-        await cancelLeaveRequestAction(request.id);
-      } catch (e) {
-        setCancelError(e instanceof Error ? e.message : "Failed to cancel leave.");
+      const result = await cancelLeaveRequestAction(request.id);
+      if (result?.error) {
+        setCancelError(result.error);
+      } else {
+        router.refresh();
       }
     });
   }

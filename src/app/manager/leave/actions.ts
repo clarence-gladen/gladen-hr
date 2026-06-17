@@ -18,11 +18,12 @@ export async function rejectLeaveRequestAction(id: string): Promise<void> {
   revalidatePath("/manager/leave");
 }
 
-export async function cancelLeaveRequestAction(id: string): Promise<void> {
+export async function cancelLeaveRequestAction(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_leave_request", { request_id: id });
-  if (error) throw error;
+  if (error) return { error: error.message };
   revalidatePath("/manager/leave");
+  return {};
 }
 
 export async function editLeaveRequestAction(

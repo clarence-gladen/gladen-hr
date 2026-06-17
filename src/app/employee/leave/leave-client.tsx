@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useTransition, useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { submitLeaveRequestAction, editLeaveRequestAction, cancelLeaveRequestAction } from "./actions";
@@ -28,6 +29,8 @@ export interface LeaveRequestRow {
 
 const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const dateInputClass =
+  "w-full rounded-lg border border-black/10 bg-white px-2 py-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-sm font-medium text-foreground";
 
 function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
@@ -37,6 +40,7 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
   statusClass: Record<ApprovalStatus, string>;
 }) {
   const { t } = useLanguage();
+  const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit" | "cancelConfirm">("view");
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -53,10 +57,11 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
   function handleCancel() {
     setCancelError(null);
     startTransition(async () => {
-      try {
-        await cancelLeaveRequestAction(req.id);
-      } catch (e) {
-        setCancelError(e instanceof Error ? e.message : "Failed to cancel leave.");
+      const result = await cancelLeaveRequestAction(req.id);
+      if (result?.error) {
+        setCancelError(result.error);
+      } else {
+        router.refresh();
       }
     });
   }
@@ -76,13 +81,13 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className={labelClass}>{t("leave.startDate")}</label>
-              <input name="startDate" type="date" defaultValue={req.start_date} required className={inputClass} />
+              <input name="startDate" type="date" defaultValue={req.start_date} required className={dateInputClass} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelClass}>{t("leave.endDate")}</label>
-              <input name="endDate" type="date" defaultValue={req.end_date} required className={inputClass} />
+              <input name="endDate" type="date" defaultValue={req.end_date} required className={dateInputClass} />
             </div>
           </div>
           <div>
@@ -251,13 +256,13 @@ export function LeaveClient({
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="startDate">{t("leave.startDate")}</label>
-              <input id="startDate" name="startDate" type="date" required className={inputClass} />
+              <input id="startDate" name="startDate" type="date" required className={dateInputClass} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="endDate">{t("leave.endDate")}</label>
-              <input id="endDate" name="endDate" type="date" required className={inputClass} />
+              <input id="endDate" name="endDate" type="date" required className={dateInputClass} />
             </div>
           </div>
           <div>

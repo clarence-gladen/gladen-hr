@@ -125,8 +125,10 @@ export async function editLeaveRequestAction(
   return {};
 }
 
-export async function cancelLeaveRequestAction(requestId: string): Promise<void> {
+export async function cancelLeaveRequestAction(requestId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
-  await supabase.rpc("cancel_leave_request", { request_id: requestId });
+  const { error } = await supabase.rpc("cancel_leave_request", { request_id: requestId });
+  if (error) return { error: error.message };
   revalidatePath("/employee/leave");
+  return {};
 }

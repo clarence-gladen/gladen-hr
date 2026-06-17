@@ -7,6 +7,8 @@ import { createLeaveForEmployeeAction } from "../actions";
 
 const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const dateInputClass =
+  "w-full rounded-lg border border-black/10 bg-white px-2 py-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-sm font-medium text-foreground";
 
 export function RecordLeaveClient({
@@ -51,17 +53,17 @@ export function RecordLeaveClient({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="startDate">
                 {t("leave.startDate")}
               </label>
-              <input id="startDate" name="startDate" type="date" required className={inputClass} />
+              <input id="startDate" name="startDate" type="date" required className={dateInputClass} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="endDate">
                 {t("leave.endDate")}
               </label>
-              <input id="endDate" name="endDate" type="date" required className={inputClass} />
+              <input id="endDate" name="endDate" type="date" required className={dateInputClass} />
             </div>
           </div>
 
