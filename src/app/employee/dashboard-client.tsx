@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { NotificationBell } from "@/components/notification-bell";
 import { LanguageToggle } from "@/components/language-toggle";
+import { createClient } from "@/lib/supabase/client";
 
 const QUOTES = [
   "The strength of the team is each individual member. The strength of each member is the team.",
@@ -57,7 +59,15 @@ export function EmployeeDashboardClient({
   announcements,
 }: DashboardProps) {
   const { t } = useLanguage();
+  const router = useRouter();
+  const supabase = createClient();
   const quote = QUOTES[new Date().getDate() % QUOTES.length];
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <div className="flex flex-col">
@@ -74,6 +84,13 @@ export function EmployeeDashboardClient({
           <div className="flex items-center gap-3">
             <NotificationBell href="/employee/notifications" />
             <LanguageToggle variant="light" />
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="text-sm font-medium text-white/80"
+            >
+              {t("common.signOut")}
+            </button>
           </div>
         </div>
         <p className="text-base font-bold text-white">
