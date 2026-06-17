@@ -166,7 +166,9 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
           <p className="mt-1 text-sm text-foreground/60">{request.start_date} – {request.end_date}</p>
         </div>
         <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
-          request.status === "approved" ? "bg-brand/10 text-brand" : "bg-black/5 text-foreground/60"
+          request.status === "approved" ? "bg-brand/10 text-brand"
+          : request.status === "cancelled" ? "bg-orange-100 text-orange-600"
+          : "bg-black/5 text-foreground/60"
         }`}>
           {statusLabel[request.status]}
         </span>
@@ -201,6 +203,7 @@ export function LeaveApprovalsClient({
     pending: t("leave.pending"),
     approved: t("leave.approved"),
     rejected: t("leave.rejected"),
+    cancelled: t("leave.cancelled"),
   };
 
   const pendingRequests = requests.filter((r) => r.status === "pending");

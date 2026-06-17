@@ -4,7 +4,7 @@ export type ResidencyStatus = "citizen" | "pr" | "work_permit" | "s_pass";
 
 export type LeaveType = "annual" | "sick" | "hospitalization" | "no_pay";
 
-export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 export type DocumentType =
   | "work_permit"

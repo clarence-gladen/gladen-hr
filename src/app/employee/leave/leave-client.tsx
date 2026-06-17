@@ -75,13 +75,15 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
               <option value="no_pay">{t("leave.noPay")}</option>
             </select>
           </div>
-          <div>
-            <label className={labelClass}>{t("leave.startDate")}</label>
-            <input name="startDate" type="date" defaultValue={req.start_date} required className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>{t("leave.endDate")}</label>
-            <input name="endDate" type="date" defaultValue={req.end_date} required className={inputClass} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>{t("leave.startDate")}</label>
+              <input name="startDate" type="date" defaultValue={req.start_date} required className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>{t("leave.endDate")}</label>
+              <input name="endDate" type="date" defaultValue={req.end_date} required className={inputClass} />
+            </div>
           </div>
           <div>
             <label className={labelClass}>{t("leave.reason")}</label>
@@ -183,12 +185,14 @@ export function LeaveClient({
     pending: t("leave.pending"),
     approved: t("leave.approved"),
     rejected: t("leave.rejected"),
+    cancelled: t("leave.cancelled"),
   };
 
   const statusClass: Record<ApprovalStatus, string> = {
     pending: "bg-amber-100 text-amber-700",
     approved: "bg-brand/10 text-brand",
     rejected: "bg-black/5 text-foreground/60",
+    cancelled: "bg-orange-100 text-orange-600",
   };
 
   const balanceItems = balance
@@ -246,13 +250,15 @@ export function LeaveClient({
               <option value="no_pay">{t("leave.noPay")}</option>
             </select>
           </div>
-          <div>
-            <label className={labelClass} htmlFor="startDate">{t("leave.startDate")}</label>
-            <input id="startDate" name="startDate" type="date" required className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="endDate">{t("leave.endDate")}</label>
-            <input id="endDate" name="endDate" type="date" required className={inputClass} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass} htmlFor="startDate">{t("leave.startDate")}</label>
+              <input id="startDate" name="startDate" type="date" required className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="endDate">{t("leave.endDate")}</label>
+              <input id="endDate" name="endDate" type="date" required className={inputClass} />
+            </div>
           </div>
           <div>
             <label className={labelClass} htmlFor="reason">{t("leave.reason")}</label>

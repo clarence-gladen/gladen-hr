@@ -26,6 +26,7 @@ const statusClass: Record<ApprovalStatus, string> = {
   pending: "bg-amber-100 text-amber-700",
   approved: "bg-brand/10 text-brand",
   rejected: "bg-black/5 text-foreground/60",
+  cancelled: "bg-orange-100 text-orange-600",
 };
 
 export function LeaveHistoryClient({
@@ -49,6 +50,7 @@ export function LeaveHistoryClient({
     pending: t("leave.pending"),
     approved: t("leave.approved"),
     rejected: t("leave.rejected"),
+    cancelled: t("leave.cancelled"),
   };
 
   const leaveTypeLabel: Record<LeaveType, string> = {

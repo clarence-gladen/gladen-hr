@@ -56,12 +56,14 @@ export function SalaryAdvancesClient({
     pending: t("salaryAdvances.pending"),
     approved: t("salaryAdvances.approved"),
     rejected: t("salaryAdvances.rejected"),
+    cancelled: t("salaryAdvances.cancelled"),
   };
 
   const statusClass: Record<ApprovalStatus, string> = {
     pending: "bg-amber-100 text-amber-700",
     approved: "bg-brand/10 text-brand",
     rejected: "bg-black/5 text-foreground/60",
+    cancelled: "bg-black/5 text-foreground/60",
   };
 
   const totalOutstanding = advances
