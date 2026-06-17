@@ -8,12 +8,12 @@ export async function setUserRoleAction(
   formData: FormData
 ): Promise<{ error?: string; success?: string }> {
   const supabase = await createClient();
-  const phone = (formData.get("phone") as string).replace(/\s/g, "");
+  const digits = (formData.get("phone") as string).replace(/\D/g, "");
   const role = formData.get("role") as string;
 
-  if (!phone || !role) return { error: "Phone number is required." };
+  if (!digits || !role) return { error: "Phone number is required." };
 
-  const normalized = phone.startsWith("+") ? phone : `+${phone}`;
+  const normalized = `+65${digits}`;
 
   const { data, error } = await supabase.rpc("set_user_role", {
     p_phone: normalized,
