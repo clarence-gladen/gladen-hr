@@ -28,7 +28,10 @@ export function Header({
   const notifHref = isManager ? "/manager/notifications" : "/employee/notifications";
 
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-black/5 bg-brand px-4 py-3 text-white">
+    <header
+      className="sticky top-0 z-10 flex items-center justify-between border-b border-black/5 bg-brand px-4 pb-3 text-white"
+      style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
+    >
       <h1 className="text-lg font-semibold">{title ?? (titleKey ? t(titleKey) : "")}</h1>
       <div className="flex items-center gap-3">
         <NotificationBell href={notifHref} />

@@ -59,10 +59,13 @@ export function EmployeeDashboardClient({
 
   return (
     <div className="flex flex-col">
-      {/* Blue header band */}
-      <div className="bg-brand px-5 pt-10 pb-5">
-        <div className="relative mx-auto mb-3 w-[65%] max-w-[220px]" style={{ aspectRatio: "2.5/1" }}>
-          <Image src="/images/logo-white.png" alt="Gladen Maintenance Services" fill className="object-contain" priority />
+      {/* Blue header band — extends behind status bar */}
+      <div
+        className="bg-brand px-5 pb-5"
+        style={{ paddingTop: "calc(2.5rem + env(safe-area-inset-top))" }}
+      >
+        <div className="relative mx-auto mb-3 w-[70%] max-w-[240px]" style={{ aspectRatio: "2.5/1" }}>
+          <Image src="/images/logo-white-full.png" alt="Gladen Maintenance Services" fill className="object-contain" priority />
         </div>
         <p className="text-base font-bold text-white">
           {firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋"}
