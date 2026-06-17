@@ -56,6 +56,17 @@ All SQL RPCs must use `ltrim(p_phone, '+')` to strip the `+` before comparing.
 - `work_days_per_week` column on `employees` table (5 or 6, default 5).
 - Leave balance RPCs: `approve_leave_request`, `reject_leave_request`, `cancel_leave_request`, `edit_approved_leave_request`.
 
+## iOS PWA Status Bar (Critical)
+
+The app uses `statusBarStyle: "black-translucent"` + `viewportFit: "cover"`. This makes the status bar transparent — the page content shows through it.
+
+**Rule: every page's topmost element must be `sticky top-0 z-10 bg-brand` (or `fixed`).** iOS determines status bar color from the topmost **z-indexed positioned** element. A plain `static` div at y=0 loses to the body background (`#f7f8fb`) and the status bar appears white.
+
+- Inner pages use `<Header>` which is `sticky top-0 z-10 bg-brand` ✓
+- Home page dashboard uses a custom blue div — it must also be `sticky top-0 z-10 bg-brand` ✓
+- Setting `bg-brand` on `<html>` does NOT help — iOS uses the body background, not html, for the safe-area zone
+- A `position:fixed height:env(safe-area-inset-top)` overlay is unreliable; sticky is the proven pattern
+
 ## Assets
 - Logo files in `public/images/`: `logo-full.png` (full logo with subtitle), `logo-blue.png` (icon only), `logo-white.png`, `logo-on-blue.png`
 - Full logo source: `/Users/Clarence/Desktop/Gladen/Website Stuff and Logo/Gladen-Full Logo Blue words no background.png`
