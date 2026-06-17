@@ -166,6 +166,7 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
       if (result?.error) {
         setCancelError(result.error);
       } else {
+        setMode("view");
         router.refresh();
       }
     });

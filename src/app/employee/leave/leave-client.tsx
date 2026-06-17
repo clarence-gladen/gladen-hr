@@ -61,6 +61,7 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
       if (result?.error) {
         setCancelError(result.error);
       } else {
+        setMode("view");
         router.refresh();
       }
     });
