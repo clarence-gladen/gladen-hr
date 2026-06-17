@@ -121,10 +121,18 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
 }) {
   const { t } = useLanguage();
   const [mode, setMode] = useState<"view" | "cancelConfirm">("view");
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleCancel() {
-    startTransition(() => { cancelLeaveRequestAction(request.id); });
+    setCancelError(null);
+    startTransition(async () => {
+      try {
+        await cancelLeaveRequestAction(request.id);
+      } catch (e) {
+        setCancelError(e instanceof Error ? e.message : "Failed to cancel leave.");
+      }
+    });
   }
 
   if (mode === "cancelConfirm") {
@@ -142,6 +150,7 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
             {t("common.back")}
           </button>
         </div>
+        {cancelError && <p className="mt-2 text-sm text-red-700">{cancelError}</p>}
       </li>
     );
   }

@@ -38,6 +38,7 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
 }) {
   const { t } = useLanguage();
   const [mode, setMode] = useState<"view" | "edit" | "cancelConfirm">("view");
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [editState, editAction, isEditing] = useActionState(
     editLeaveRequestAction.bind(null, req.id),
@@ -50,8 +51,13 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
   }, [isEditing, editState]);
 
   function handleCancel() {
+    setCancelError(null);
     startTransition(async () => {
-      await cancelLeaveRequestAction(req.id);
+      try {
+        await cancelLeaveRequestAction(req.id);
+      } catch (e) {
+        setCancelError(e instanceof Error ? e.message : "Failed to cancel leave.");
+      }
     });
   }
 
@@ -109,6 +115,7 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
             {t("common.back")}
           </button>
         </div>
+        {cancelError && <p className="mt-2 text-sm text-red-700">{cancelError}</p>}
       </li>
     );
   }
