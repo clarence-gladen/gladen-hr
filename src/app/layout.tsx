@@ -34,8 +34,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased bg-brand`}>
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground overflow-x-hidden">
+        {/*
+          Fixed brand-blue strip that covers env(safe-area-inset-top) on every page.
+          0px tall on desktop/non-notch devices so it is invisible there.
+          pointer-events:none so it never blocks taps in the header area.
+        */}
+        <div
+          className="fixed inset-x-0 top-0 z-50 bg-brand pointer-events-none"
+          style={{ height: "env(safe-area-inset-top)" }}
+          aria-hidden="true"
+        />
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
