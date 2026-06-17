@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} h-full antialiased bg-brand`}>
       <body className="min-h-full flex flex-col bg-background text-foreground overflow-x-hidden">
         <LanguageProvider>{children}</LanguageProvider>
       </body>
