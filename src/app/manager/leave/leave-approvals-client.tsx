@@ -33,17 +33,36 @@ const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
 
 function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; leaveTypeLabel: Record<LeaveType, string> }) {
   const { t } = useLanguage();
+  const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [editState, editAction, isEditing] = useActionState(editLeaveRequestAction.bind(null, request.id), {} as { error?: string });
   const wasEditing = useRef(false);
   useEffect(() => {
-    if (wasEditing.current && !isEditing && !editState?.error) setMode("view");
+    if (wasEditing.current && !isEditing && !editState?.error) {
+      setMode("view");
+      router.refresh();
+    }
     wasEditing.current = isEditing;
-  }, [isEditing, editState]);
+  }, [isEditing, editState, router]);
 
-  function handleApprove() { startTransition(() => { approveLeaveRequestAction(request.id); }); }
-  function handleReject() { startTransition(() => { rejectLeaveRequestAction(request.id); }); }
+  function handleApprove() {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await approveLeaveRequestAction(request.id);
+      if (result?.error) setActionError(result.error);
+      else router.refresh();
+    });
+  }
+  function handleReject() {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await rejectLeaveRequestAction(request.id);
+      if (result?.error) setActionError(result.error);
+      else router.refresh();
+    });
+  }
 
   if (mode === "edit") {
     return (
@@ -101,7 +120,7 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
       <div className="mt-3 flex gap-2">
         <button type="button" disabled={isPending} onClick={handleApprove}
           className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white disabled:opacity-60">
-          {t("leave.approve")}
+          {isPending ? t("common.loading") : t("leave.approve")}
         </button>
         <button type="button" disabled={isPending} onClick={handleReject}
           className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground disabled:opacity-60">
@@ -112,6 +131,7 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
           {t("leave.editRequest")}
         </button>
       </div>
+      {actionError && <p className="mt-2 text-sm text-red-600">{actionError}</p>}
     </li>
   );
 }

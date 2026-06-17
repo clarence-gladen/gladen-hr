@@ -44,15 +44,17 @@ export async function createSalaryAdvanceAction(
   return {};
 }
 
-export async function cancelSalaryAdvanceAction(advanceId: string): Promise<void> {
+export async function cancelSalaryAdvanceAction(advanceId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("salary_advances")
     .update({ status: "rejected", status_updated_at: new Date().toISOString() })
     .eq("id", advanceId)
     .eq("status", "approved");
+  if (error) return { error: error.message };
   revalidatePath("/manager/salary-advances");
   revalidatePath(`/manager/salary-advances/${advanceId}`);
+  return {};
 }
 
 export async function updateAdvanceAction(

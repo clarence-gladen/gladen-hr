@@ -4,18 +4,20 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export async function approveLeaveRequestAction(id: string): Promise<void> {
+export async function approveLeaveRequestAction(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("approve_leave_request", { request_id: id });
-  if (error) throw error;
+  if (error) return { error: error.message };
   revalidatePath("/manager/leave");
+  return {};
 }
 
-export async function rejectLeaveRequestAction(id: string): Promise<void> {
+export async function rejectLeaveRequestAction(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("reject_leave_request", { request_id: id });
-  if (error) throw error;
+  if (error) return { error: error.message };
   revalidatePath("/manager/leave");
+  return {};
 }
 
 export async function cancelLeaveRequestAction(id: string): Promise<{ error?: string }> {
@@ -58,7 +60,6 @@ export async function editLeaveRequestAction(
     .eq("status", "pending");
 
   if (error) return { error: error.message };
-  revalidatePath("/manager/leave");
   return {};
 }
 
@@ -90,7 +91,6 @@ export async function editApprovedLeaveRequestAction(
   });
 
   if (error) return { error: error.message };
-  revalidatePath("/manager/leave");
   return {};
 }
 

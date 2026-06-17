@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useTransition } from "react";
+import { useActionState, useTransition, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import {
@@ -40,6 +40,7 @@ export function AdvanceDetailClient({ advance }: { advance: AdvanceDetail }) {
     {}
   );
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const isFullyRepaid = advance.outstanding <= 0.001;
 
@@ -57,14 +58,18 @@ export function AdvanceDetailClient({ advance }: { advance: AdvanceDetail }) {
   };
 
   function handleMarkRepaid() {
+    setActionError(null);
     startTransition(async () => {
-      await markFullyRepaidAction(advance.id);
+      const result = await markFullyRepaidAction(advance.id);
+      if (result?.error) setActionError(result.error);
     });
   }
 
   function handleCancel() {
+    setActionError(null);
     startTransition(async () => {
-      await cancelSalaryAdvanceAction(advance.id);
+      const result = await cancelSalaryAdvanceAction(advance.id);
+      if (result?.error) setActionError(result.error);
     });
   }
 
@@ -185,7 +190,7 @@ export function AdvanceDetailClient({ advance }: { advance: AdvanceDetail }) {
               onClick={handleMarkRepaid}
               className="w-full rounded-lg bg-green-600 py-3 text-base font-semibold text-white disabled:opacity-60"
             >
-              {t("salaryAdvances.markFullyRepaid")}
+              {isPending ? t("common.loading") : t("salaryAdvances.markFullyRepaid")}
             </button>
             <button
               type="button"
@@ -195,6 +200,7 @@ export function AdvanceDetailClient({ advance }: { advance: AdvanceDetail }) {
             >
               {t("salaryAdvances.cancelAdvance")}
             </button>
+            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
           </div>
         )}
       </main>

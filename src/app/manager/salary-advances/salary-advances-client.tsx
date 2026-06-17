@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useTransition } from "react";
+import { useActionState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
-import { cancelSalaryAdvanceAction, createSalaryAdvanceAction } from "./actions";
+import { createSalaryAdvanceAction } from "./actions";
 import type { ApprovalStatus } from "@/lib/types/database";
 
 interface Repayment {
@@ -50,7 +50,6 @@ export function SalaryAdvancesClient({
 }) {
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(createSalaryAdvanceAction, {});
-  const [isPending, startTransition] = useTransition();
 
   const statusLabel: Record<ApprovalStatus, string> = {
     pending: t("salaryAdvances.pending"),
@@ -69,12 +68,6 @@ export function SalaryAdvancesClient({
   const totalOutstanding = advances
     .filter((advance) => advance.status === "approved")
     .reduce((sum, advance) => sum + Math.max(advance.outstanding, 0), 0);
-
-  function handleCancel(advanceId: string) {
-    startTransition(() => {
-      cancelSalaryAdvanceAction(advanceId);
-    });
-  }
 
   return (
     <>
