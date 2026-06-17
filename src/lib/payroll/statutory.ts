@@ -6,6 +6,7 @@ export interface CpfRate {
   employee_rate: number; // percent of ordinary wage
   employer_rate: number; // percent of ordinary wage
   ow_ceiling: number;
+  effective_date: string;
 }
 
 export interface FwlRate {
