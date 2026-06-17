@@ -39,20 +39,12 @@ export async function submitLeaveRequestAction(
   const endDate = formData.get("endDate") as string;
   const reason = (formData.get("reason") as string | null) || null;
 
-  if (!leaveType || !startDate || !endDate) {
-    return { error: "All fields are required." };
-  }
-
-  if (endDate < startDate) {
-    return { error: "End date must be on or after start date." };
-  }
+  if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
+  if (endDate < startDate) return { error: "End date must be on or after start date." };
 
   const days = countWorkingDays(startDate, endDate);
-  if (days === 0) {
-    return { error: "No working days in selected range." };
-  }
+  if (days === 0) return { error: "No working days in selected range." };
 
-  // Probation and balance checks (skip for no-pay leave)
   if (leaveType !== "no_pay") {
     const { data: emp } = await supabase
       .from("employees")
@@ -98,17 +90,43 @@ export async function submitLeaveRequestAction(
   });
 
   if (error) return { error: error.message };
+  revalidatePath("/employee/leave");
+  return {};
+}
 
+export async function editLeaveRequestAction(
+  requestId: string,
+  _prev: { error?: string },
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { error: "Not authenticated." };
+
+  const leaveType = formData.get("leaveType") as string;
+  const startDate = formData.get("startDate") as string;
+  const endDate = formData.get("endDate") as string;
+  const reason = (formData.get("reason") as string | null) || null;
+
+  if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
+  if (endDate < startDate) return { error: "End date must be on or after start date." };
+
+  const days = countWorkingDays(startDate, endDate);
+  if (days === 0) return { error: "No working days in selected range." };
+
+  const { error } = await supabase
+    .from("leave_requests")
+    .update({ leave_type: leaveType, start_date: startDate, end_date: endDate, days, reason })
+    .eq("id", requestId)
+    .eq("status", "pending");
+
+  if (error) return { error: error.message };
   revalidatePath("/employee/leave");
   return {};
 }
 
 export async function cancelLeaveRequestAction(requestId: string): Promise<void> {
   const supabase = await createClient();
-  await supabase
-    .from("leave_requests")
-    .update({ status: "rejected" })
-    .eq("id", requestId)
-    .eq("status", "pending");
+  await supabase.rpc("cancel_leave_request", { request_id: requestId });
   revalidatePath("/employee/leave");
 }
