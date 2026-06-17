@@ -62,6 +62,38 @@ export async function editLeaveRequestAction(
   return {};
 }
 
+export async function editApprovedLeaveRequestAction(
+  requestId: string,
+  _prev: { error?: string },
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const leaveType = formData.get("leaveType") as string;
+  const startDate = formData.get("startDate") as string;
+  const endDate = formData.get("endDate") as string;
+  const reason = (formData.get("reason") as string | null) || null;
+
+  if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
+  if (endDate < startDate) return { error: "End date must be on or after start date." };
+
+  const days = countWorkingDays(startDate, endDate);
+  if (days === 0) return { error: "No working days in selected range." };
+
+  const { error } = await supabase.rpc("edit_approved_leave_request", {
+    p_request_id: requestId,
+    p_leave_type: leaveType,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_days: days,
+    p_reason: reason,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/manager/leave");
+  return {};
+}
+
 function countWorkingDays(start: string, end: string): number {
   const startDate = new Date(start);
   const endDate = new Date(end);

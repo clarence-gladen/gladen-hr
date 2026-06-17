@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
-import { approveLeaveRequestAction, rejectLeaveRequestAction, cancelLeaveRequestAction, editLeaveRequestAction } from "./actions";
+import { approveLeaveRequestAction, rejectLeaveRequestAction, cancelLeaveRequestAction, editLeaveRequestAction, editApprovedLeaveRequestAction } from "./actions";
 import { LeaveCalendar, type LeaveCalendarEntry } from "@/components/leave-calendar";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 
@@ -123,9 +123,21 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
 }) {
   const { t } = useLanguage();
   const router = useRouter();
-  const [mode, setMode] = useState<"view" | "cancelConfirm">("view");
+  const [mode, setMode] = useState<"view" | "edit" | "cancelConfirm">("view");
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [editState, editAction, isEditing] = useActionState(
+    editApprovedLeaveRequestAction.bind(null, request.id),
+    {} as { error?: string }
+  );
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !isEditing && !editState?.error) {
+      setMode("view");
+      router.refresh();
+    }
+    wasEditing.current = isEditing;
+  }, [isEditing, editState, router]);
 
   function handleCancel() {
     setCancelError(null);
@@ -137,6 +149,51 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
         router.refresh();
       }
     });
+  }
+
+  if (mode === "edit") {
+    return (
+      <li className="rounded-xl bg-white p-4 shadow-sm">
+        <p className="mb-1 font-semibold text-foreground">{employeeName(request)}</p>
+        <p className="mb-3 text-xs text-foreground/50">{t("leave.editRequest")}</p>
+        <form action={editAction} className="space-y-3">
+          <div>
+            <label className={labelClass}>{t("leave.leaveType")}</label>
+            <select name="leaveType" defaultValue={request.leave_type} required className={inputClass}>
+              <option value="annual">{leaveTypeLabel.annual}</option>
+              <option value="sick">{leaveTypeLabel.sick}</option>
+              <option value="hospitalization">{leaveTypeLabel.hospitalization}</option>
+              <option value="no_pay">{leaveTypeLabel.no_pay}</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0">
+              <label className={labelClass}>{t("leave.startDate")}</label>
+              <input name="startDate" type="date" defaultValue={request.start_date} required className={dateInputClass} />
+            </div>
+            <div className="min-w-0">
+              <label className={labelClass}>{t("leave.endDate")}</label>
+              <input name="endDate" type="date" defaultValue={request.end_date} required className={dateInputClass} />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>{t("leave.reason")}</label>
+            <textarea name="reason" rows={2} defaultValue={request.reason ?? ""} className={inputClass} />
+          </div>
+          {editState?.error && <p className="text-sm text-red-600">{editState.error}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={isEditing}
+              className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white disabled:opacity-60">
+              {isEditing ? t("common.loading") : t("leave.saveChanges")}
+            </button>
+            <button type="button" onClick={() => setMode("view")}
+              className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground">
+              {t("leave.cancelEdit")}
+            </button>
+          </div>
+        </form>
+      </li>
+    );
   }
 
   if (mode === "cancelConfirm") {
@@ -178,10 +235,16 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
         </span>
       </div>
       {request.status === "approved" && (
-        <button type="button" onClick={() => setMode("cancelConfirm")}
-          className="mt-3 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
-          {t("leave.cancelApproved")}
-        </button>
+        <div className="mt-3 flex gap-2">
+          <button type="button" onClick={() => setMode("edit")}
+            className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
+            {t("leave.editRequest")}
+          </button>
+          <button type="button" onClick={() => setMode("cancelConfirm")}
+            className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
+            {t("leave.cancelApproved")}
+          </button>
+        </div>
       )}
     </li>
   );
