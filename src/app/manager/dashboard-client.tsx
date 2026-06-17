@@ -83,36 +83,37 @@ export function DashboardClient({
 
   return (
     <div className="flex flex-col">
-      {/* Blue header — sticky + z-10 matches inner page <Header> so iOS status bar stays brand blue */}
+      {/* Header — identical structure to inner <Header>: sticky top-0 z-10 bg-brand */}
       <div
-        className="sticky top-0 z-10 bg-brand px-5 pb-4"
-        style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+        className="sticky top-0 z-10 flex items-center justify-between border-b border-black/5 bg-brand px-4 pb-3 text-white"
+        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
       >
-        {/* Logo row with notification bell and language toggle */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="relative w-[55%] max-w-[180px]" style={{ aspectRatio: "2.5/1" }}>
-            <Image src="/images/logo-white-full.png" alt="Gladen Maintenance Services" fill className="object-contain" priority />
-          </div>
-          <div className="flex items-center gap-3">
-            <NotificationBell href="/manager/notifications" />
-            <LanguageToggle variant="light" />
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="text-sm font-medium text-white/80"
-            >
-              {t("common.signOut")}
-            </button>
-          </div>
+        <div className="relative h-7 w-28">
+          <Image src="/images/logo-white-full.png" alt="Gladen" fill className="object-contain object-left" priority />
         </div>
-        <p className="text-base font-bold text-white">
-          {firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋"}
-        </p>
-        <p className="text-xs text-white/60">{todayLabel}</p>
+        <div className="flex items-center gap-3">
+          <NotificationBell href="/manager/notifications" />
+          <LanguageToggle variant="light" />
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-sm font-medium text-white/80"
+          >
+            {t("common.signOut")}
+          </button>
+        </div>
       </div>
 
       {/* Page content */}
       <div className="flex flex-col gap-3 px-4 py-3">
+
+        {/* Welcome card */}
+        <div className="rounded-xl bg-white px-4 py-4 shadow-sm">
+          <p className="text-lg font-semibold text-foreground">
+            {firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋"}
+          </p>
+          <p className="mt-0.5 text-sm text-foreground/50">{todayLabel}</p>
+        </div>
 
         {/* Quote */}
         <div className="rounded-xl bg-brand/10 px-4 py-3">
