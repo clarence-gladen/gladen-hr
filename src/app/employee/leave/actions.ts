@@ -3,15 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-function countWorkingDays(start: string, end: string): number {
-  const startDate = new Date(start);
+function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5): number {
+  const cur = new Date(start);
   const endDate = new Date(end);
-  if (endDate < startDate) return 0;
+  if (endDate < cur) return 0;
   let count = 0;
-  const cur = new Date(startDate);
   while (cur <= endDate) {
     const day = cur.getDay();
-    if (day !== 0 && day !== 6) count++;
+    if (workDays === 6 ? day !== 0 : day !== 0 && day !== 6) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -42,16 +41,17 @@ export async function submitLeaveRequestAction(
   if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
   if (endDate < startDate) return { error: "End date must be on or after start date." };
 
-  const days = countWorkingDays(startDate, endDate);
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("employment_start_date, work_days_per_week")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  const workDays: 5 | 6 = emp?.work_days_per_week === 6 ? 6 : 5;
+  const days = countWorkingDays(startDate, endDate, workDays);
   if (days === 0) return { error: "No working days in selected range." };
 
   if (leaveType !== "no_pay") {
-    const { data: emp } = await supabase
-      .from("employees")
-      .select("employment_start_date")
-      .eq("id", employeeId)
-      .maybeSingle();
-
     if (emp) {
       const confirmDate = new Date(emp.employment_start_date);
       confirmDate.setMonth(confirmDate.getMonth() + 3);
@@ -103,6 +103,12 @@ export async function editLeaveRequestAction(
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { error: "Not authenticated." };
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("employee_id")
+    .eq("id", auth.user.id)
+    .maybeSingle();
+
   const leaveType = formData.get("leaveType") as string;
   const startDate = formData.get("startDate") as string;
   const endDate = formData.get("endDate") as string;
@@ -111,7 +117,14 @@ export async function editLeaveRequestAction(
   if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
   if (endDate < startDate) return { error: "End date must be on or after start date." };
 
-  const days = countWorkingDays(startDate, endDate);
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("work_days_per_week")
+    .eq("id", profile?.employee_id ?? "")
+    .maybeSingle();
+
+  const workDays: 5 | 6 = emp?.work_days_per_week === 6 ? 6 : 5;
+  const days = countWorkingDays(startDate, endDate, workDays);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase

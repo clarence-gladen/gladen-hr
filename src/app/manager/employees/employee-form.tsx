@@ -21,6 +21,7 @@ export interface EmployeeFormDefaults {
   skillLevel: SkillLevel;
   bankName: string;
   bankAccountNumber: string;
+  workDaysPerWeek: 5 | 6;
 }
 
 const EMPTY_DEFAULTS: EmployeeFormDefaults = {
@@ -35,6 +36,7 @@ const EMPTY_DEFAULTS: EmployeeFormDefaults = {
   skillLevel: "basic_skilled",
   bankName: "",
   bankAccountNumber: "",
+  workDaysPerWeek: 5,
 };
 
 const inputClass =
@@ -158,6 +160,21 @@ export function EmployeeForm({
             >
               <option value="basic_skilled">{t("employees.basicSkilled")}</option>
               <option value="higher_skilled">{t("employees.higherSkilled")}</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="workDaysPerWeek">
+              {t("employees.workSchedule")}
+            </label>
+            <select
+              id="workDaysPerWeek"
+              name="workDaysPerWeek"
+              defaultValue={defaultValues.workDaysPerWeek}
+              className={inputClass}
+            >
+              <option value={5}>{t("employees.fiveDays")}</option>
+              <option value={6}>{t("employees.sixDays")}</option>
             </select>
           </div>
 

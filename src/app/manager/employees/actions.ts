@@ -18,6 +18,7 @@ interface EmployeeFormValues {
   skillLevel: SkillLevel;
   bankName: string;
   bankAccountNumber: string;
+  workDaysPerWeek: 5 | 6;
 }
 
 function readForm(formData: FormData): EmployeeFormValues {
@@ -33,6 +34,7 @@ function readForm(formData: FormData): EmployeeFormValues {
     skillLevel: String(formData.get("skillLevel") ?? "basic_skilled") as SkillLevel,
     bankName: String(formData.get("bankName") ?? "").trim(),
     bankAccountNumber: String(formData.get("bankAccountNumber") ?? "").trim(),
+    workDaysPerWeek: Number(formData.get("workDaysPerWeek") ?? 5) === 6 ? 6 : 5,
   };
 }
 
@@ -71,6 +73,7 @@ export async function createEmployeeAction(
       skill_level: values.skillLevel,
       bank_name: values.bankName || null,
       bank_account_number: values.bankAccountNumber || null,
+      work_days_per_week: values.workDaysPerWeek,
     })
     .select("id")
     .single();
@@ -113,6 +116,7 @@ export async function updateEmployeeAction(
     skill_level: values.skillLevel,
     bank_name: values.bankName || null,
     bank_account_number: values.bankAccountNumber || null,
+    work_days_per_week: values.workDaysPerWeek,
   };
 
   if (values.nric) {
