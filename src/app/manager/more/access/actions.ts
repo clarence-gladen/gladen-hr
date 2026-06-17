@@ -13,7 +13,7 @@ export async function setUserRoleAction(
 
   if (!digits || !role) return { error: "Phone number is required." };
 
-  const normalized = `+65${digits}`;
+  const normalized = `65${digits}`;
 
   const { data, error } = await supabase.rpc("set_user_role", {
     p_phone: normalized,
