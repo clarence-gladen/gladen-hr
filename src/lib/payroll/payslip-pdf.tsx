@@ -148,6 +148,7 @@ export interface PayslipPdfData {
   transportAllowance: number;
   allowances: number;
   overtimeAmount: number;
+  bonus: number;
   midMonthPayment: number;
   salaryAdvanceDeduction: number;
   deductions: number;
@@ -184,7 +185,7 @@ function PayslipDocument({ data }: { data: PayslipPdfData }) {
   const logoPath = path.join(process.cwd(), "public", "images", "logo-blue.png");
 
   const totalEarnings =
-    data.basicSalary + data.transportAllowance + data.allowances + data.overtimeAmount;
+    data.basicSalary + data.transportAllowance + data.allowances + data.overtimeAmount + data.bonus;
   const totalDeductions =
     data.cpfEmployee + data.midMonthPayment + data.salaryAdvanceDeduction + data.deductions;
 
@@ -229,6 +230,7 @@ function PayslipDocument({ data }: { data: PayslipPdfData }) {
           <LineItem label="Transport Allowance" amount={data.transportAllowance} />
           <LineItem label="Other Allowance" amount={data.allowances} />
           <LineItem label="Overtime" amount={data.overtimeAmount} />
+          <LineItem label="Bonus (Additional Wage)" amount={data.bonus} />
           <View style={styles.subtotalRow}>
             <Text style={styles.subtotalLabel}>Total Earnings</Text>
             <Text style={styles.subtotalAmount}>{fmt(totalEarnings)}</Text>

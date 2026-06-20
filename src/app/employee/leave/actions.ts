@@ -2,6 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  isOnProbation,
+  getAvailableAnnualLeave,
+  getAvailableSickLeave,
+  getAvailableHospitalizationLeave,
+} from "@/lib/leave/entitlement";
 
 function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5): number {
   const cur = new Date(start);
@@ -52,29 +58,47 @@ export async function submitLeaveRequestAction(
   if (days === 0) return { error: "No working days in selected range." };
 
   if (leaveType !== "no_pay") {
-    if (emp) {
-      const confirmDate = new Date(emp.employment_start_date);
-      confirmDate.setMonth(confirmDate.getMonth() + 3);
-      if (new Date() < confirmDate) {
-        return { error: "You are on probation. Only no-pay leave is available during probation." };
-      }
+    const empStartDate = emp?.employment_start_date;
+    if (!empStartDate) return { error: "Employment start date not found." };
+
+    // Probation check: based on today (not leave start date)
+    const today = new Date().toISOString().slice(0, 10);
+    if (isOnProbation(empStartDate, today)) {
+      return { error: "You are on probation. Only no-pay leave is available during probation." };
     }
 
-    const year = new Date(startDate).getFullYear();
+    // Balance check: entitlement is computed as of the leave start date (what they'll have accrued)
     const { data: bal } = await supabase
       .from("leave_balances")
-      .select("annual_entitlement, annual_used, sick_entitlement, sick_used, hospitalization_entitlement, hospitalization_used")
+      .select("annual_used, sick_used, hospitalization_used")
       .eq("employee_id", employeeId)
-      .eq("year", year)
+      .lte("year_start", startDate)
+      .gte("year_end", startDate)
       .maybeSingle();
 
-    if (bal) {
-      const available =
-        leaveType === "annual" ? bal.annual_entitlement - bal.annual_used
-        : leaveType === "sick" ? bal.sick_entitlement - bal.sick_used
-        : bal.hospitalization_entitlement - bal.hospitalization_used;
-      if (days > available) {
-        return { error: `Insufficient leave balance. You have ${Math.max(0, available)} day(s) available.` };
+    if (leaveType === "annual") {
+      const accrued = getAvailableAnnualLeave(empStartDate, startDate);
+      const used = Number(bal?.annual_used ?? 0);
+      if (days > accrued - used) {
+        return {
+          error: `Insufficient annual leave. You have ${Math.max(0, accrued - used)} day(s) available.`,
+        };
+      }
+    } else if (leaveType === "sick") {
+      const entitlement = getAvailableSickLeave(empStartDate, startDate);
+      const used = Number(bal?.sick_used ?? 0);
+      if (days > entitlement - used) {
+        return {
+          error: `Insufficient sick leave. You have ${Math.max(0, entitlement - used)} day(s) available.`,
+        };
+      }
+    } else if (leaveType === "hospitalization") {
+      const entitlement = getAvailableHospitalizationLeave(empStartDate, startDate);
+      const used = Number(bal?.hospitalization_used ?? 0);
+      if (days > entitlement - used) {
+        return {
+          error: `Insufficient hospitalisation leave. You have ${Math.max(0, entitlement - used)} day(s) available.`,
+        };
       }
     }
   }

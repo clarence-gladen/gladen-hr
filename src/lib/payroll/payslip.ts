@@ -2,6 +2,7 @@ import type { ResidencyStatus, SkillLevel } from "@/lib/types/database";
 import {
   calculateAge,
   calculateCpf,
+  calculateCpfOnAw,
   type CpfRate,
   type FwlRate,
   type SdlConfig,
@@ -12,6 +13,7 @@ export interface PayslipInputs {
   transportAllowance: number;
   allowances: number; // "Other Allowance"
   overtimeAmount: number;
+  bonus: number; // Additional Wage — CPF applies; annual AW ceiling checked manually
   midMonthPayment: number;
   salaryAdvanceDeduction: number; // "Salary Loan"
   deductions: number; // "Other Deductions"
@@ -31,13 +33,14 @@ export interface PayslipResult {
   transportAllowance: number;
   allowances: number;
   overtimeAmount: number;
+  bonus: number;
   midMonthPayment: number;
   salaryAdvanceDeduction: number;
   deductions: number;
   cpfEmployee: number;
   cpfEmployer: number;
   fwlAmount: number;
-  sdlAmount: number; // kept for DB column compatibility, always 0
+  sdlAmount: number;
   netPay: number;
 }
 
@@ -48,10 +51,9 @@ function roundCurrency(value: number): number {
 /**
  * Computes a full payslip breakdown for one employee.
  *
- * CPF applies to citizens/PRs only (on ordinary wage).
- * FWL applies to Work Permit / S Pass holders (employer cost only).
- * SDL is an employer cost and is NOT calculated or deducted from employee pay.
- * Net pay = earnings - CPF(employee) - mid-month payment - salary loan - other deductions.
+ * CPF on Ordinary Wage (OW) and on bonus (Additional Wage) applies to citizens/PRs.
+ * FWL and SDL are employer costs and are not deducted from employee net pay.
+ * Net pay = OW + bonus − CPF(employee, OW) − CPF(employee, AW) − mid-month − salary loan − other deductions.
  */
 export function calculatePayslip(
   inputs: PayslipInputs,
@@ -71,15 +73,15 @@ export function calculatePayslip(
   let cpfEmployer = 0;
   if (isCpfEligible) {
     const age = calculateAge(inputs.dateOfBirth, payDate);
-    const cpf = calculateCpf(ordinaryWage, age, rates.cpfRates);
-    cpfEmployee = cpf.employeeContribution;
-    cpfEmployer = cpf.employerContribution;
+    const cpfOw = calculateCpf(ordinaryWage, age, rates.cpfRates);
+    const cpfAw = calculateCpfOnAw(inputs.bonus, age, rates.cpfRates);
+    cpfEmployee = cpfOw.employeeContribution + cpfAw.employeeContribution;
+    cpfEmployer = cpfOw.employerContribution + cpfAw.employerContribution;
   }
 
-  const fwlAmount = 0; // employer cost only, not included in payroll calculation
-
   const netPay = roundCurrency(
-    ordinaryWage -
+    ordinaryWage +
+      inputs.bonus -
       cpfEmployee -
       inputs.midMonthPayment -
       inputs.salaryAdvanceDeduction -
@@ -91,12 +93,13 @@ export function calculatePayslip(
     transportAllowance: inputs.transportAllowance,
     allowances: inputs.allowances,
     overtimeAmount: inputs.overtimeAmount,
+    bonus: inputs.bonus,
     midMonthPayment: inputs.midMonthPayment,
     salaryAdvanceDeduction: inputs.salaryAdvanceDeduction,
     deductions: inputs.deductions,
     cpfEmployee,
     cpfEmployer,
-    fwlAmount,
+    fwlAmount: 0,
     sdlAmount: 0,
     netPay,
   };

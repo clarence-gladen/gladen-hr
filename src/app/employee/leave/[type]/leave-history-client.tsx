@@ -7,7 +7,9 @@ import { Header } from "@/components/header";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 
 export interface BalanceByYear {
-  year: number;
+  year: number;      // employment year number (1, 2, ...)
+  yearStart: string; // "2025-06-01"
+  yearEnd: string;   // "2026-05-31"
   entitlement: number;
   used: number;
 }
@@ -20,6 +22,12 @@ export interface LeaveHistoryRow {
   days: number;
   reason: string | null;
   status: ApprovalStatus;
+}
+
+function formatDateShort(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  const dt = new Date(Number(y), Number(m) - 1, Number(d));
+  return dt.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" });
 }
 
 const statusClass: Record<ApprovalStatus, string> = {
@@ -43,8 +51,9 @@ export function LeaveHistoryClient({
   confirmDateLabel: string | null;
 }) {
   const { t } = useLanguage();
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const latestYear = balancesByYear.length > 0 ? balancesByYear[0].year : 1;
+  const [selectedYear, setSelectedYear] = useState(latestYear);
 
   const statusLabel: Record<ApprovalStatus, string> = {
     pending: t("leave.pending"),
@@ -63,25 +72,26 @@ export function LeaveHistoryClient({
   const title = leaveTypeLabel[leaveType];
 
   const balance = balancesByYear.find((b) => b.year === selectedYear);
-  const available = onProbation && selectedYear === currentYear
+  const isCurrentYear = balance?.year === latestYear;
+  const available = onProbation && isCurrentYear
     ? 0
     : balance
       ? Math.max(0, balance.entitlement - balance.used)
       : null;
 
+  // Filter requests that start within the selected employment year's date range
   const yearRequests = allRequests.filter((r) => {
-    const year = new Date(r.start_date).getFullYear();
-    return year === selectedYear && r.leave_type === leaveType;
+    if (!balance) return false;
+    return r.start_date >= balance.yearStart && r.start_date <= balance.yearEnd;
   });
 
-  const years = balancesByYear.map((b) => b.year).sort((a, b) => b - a);
-  if (years.length === 0) years.push(currentYear);
+  const sortedYears = [...balancesByYear].sort((a, b) => b.year - a.year);
 
   return (
     <>
       <Header title={title} />
       <main className="flex-1 px-4 py-6">
-        {onProbation && confirmDateLabel && selectedYear === currentYear && (
+        {onProbation && confirmDateLabel && isCurrentYear && (
           <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
             {t("leave.probationUntil")} <span className="font-semibold">{confirmDateLabel}</span>. {t("leave.leaveAvailableAfter")}
           </div>
@@ -93,11 +103,11 @@ export function LeaveHistoryClient({
           </p>
           <p className="mt-1 text-sm text-foreground/60">
             {t("leave.daysAvailable")}
-            {balance && !onProbation
+            {balance && !(onProbation && isCurrentYear)
               ? ` · ${balance.used} ${t("leave.used")} of ${balance.entitlement}`
               : ""}
           </p>
-          {balance && !onProbation && balance.entitlement > 0 && (
+          {balance && !(onProbation && isCurrentYear) && balance.entitlement > 0 && (
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/5">
               <div
                 className="h-2 rounded-full bg-brand"
@@ -107,25 +117,32 @@ export function LeaveHistoryClient({
           )}
         </div>
 
+        {/* Year selector tabs */}
         <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
-          {years.map((y) => (
+          {sortedYears.map((b) => (
             <button
-              key={y}
+              key={b.year}
               type="button"
-              onClick={() => setSelectedYear(y)}
+              onClick={() => setSelectedYear(b.year)}
               className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                y === selectedYear
+                b.year === selectedYear
                   ? "bg-brand text-white"
                   : "bg-black/5 text-foreground/60"
               }`}
             >
-              {y}
+              Year {b.year}
             </button>
           ))}
         </div>
 
+        {balance && (
+          <p className="mb-3 text-xs text-foreground/40">
+            {formatDateShort(balance.yearStart)} – {formatDateShort(balance.yearEnd)}
+          </p>
+        )}
+
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">
-          {t("leave.leaveTakenIn")} {selectedYear}
+          Leave taken in Year {selectedYear}
         </h2>
         {yearRequests.length === 0 ? (
           <p className="text-sm text-foreground/60">{t("leave.noRequests")}</p>

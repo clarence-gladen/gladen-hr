@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { submitLeaveRequestAction, editLeaveRequestAction, cancelLeaveRequestAction } from "./actions";
+import { LeaveHistoryTable } from "@/components/leave-history-table";
+import type { LeaveYearHistory } from "@/lib/leave/balances";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 
 export interface LeaveBalance {
@@ -171,11 +173,13 @@ export function LeaveClient({
   requests,
   onProbation,
   confirmDateLabel,
+  leaveHistory = [],
 }: {
   balance: LeaveBalance | null;
   requests: LeaveRequestRow[];
   onProbation?: boolean;
   confirmDateLabel?: string | null;
+  leaveHistory?: LeaveYearHistory[];
 }) {
   const { t } = useLanguage();
   const [submitState, formAction, pending] = useActionState(submitLeaveRequestAction, {});
@@ -241,6 +245,13 @@ export function LeaveClient({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {leaveHistory.length > 0 && (
+          <div className="mb-6">
+            <h2 className="mb-2 text-sm font-semibold text-foreground/60">Leave History</h2>
+            <LeaveHistoryTable history={leaveHistory} />
           </div>
         )}
 

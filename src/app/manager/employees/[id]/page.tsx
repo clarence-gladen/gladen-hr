@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { EmployeeDetailClient } from "./employee-detail-client";
+import { ensureLeaveBalances, getLeaveHistory } from "@/lib/leave/balances";
 import type { EmployeeDetail, ResidencyStatus, SkillLevel, EmployeeStatus } from "@/lib/types/database";
 
 export default async function EmployeeDetailPage({
@@ -38,5 +39,9 @@ export default async function EmployeeDetailPage({
     status: data.status as EmployeeStatus,
   };
 
-  return <EmployeeDetailClient employee={employee} />;
+  // Ensure leave balance rows are up-to-date, then fetch last 3 years' history
+  await ensureLeaveBalances(supabase, id, data.employment_start_date);
+  const leaveHistory = await getLeaveHistory(supabase, id, data.employment_start_date, 3);
+
+  return <EmployeeDetailClient employee={employee} leaveHistory={leaveHistory} />;
 }

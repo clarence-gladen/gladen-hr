@@ -19,6 +19,7 @@ interface PayslipRow {
   transport_allowance: number;
   allowances: number;
   overtime_amount: number;
+  bonus: number;
   mid_month_payment: number;
   salary_advance_deduction: number;
   deductions: number;
@@ -116,6 +117,13 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
                 </label>
                 <input id={`overtimeAmount-${payslip.id}`} name="overtimeAmount" type="number" step="0.01"
                   defaultValue={payslip.overtime_amount} className={inputClass} disabled={locked} />
+              </div>
+              <div className="col-span-2">
+                <label className={labelClass} htmlFor={`bonus-${payslip.id}`}>
+                  Bonus (AW — CPF applies)
+                </label>
+                <input id={`bonus-${payslip.id}`} name="bonus" type="number" step="0.01"
+                  defaultValue={payslip.bonus} className={inputClass} disabled={locked} />
               </div>
             </div>
           </div>

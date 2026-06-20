@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { offboardEmployeeAction, setEmployeeStatusAction } from "../actions";
+import { LeaveHistoryTable } from "@/components/leave-history-table";
+import type { LeaveYearHistory } from "@/lib/leave/balances";
 import type { EmployeeDetail, ResidencyStatus, SkillLevel } from "@/lib/types/database";
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
@@ -18,7 +20,13 @@ function Row({ label, value }: { label: string; value: string | null | undefined
   );
 }
 
-export function EmployeeDetailClient({ employee }: { employee: EmployeeDetail }) {
+export function EmployeeDetailClient({
+  employee,
+  leaveHistory = [],
+}: {
+  employee: EmployeeDetail;
+  leaveHistory?: LeaveYearHistory[];
+}) {
   const { t } = useLanguage();
   const router = useRouter();
   const [showOffboard, setShowOffboard] = useState(false);
@@ -105,6 +113,14 @@ export function EmployeeDetailClient({ employee }: { employee: EmployeeDetail })
             <Row label={t("profile.bankAccount")} value={employee.bank_account_number} />
           </div>
         )}
+
+        {/* Leave history */}
+        <div>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground/40">
+            Leave History (Last 3 Employment Years)
+          </h2>
+          <LeaveHistoryTable history={leaveHistory} />
+        </div>
 
         {/* Actions */}
         <Link

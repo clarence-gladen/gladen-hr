@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { ensureLeaveBalance } from "@/lib/leave/balances";
+import { ensureLeaveBalances } from "@/lib/leave/balances";
 import type { EmployeeStatus, ResidencyStatus, SkillLevel } from "@/lib/types/database";
 
 interface EmployeeFormValues {
@@ -82,12 +82,7 @@ export async function createEmployeeAction(
     return { error: error?.message ?? "Failed to create employee." };
   }
 
-  await ensureLeaveBalance(
-    supabase,
-    employee.id,
-    values.employmentStartDate,
-    new Date().getFullYear()
-  );
+  await ensureLeaveBalances(supabase, employee.id, values.employmentStartDate);
 
   revalidatePath("/manager/employees");
   redirect("/manager/employees");
@@ -139,12 +134,7 @@ export async function updateEmployeeAction(
     return { error: error.message };
   }
 
-  await ensureLeaveBalance(
-    supabase,
-    id,
-    values.employmentStartDate,
-    new Date().getFullYear()
-  );
+  await ensureLeaveBalances(supabase, id, values.employmentStartDate);
 
   revalidatePath("/manager/employees");
   revalidatePath(`/manager/employees/${id}`);

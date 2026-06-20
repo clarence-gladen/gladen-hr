@@ -23,7 +23,7 @@ export default async function PayrollRunPage({
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, pdf_url, employees(full_name)"
+      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, pdf_url, employees(full_name)"
     )
     .eq("payroll_run_id", id);
 

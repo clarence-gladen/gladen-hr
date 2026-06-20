@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { getConfirmationDate } from "@/lib/leave/entitlement";
+import {
+  isOnProbation,
+  getConfirmationDate,
+  getAvailableAnnualLeave,
+  getAvailableSickLeave,
+} from "@/lib/leave/entitlement";
 import { EmployeeDashboardClient } from "./dashboard-client";
 
 export default async function EmployeeDashboardPage() {
@@ -13,7 +18,6 @@ export default async function EmployeeDashboardPage() {
     .maybeSingle();
 
   const employeeId = profile?.employee_id;
-  const currentYear = new Date().getFullYear();
   const todayStr = new Date().toISOString().slice(0, 10);
   const todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -21,17 +25,9 @@ export default async function EmployeeDashboardPage() {
     month: "long",
   });
 
-  const [employeeRes, balanceRes, payslipRes, announcementsRes, readsRes] = await Promise.all([
+  const [employeeRes, payslipRes, announcementsRes, readsRes] = await Promise.all([
     employeeId
       ? supabase.from("employees").select("employment_start_date").eq("id", employeeId).maybeSingle()
-      : Promise.resolve({ data: null }),
-    employeeId
-      ? supabase
-          .from("leave_balances")
-          .select("annual_entitlement, annual_used, sick_entitlement, sick_used")
-          .eq("employee_id", employeeId)
-          .eq("year", currentYear)
-          .maybeSingle()
       : Promise.resolve({ data: null }),
     employeeId
       ? supabase
@@ -52,20 +48,39 @@ export default async function EmployeeDashboardPage() {
       : Promise.resolve({ data: [] }),
   ]);
 
-  const balance = balanceRes.data;
-  const payslip = payslipRes.data;
-  const readIds = new Set((readsRes.data ?? []).map((r) => r.announcement_id));
-  const unreadCount = (announcementsRes.data ?? []).filter((a) => !readIds.has(a.id)).length;
-
   const startDate = employeeRes.data?.employment_start_date ?? null;
+  const onProbation = startDate ? isOnProbation(startDate, todayStr) : false;
   const confirmationDate = startDate ? getConfirmationDate(startDate) : null;
-  const onProbation = confirmationDate ? todayStr < confirmationDate.toISOString().slice(0, 10) : false;
   const confirmDateLabel = confirmationDate
     ? confirmationDate.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : null;
 
-  const annualAvail = onProbation || !balance ? 0 : Math.max(0, balance.annual_entitlement - balance.annual_used);
-  const sickAvail = onProbation || !balance ? 0 : Math.max(0, balance.sick_entitlement - balance.sick_used);
+  // Fetch current employment year's leave used amounts
+  const balanceRes = employeeId && startDate
+    ? await supabase
+        .from("leave_balances")
+        .select("annual_used, sick_used")
+        .eq("employee_id", employeeId)
+        .lte("year_start", todayStr)
+        .gte("year_end", todayStr)
+        .maybeSingle()
+    : { data: null };
+
+  const balance = balanceRes.data;
+
+  const annualEntitlement = startDate ? getAvailableAnnualLeave(startDate, todayStr) : 0;
+  const sickEntitlement = startDate ? getAvailableSickLeave(startDate, todayStr) : 0;
+
+  const annualAvail = onProbation || !balance
+    ? 0
+    : Math.max(0, annualEntitlement - Number(balance.annual_used));
+  const sickAvail = onProbation || !balance
+    ? 0
+    : Math.max(0, sickEntitlement - Number(balance.sick_used));
+
+  const payslip = payslipRes.data;
+  const readIds = new Set((readsRes.data ?? []).map((r) => r.announcement_id));
+  const unreadCount = (announcementsRes.data ?? []).filter((a) => !readIds.has(a.id)).length;
 
   const payslipRun = payslip?.payroll_runs;
   const runData = payslipRun

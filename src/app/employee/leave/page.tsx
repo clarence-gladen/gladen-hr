@@ -1,5 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
-import { getConfirmationDate } from "@/lib/leave/entitlement";
+import {
+  getConfirmationDate,
+  getAvailableAnnualLeave,
+  getAvailableSickLeave,
+  getAvailableHospitalizationLeave,
+  isOnProbation,
+} from "@/lib/leave/entitlement";
+import {
+  ensureLeaveBalances,
+  getCurrentLeaveUsed,
+  getLeaveHistory,
+} from "@/lib/leave/balances";
 import { LeaveClient } from "./leave-client";
 
 export default async function EmployeeLeavePage() {
@@ -13,22 +24,27 @@ export default async function EmployeeLeavePage() {
     .maybeSingle();
 
   const employeeId = profile?.employee_id;
-  const currentYear = new Date().getFullYear();
 
-  const [employeeRes, balanceRes, requestsRes] = await Promise.all([
-    employeeId
-      ? supabase.from("employees").select("employment_start_date").eq("id", employeeId).maybeSingle()
-      : Promise.resolve({ data: null }),
-    employeeId
-      ? supabase
-          .from("leave_balances")
-          .select(
-            "annual_entitlement, annual_used, sick_entitlement, sick_used, hospitalization_entitlement, hospitalization_used"
-          )
-          .eq("employee_id", employeeId)
-          .eq("year", currentYear)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+  const { data: emp } = employeeId
+    ? await supabase
+        .from("employees")
+        .select("employment_start_date")
+        .eq("id", employeeId)
+        .maybeSingle()
+    : { data: null };
+
+  const startDate = emp?.employment_start_date ?? null;
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Ensure balance rows exist for all employment years up to today
+  if (employeeId && startDate) {
+    await ensureLeaveBalances(supabase, employeeId, startDate);
+  }
+
+  const [usedRes, requestsRes, historyRes] = await Promise.all([
+    employeeId && startDate
+      ? getCurrentLeaveUsed(supabase, employeeId, todayStr)
+      : Promise.resolve(null),
     employeeId
       ? supabase
           .from("leave_requests")
@@ -36,22 +52,46 @@ export default async function EmployeeLeavePage() {
           .eq("employee_id", employeeId)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
+    employeeId && startDate
+      ? getLeaveHistory(supabase, employeeId, startDate, 3)
+      : Promise.resolve([]),
   ]);
 
-  const startDate = employeeRes.data?.employment_start_date ?? null;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const onProbation = startDate ? isOnProbation(startDate, todayStr) : false;
+
   const confirmationDate = startDate ? getConfirmationDate(startDate) : null;
-  const onProbation = confirmationDate ? todayStr < confirmationDate.toISOString().slice(0, 10) : false;
   const confirmDateLabel = confirmationDate
-    ? confirmationDate.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    ? confirmationDate.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
     : null;
+
+  // Build balance with computed entitlements
+  const balance =
+    !onProbation && startDate && usedRes
+      ? {
+          annual_entitlement: getAvailableAnnualLeave(startDate, todayStr),
+          annual_used: usedRes.annual_used,
+          sick_entitlement: getAvailableSickLeave(startDate, todayStr),
+          sick_used: usedRes.sick_used,
+          hospitalization_entitlement: getAvailableHospitalizationLeave(startDate, todayStr),
+          hospitalization_used: usedRes.hospitalization_used,
+        }
+      : null;
+
+  const requests = Array.isArray(requestsRes)
+    ? requestsRes
+    : (requestsRes as { data: unknown[] }).data ?? [];
 
   return (
     <LeaveClient
-      balance={onProbation ? null : (balanceRes.data ?? null)}
-      requests={requestsRes.data ?? []}
+      balance={balance}
+      requests={requests as Parameters<typeof LeaveClient>[0]["requests"]}
       onProbation={onProbation}
       confirmDateLabel={confirmDateLabel}
+      leaveHistory={Array.isArray(historyRes) ? historyRes : []}
     />
   );
 }

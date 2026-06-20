@@ -72,6 +72,26 @@ export function calculateCpf(
 }
 
 /**
+ * CPF contributions on Additional Wage (bonus). No OW ceiling applies; the
+ * annual AW ceiling ($102,000 minus total OW already subject to CPF) must be
+ * verified manually at year-end. Uses the same employee/employer rates.
+ */
+export function calculateCpfOnAw(
+  awAmount: number,
+  age: number,
+  rates: CpfRate[]
+): { employeeContribution: number; employerContribution: number } {
+  const bracket = rates.find((r) => age >= r.age_from && age <= r.age_to);
+  if (!bracket || awAmount <= 0) {
+    return { employeeContribution: 0, employerContribution: 0 };
+  }
+  return {
+    employeeContribution: roundToDollar((awAmount * bracket.employee_rate) / 100),
+    employerContribution: roundToDollar((awAmount * bracket.employer_rate) / 100),
+  };
+}
+
+/**
  * Monthly Foreign Worker Levy for work permit / S Pass holders.
  * Returns 0 for citizens/PRs (no levy applies).
  */
