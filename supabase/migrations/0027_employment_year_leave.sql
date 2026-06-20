@@ -201,7 +201,7 @@ BEGIN
     END IF;
   END IF;
 
-  UPDATE leave_requests SET status = 'rejected' WHERE id = request_id;
+  UPDATE leave_requests SET status = 'cancelled' WHERE id = request_id;
 END;
 $$;
 
