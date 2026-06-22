@@ -215,8 +215,6 @@ export async function updatePayslipAction(
     .eq("id", payslipId);
 
   if (error) return { error: error.message };
-
-  revalidatePath(`/manager/payroll/${payslip.payroll_run_id}`);
   return {};
 }
 

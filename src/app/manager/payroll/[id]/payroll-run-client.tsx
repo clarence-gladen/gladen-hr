@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import {
@@ -53,11 +54,21 @@ const sectionLabel = "mb-2 text-[10px] font-bold uppercase tracking-wider text-f
 
 function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; downloadUrl?: string; locked: boolean }) {
   const { t } = useLanguage();
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
-  const [state, formAction, saving] = useActionState(
-    updatePayslipAction.bind(null, payslip.id),
-    {}
-  );
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, startSaveTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaveError(null);
+    const formData = new FormData(e.currentTarget);
+    startSaveTransition(async () => {
+      const result = await updatePayslipAction(payslip.id, {}, formData);
+      if (result?.error) setSaveError(result.error);
+      else router.refresh();
+    });
+  }
 
   return (
     <li className="rounded-xl bg-white p-4 shadow-sm">
@@ -85,7 +96,7 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
       </div>
 
       {expanded && (
-        <form action={formAction} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {/* Earnings */}
           <div>
             <p className={sectionLabel}>{t("payroll.earningsSection")}</p>
@@ -176,7 +187,7 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
             </div>
           </div>
 
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+          {saveError && <p className="text-sm text-red-600">{saveError}</p>}
 
           {!locked && (
             <button type="submit" disabled={saving}
