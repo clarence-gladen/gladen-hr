@@ -106,6 +106,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
         allowances: 0,
         overtimeAmount: 0,
         bonus: 0,
+        reimbursement: 0,
         midMonthPayment: 0,
         salaryAdvanceDeduction: advancesByEmployee.get(employee.id) ?? 0,
         deductions: 0,
@@ -125,6 +126,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
       allowances: result.allowances,
       overtime_amount: result.overtimeAmount,
       bonus: result.bonus,
+      reimbursement: result.reimbursement,
       mid_month_payment: result.midMonthPayment,
       salary_advance_deduction: result.salaryAdvanceDeduction,
       deductions: result.deductions,
@@ -184,6 +186,7 @@ export async function updatePayslipAction(
       allowances: Number(formData.get("allowances")) || 0,
       overtimeAmount: Number(formData.get("overtimeAmount")) || 0,
       bonus: Number(formData.get("bonus")) || 0,
+      reimbursement: Number(formData.get("reimbursement")) || 0,
       midMonthPayment: Number(formData.get("midMonthPayment")) || 0,
       salaryAdvanceDeduction: Number(formData.get("salaryAdvanceDeduction")) || 0,
       deductions: Number(formData.get("deductions")) || 0,
@@ -203,6 +206,7 @@ export async function updatePayslipAction(
       allowances: result.allowances,
       overtime_amount: result.overtimeAmount,
       bonus: result.bonus,
+      reimbursement: result.reimbursement,
       mid_month_payment: result.midMonthPayment,
       salary_advance_deduction: result.salaryAdvanceDeduction,
       deductions: result.deductions,
@@ -236,7 +240,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)"
+      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)"
     )
     .eq("payroll_run_id", runId);
 
@@ -256,6 +260,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
         allowances: Number(payslip.allowances),
         overtimeAmount: Number(payslip.overtime_amount),
         bonus: Number(payslip.bonus),
+        reimbursement: Number(payslip.reimbursement),
         midMonthPayment: Number(payslip.mid_month_payment),
         salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
         deductions: Number(payslip.deductions),

@@ -21,6 +21,7 @@ interface PayslipRow {
   allowances: number;
   overtime_amount: number;
   bonus: number;
+  reimbursement: number;
   mid_month_payment: number;
   salary_advance_deduction: number;
   deductions: number;
@@ -135,6 +136,13 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
                 </label>
                 <input id={`bonus-${payslip.id}`} name="bonus" type="number" step="0.01"
                   defaultValue={payslip.bonus} className={inputClass} disabled={locked} />
+              </div>
+              <div className="col-span-2">
+                <label className={labelClass} htmlFor={`reimbursement-${payslip.id}`}>
+                  Reimbursement (Tax-Exempt)
+                </label>
+                <input id={`reimbursement-${payslip.id}`} name="reimbursement" type="number" step="0.01"
+                  defaultValue={payslip.reimbursement} className={inputClass} disabled={locked} />
               </div>
             </div>
           </div>

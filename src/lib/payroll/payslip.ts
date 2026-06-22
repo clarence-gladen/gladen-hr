@@ -14,6 +14,7 @@ export interface PayslipInputs {
   allowances: number; // "Other Allowance"
   overtimeAmount: number;
   bonus: number; // Additional Wage — CPF applies; annual AW ceiling checked manually
+  reimbursement: number; // Tax-exempt — not subject to CPF or income tax
   midMonthPayment: number;
   salaryAdvanceDeduction: number; // "Salary Loan"
   deductions: number; // "Other Deductions"
@@ -34,6 +35,7 @@ export interface PayslipResult {
   allowances: number;
   overtimeAmount: number;
   bonus: number;
+  reimbursement: number;
   midMonthPayment: number;
   salaryAdvanceDeduction: number;
   deductions: number;
@@ -81,7 +83,8 @@ export function calculatePayslip(
 
   const netPay = roundCurrency(
     ordinaryWage +
-      inputs.bonus -
+      inputs.bonus +
+      inputs.reimbursement -
       cpfEmployee -
       inputs.midMonthPayment -
       inputs.salaryAdvanceDeduction -
@@ -94,6 +97,7 @@ export function calculatePayslip(
     allowances: inputs.allowances,
     overtimeAmount: inputs.overtimeAmount,
     bonus: inputs.bonus,
+    reimbursement: inputs.reimbursement,
     midMonthPayment: inputs.midMonthPayment,
     salaryAdvanceDeduction: inputs.salaryAdvanceDeduction,
     deductions: inputs.deductions,

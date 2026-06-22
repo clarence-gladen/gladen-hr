@@ -10,6 +10,7 @@ export interface PayslipDetail {
   transport_allowance: number;
   allowances: number;
   overtime_amount: number;
+  reimbursement: number;
   mid_month_payment: number;
   salary_advance_deduction: number;
   deductions: number;
@@ -92,6 +93,18 @@ export function PayslipDetailClient({ slip, downloadUrl }: { slip: PayslipDetail
             <LineItem label={t("payroll.transportAllowance")} amount={slip.transport_allowance} />
             <LineItem label={t("payroll.otherAllowance")} amount={slip.allowances} />
             <LineItem label={t("payroll.overtime")} amount={slip.overtime_amount} />
+
+            {/* Reimbursements */}
+            {slip.reimbursement > 0 && (
+              <>
+                <div className="px-4 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-foreground/40">
+                    Reimbursements (Tax-Exempt)
+                  </p>
+                </div>
+                <LineItem label="Reimbursement" amount={slip.reimbursement} />
+              </>
+            )}
 
             {/* Deductions */}
             {hasDeductions && (
