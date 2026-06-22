@@ -183,6 +183,7 @@ export function LeaveClient({
 }) {
   const { t } = useLanguage();
   const [submitState, formAction, pending] = useActionState(submitLeaveRequestAction, {});
+  const [showHistory, setShowHistory] = useState(false);
 
   const leaveTypeLabel: Record<LeaveType, string> = {
     annual: t("leave.annual"),
@@ -248,13 +249,6 @@ export function LeaveClient({
           </div>
         )}
 
-        {leaveHistory.length > 0 && (
-          <div className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold text-foreground/60">Leave History</h2>
-            <LeaveHistoryTable history={leaveHistory} />
-          </div>
-        )}
-
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">{t("leave.applyLeave")}</h2>
         <form action={formAction} className="mb-6 space-y-4 rounded-xl bg-white p-4 shadow-sm">
           <div>
@@ -303,6 +297,24 @@ export function LeaveClient({
               />
             ))}
           </ul>
+        )}
+
+        {leaveHistory.length > 0 && (
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-brand shadow-sm flex items-center justify-between"
+            >
+              <span>Leave History</span>
+              <span className="text-foreground/40">{showHistory ? "▲" : "▼"}</span>
+            </button>
+            {showHistory && (
+              <div className="mt-3">
+                <LeaveHistoryTable history={leaveHistory} />
+              </div>
+            )}
+          </div>
         )}
       </main>
     </>
