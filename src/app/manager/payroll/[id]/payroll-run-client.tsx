@@ -201,6 +201,7 @@ export function PayrollRunClient({
 }) {
   const { t } = useLanguage();
   const [isPending, startTransition] = useTransition();
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [finaliseMsg, setFinaliseMsg] = useState<{ error?: string } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
@@ -209,7 +210,11 @@ export function PayrollRunClient({
   const hasPayslips = payslips.length > 0;
 
   function handleGenerate() {
-    startTransition(() => { generatePayslipsAction(run.id); });
+    setGenerateError(null);
+    startTransition(async () => {
+      const result = await generatePayslipsAction(run.id);
+      if (result?.error) setGenerateError(result.error);
+    });
   }
 
   function handleFinalise() {
@@ -259,10 +264,15 @@ export function PayrollRunClient({
 
             {/* Step 1: Generate payslips (only if none exist) */}
             {!hasPayslips && (
-              <button type="button" disabled={isPending} onClick={handleGenerate}
-                className="w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white disabled:opacity-60">
-                {isPending ? t("common.loading") : t("payroll.generatePayslips")}
-              </button>
+              <div>
+                <button type="button" disabled={isPending} onClick={handleGenerate}
+                  className="w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white disabled:opacity-60">
+                  {isPending ? t("common.loading") : t("payroll.generatePayslips")}
+                </button>
+                {generateError && (
+                  <p className="mt-2 text-center text-sm text-red-600">{generateError}</p>
+                )}
+              </div>
             )}
 
             {/* Step 3: Finalise (only if payslips exist) */}

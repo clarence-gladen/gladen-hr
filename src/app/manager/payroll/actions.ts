@@ -65,7 +65,7 @@ export async function createPayrollRunAction(
   redirect(`/manager/payroll/${run.id}`);
 }
 
-export async function generatePayslipsAction(runId: string): Promise<void> {
+export async function generatePayslipsAction(runId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const { data: run } = await supabase
@@ -74,7 +74,7 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
     .eq("id", runId)
     .single();
 
-  if (!run) return;
+  if (!run) return { error: "Payroll run not found." };
 
   const payDate = payDateForRun(run.month, run.year);
 
@@ -88,7 +88,7 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
       .eq("status", "active"),
   ]);
 
-  if (!sdlConfig) return;
+  if (!sdlConfig) return { error: "No statutory rates found. Please configure rates in Settings → Statutory Rates." };
 
   const employees = employeesRes.data ?? [];
   const outstandingAdvances = await getOutstandingAdvances(supabase);
@@ -142,6 +142,7 @@ export async function generatePayslipsAction(runId: string): Promise<void> {
 
   await supabase.from("payroll_runs").update({ status: "processing" }).eq("id", runId);
   revalidatePath(`/manager/payroll/${runId}`);
+  return {};
 }
 
 export async function updatePayslipAction(

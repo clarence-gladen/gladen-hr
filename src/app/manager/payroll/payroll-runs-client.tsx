@@ -29,6 +29,8 @@ export function PayrollRunsClient({ runs }: { runs: PayrollRunRow[] }) {
   };
 
   const now = new Date();
+  const currentYear = now.getFullYear();
+  const years = Array.from({ length: currentYear - 2025 + 2 }, (_, i) => 2025 + i);
   const monthNames = Array.from({ length: 12 }, (_, i) =>
     new Date(2024, i, 1).toLocaleDateString(undefined, { month: "long" })
   );
@@ -63,13 +65,16 @@ export function PayrollRunsClient({ runs }: { runs: PayrollRunRow[] }) {
               <label className={labelClass} htmlFor="year">
                 {t("payroll.year")}
               </label>
-              <input
+              <select
                 id="year"
                 name="year"
-                type="number"
-                defaultValue={now.getFullYear()}
+                defaultValue={currentYear}
                 className={inputClass}
-              />
+              >
+                {years.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
           </div>
           {state.error && <p className="text-sm text-red-600">{state.error}</p>}
