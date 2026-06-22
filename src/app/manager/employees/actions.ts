@@ -153,6 +153,18 @@ export async function setEmployeeStatusAction(
   revalidatePath(`/manager/employees/${id}`);
 }
 
+export async function revealNricAction(
+  employeeId: string,
+): Promise<{ nric?: string; error?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_employee_nric", {
+    p_employee_id: employeeId,
+    p_secret: process.env.NRIC_ENCRYPTION_KEY!,
+  });
+  if (error) return { error: error.message };
+  return { nric: data as string };
+}
+
 export async function offboardEmployeeAction(
   id: string,
   endDate: string

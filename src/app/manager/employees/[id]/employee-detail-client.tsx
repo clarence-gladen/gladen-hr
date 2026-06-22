@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
-import { offboardEmployeeAction, setEmployeeStatusAction } from "../actions";
+import { offboardEmployeeAction, revealNricAction, setEmployeeStatusAction } from "../actions";
 import { LeaveHistoryTable } from "@/components/leave-history-table";
 import type { LeaveYearHistory } from "@/lib/leave/balances";
 import type { EmployeeDetail, ResidencyStatus, SkillLevel } from "@/lib/types/database";
@@ -32,6 +32,19 @@ export function EmployeeDetailClient({
   const [showOffboard, setShowOffboard] = useState(false);
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
   const [isPending, startTransition] = useTransition();
+  const [nric, setNric] = useState<string | null>(null);
+  const [nricPending, startNricTransition] = useTransition();
+  const [nricError, setNricError] = useState<string | null>(null);
+
+  function handleRevealNric() {
+    if (nric) { setNric(null); return; }
+    setNricError(null);
+    startNricTransition(async () => {
+      const result = await revealNricAction(employee.id);
+      if (result.error) setNricError(result.error);
+      else setNric(result.nric ?? null);
+    });
+  }
 
   const residencyLabel: Record<ResidencyStatus, string> = {
     citizen: t("employees.citizen"),
@@ -83,7 +96,25 @@ export function EmployeeDetailClient({
             {t("employees.personalInfo")}
           </h2>
           <Row label={t("employees.fullName")} value={employee.full_name} />
-          <Row label={t("employees.nric")} value={`•••${employee.nric_last4}`} />
+          <div className="flex items-center justify-between gap-4 py-3 border-b border-black/5">
+            <p className="text-sm text-foreground/60 shrink-0">{t("employees.nric")}</p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-medium text-foreground font-mono">
+                {nric ?? `•••••${employee.nric_last4}`}
+              </p>
+              <button
+                type="button"
+                onClick={handleRevealNric}
+                disabled={nricPending}
+                className="text-xs font-semibold text-brand disabled:opacity-50"
+              >
+                {nricPending ? "…" : nric ? "Hide" : "View"}
+              </button>
+            </div>
+          </div>
+          {nricError && (
+            <p className="text-xs text-red-600 pb-2">{nricError}</p>
+          )}
           <Row label={t("employees.dateOfBirth")} value={employee.date_of_birth} />
           <Row label={t("employees.mobileNumber")} value={`+${employee.mobile_number}`} />
           <Row label={t("employees.residencyStatus")} value={residencyLabel[employee.residency_status]} />
