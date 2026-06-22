@@ -39,6 +39,17 @@ export function PayrollRunsClient({ runs }: { runs: PayrollRunRow[] }) {
     <>
       <Header titleKey="payroll.title" />
       <main className="flex-1 px-4 py-6">
+        <Link
+          href="/manager/payroll/ir8a"
+          className="mb-4 flex items-center justify-between rounded-xl bg-brand/5 px-4 py-3"
+        >
+          <div>
+            <p className="text-sm font-semibold text-brand">IR8A / Yearly Report</p>
+            <p className="text-xs text-brand/60">Annual income summary for IRAS filing</p>
+          </div>
+          <span className="text-brand/40">›</span>
+        </Link>
+
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">
           {t("payroll.newRun")}
         </h2>
