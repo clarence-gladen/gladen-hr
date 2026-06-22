@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
 import { calculatePayslip } from "@/lib/payroll/payslip";
 import { getCpfRates, getFwlRates, getSdlConfig } from "@/lib/payroll/rates";
@@ -321,4 +322,89 @@ export async function deletePayrollRunAction(runId: string): Promise<{ error?: s
   if (error) return { error: error.message };
 
   redirect("/manager/payroll");
+}
+
+export async function downloadPayrollExcelAction(
+  runId: string
+): Promise<{ base64?: string; filename?: string; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("month, year")
+    .eq("id", runId)
+    .single();
+
+  if (!run) return { error: "Payroll run not found." };
+
+  const { data: payslips } = await supabase
+    .from("payslips")
+    .select(
+      `id, basic_salary, transport_allowance, allowances, overtime_amount, bonus,
+       reimbursement, mid_month_payment, salary_advance_deduction, deductions,
+       cpf_employee, cpf_employer, net_pay,
+       employees(full_name, bank_name, bank_account_number)`
+    )
+    .eq("payroll_run_id", runId)
+    .order("employees(full_name)");
+
+  if (!payslips || payslips.length === 0) return { error: "No payslips found." };
+
+  const monthName = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const rows = payslips.map((p, i) => {
+    const emp = Array.isArray(p.employees) ? p.employees[0] : p.employees;
+    return {
+      "No.": i + 1,
+      "Employee Name": emp?.full_name ?? "",
+      "Bank Name": emp?.bank_name ?? "",
+      "Bank Account No.": emp?.bank_account_number ?? "",
+      "Basic Salary": Number(p.basic_salary),
+      "Transport Allowance": Number(p.transport_allowance),
+      "Other Allowances": Number(p.allowances),
+      "Overtime": Number(p.overtime_amount),
+      "Bonus": Number(p.bonus),
+      "Reimbursement": Number(p.reimbursement),
+      "Mid-Month Advance": Number(p.mid_month_payment),
+      "Salary Advance Repayment": Number(p.salary_advance_deduction),
+      "Other Deductions": Number(p.deductions),
+      "CPF (Employee)": Number(p.cpf_employee),
+      "CPF (Employer)": Number(p.cpf_employer),
+      "Net Pay": Number(p.net_pay),
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Column widths
+  ws["!cols"] = [
+    { wch: 5 },  // No.
+    { wch: 28 }, // Employee Name
+    { wch: 16 }, // Bank Name
+    { wch: 20 }, // Bank Account No.
+    { wch: 14 }, // Basic Salary
+    { wch: 20 }, // Transport Allowance
+    { wch: 16 }, // Other Allowances
+    { wch: 10 }, // Overtime
+    { wch: 10 }, // Bonus
+    { wch: 14 }, // Reimbursement
+    { wch: 18 }, // Mid-Month Advance
+    { wch: 24 }, // Salary Advance Repayment
+    { wch: 16 }, // Other Deductions
+    { wch: 16 }, // CPF (Employee)
+    { wch: 16 }, // CPF (Employer)
+    { wch: 12 }, // Net Pay
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, monthName);
+
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  const base64 = buffer.toString("base64");
+  const filename = `Payroll_${run.year}_${String(run.month).padStart(2, "0")}.xlsx`;
+
+  return { base64, filename };
 }

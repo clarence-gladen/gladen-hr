@@ -7,6 +7,7 @@ import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import {
   deletePayrollRunAction,
+  downloadPayrollExcelAction,
   finalisePayrollAction,
   generatePayslipsAction,
   updatePayslipAction,
@@ -224,6 +225,8 @@ export function PayrollRunClient({
   const [finaliseMsg, setFinaliseMsg] = useState<{ error?: string } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+  const [excelError, setExcelError] = useState<string | null>(null);
+  const [excelPending, startExcelTransition] = useTransition();
 
   const isCompleted = run.status === "completed";
   const hasPayslips = payslips.length > 0;
@@ -251,6 +254,22 @@ export function PayrollRunClient({
     });
   }
 
+  function handleDownloadExcel() {
+    setExcelError(null);
+    startExcelTransition(async () => {
+      const result = await downloadPayrollExcelAction(run.id);
+      if (result.error) { setExcelError(result.error); return; }
+      const bytes = Uint8Array.from(atob(result.base64!), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.filename!;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
   return (
     <>
       <Header title={`${monthNames[run.month - 1]} ${run.year}`} />
@@ -261,9 +280,20 @@ export function PayrollRunClient({
 
         {/* Status banner */}
         {isCompleted ? (
-          <div className="mb-4 flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3">
-            <span className="text-green-600">✓</span>
-            <span className="text-sm font-semibold text-green-700">{t("payroll.completedBanner")}</span>
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3">
+              <span className="text-green-600">✓</span>
+              <span className="text-sm font-semibold text-green-700">{t("payroll.completedBanner")}</span>
+            </div>
+            <button
+              type="button"
+              disabled={excelPending}
+              onClick={handleDownloadExcel}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60"
+            >
+              {excelPending ? "Generating…" : "Download Excel (GIRO)"}
+            </button>
+            {excelError && <p className="text-center text-xs text-red-600">{excelError}</p>}
           </div>
         ) : (
           <div className="mb-4 rounded-xl bg-white p-4 shadow-sm">
