@@ -73,12 +73,14 @@ export function DashboardClient({
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
     no_pay: t("leave.noPay"),
+    off_day: t("leave.offDay"),
   };
   const leaveTypeDot: Record<LeaveType, string> = {
     annual: "bg-brand",
     sick: "bg-amber-400",
     hospitalization: "bg-amber-400",
     no_pay: "bg-gray-300",
+    off_day: "bg-purple-300",
   };
 
   return (

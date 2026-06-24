@@ -67,6 +67,7 @@ export function LeaveHistoryClient({
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
     no_pay: t("leave.noPay"),
+    off_day: t("leave.offDay"),
   };
 
   const title = leaveTypeLabel[leaveType];
