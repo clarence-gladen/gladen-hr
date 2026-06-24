@@ -79,7 +79,12 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
 
   const payDate = payDateForRun(run.month, run.year);
 
-  const [cpfRates, fwlRates, sdlConfig, employeesRes] = await Promise.all([
+  const monthStart = `${run.year}-${String(run.month).padStart(2, "0")}-01`;
+  const nextMonth = run.month === 12 ? 1 : run.month + 1;
+  const nextYear = run.month === 12 ? run.year + 1 : run.year;
+  const monthEnd = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+
+  const [cpfRates, fwlRates, sdlConfig, employeesRes, otRes] = await Promise.all([
     getCpfRates(supabase, payDate),
     getFwlRates(supabase, payDate),
     getSdlConfig(supabase, payDate),
@@ -87,11 +92,21 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
       .from("employees")
       .select("id, base_salary, date_of_birth, residency_status, skill_level")
       .eq("status", "active"),
+    supabase
+      .from("overtime_records")
+      .select("employee_id, amount")
+      .gte("work_date", monthStart)
+      .lt("work_date", monthEnd),
   ]);
 
   if (!sdlConfig) return { error: "No statutory rates found. Please configure rates in Settings → Statutory Rates." };
 
   const employees = employeesRes.data ?? [];
+  const otByEmployee = new Map<string, number>();
+  for (const ot of otRes.data ?? []) {
+    const current = otByEmployee.get(ot.employee_id) ?? 0;
+    otByEmployee.set(ot.employee_id, current + Number(ot.amount));
+  }
   const outstandingAdvances = await getOutstandingAdvances(supabase);
   const advancesByEmployee = new Map<string, number>();
   for (const advance of outstandingAdvances) {
@@ -105,7 +120,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
         basicSalary: Number(employee.base_salary),
         transportAllowance: 0,
         allowances: 0,
-        overtimeAmount: 0,
+        overtimeAmount: otByEmployee.get(employee.id) ?? 0,
         bonus: 0,
         reimbursement: 0,
         midMonthPayment: 0,

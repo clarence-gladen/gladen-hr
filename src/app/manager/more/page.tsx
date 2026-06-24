@@ -9,6 +9,7 @@ const links = [
   { href: "/manager/announcements", labelKey: "more.announcements", icon: "🔔" },
   { href: "/manager/documents", labelKey: "more.documents", icon: "📋" },
   { href: "/manager/salary-advances", labelKey: "more.salaryAdvances", icon: "💵" },
+  { href: "/manager/overtime", labelKey: "more.overtime", icon: "⏰" },
   { href: "/manager/rates", labelKey: "more.rates", icon: "⚙️" },
   { href: "/manager/more/access", labelKey: "more.manageAccess", icon: "🔑" },
 ];

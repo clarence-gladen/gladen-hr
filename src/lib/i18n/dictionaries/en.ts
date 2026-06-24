@@ -56,6 +56,7 @@ const en = {
     announcements: "Announcements",
     documents: "Employee Documents",
     salaryAdvances: "Salary Advances",
+    overtime: "Overtime",
     rates: "Statutory Rates (CPF/FWL/SDL)",
     employeeTitle: "More",
     documentsDesc: "Work permits, passports, MOM documents",

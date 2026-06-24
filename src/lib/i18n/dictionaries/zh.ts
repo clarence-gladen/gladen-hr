@@ -58,6 +58,7 @@ const zh: Partial<Dictionary> = {
     announcements: "公告",
     documents: "员工文件",
     salaryAdvances: "薪资预支",
+    overtime: "加班费",
     rates: "法定费率 (CPF/FWL/SDL)",
     employeeTitle: "更多",
     documentsDesc: "工作准证、护照、人力部文件",
