@@ -49,8 +49,8 @@ export async function editLeaveRequestAction(
     .eq("id", requestId)
     .maybeSingle();
 
-  const workDays = await getEmployeeWorkDays(supabase, req?.employee_id);
-  const days = countWorkingDays(startDate, endDate, workDays);
+  const { workDays, restDay } = await getEmployeeWorkSchedule(supabase, req?.employee_id);
+  const days = countWorkingDays(startDate, endDate, workDays, restDay);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase
@@ -84,8 +84,8 @@ export async function editApprovedLeaveRequestAction(
     .eq("id", requestId)
     .maybeSingle();
 
-  const workDays = await getEmployeeWorkDays(supabase, req?.employee_id);
-  const days = countWorkingDays(startDate, endDate, workDays);
+  const { workDays, restDay } = await getEmployeeWorkSchedule(supabase, req?.employee_id);
+  const days = countWorkingDays(startDate, endDate, workDays, restDay);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase.rpc("edit_approved_leave_request", {
@@ -116,10 +116,10 @@ export async function createLeaveForEmployeeAction(
   if (!employeeId || !leaveType || !startDate || !endDate) return { error: "All fields are required." };
   if (endDate < startDate) return { error: "End date must be on or after start date." };
 
-  const workDays = await getEmployeeWorkDays(supabase, employeeId);
+  const { workDays, restDay } = await getEmployeeWorkSchedule(supabase, employeeId);
   const days = leaveType === "off_day"
     ? countCalendarDays(startDate, endDate)
-    : countWorkingDays(startDate, endDate, workDays);
+    : countWorkingDays(startDate, endDate, workDays, restDay);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { data: request, error: insertError } = await supabase
@@ -137,27 +137,35 @@ export async function createLeaveForEmployeeAction(
   redirect("/manager/leave");
 }
 
-async function getEmployeeWorkDays(
+async function getEmployeeWorkSchedule(
   supabase: Awaited<ReturnType<typeof createClient>>,
   employeeId: string | undefined | null
-): Promise<5 | 6> {
-  if (!employeeId) return 5;
+): Promise<{ workDays: 5 | 6; restDay: 0 | 6 }> {
+  if (!employeeId) return { workDays: 5, restDay: 0 };
   const { data } = await supabase
     .from("employees")
-    .select("work_days_per_week")
+    .select("work_days_per_week, work_rest_day")
     .eq("id", employeeId)
     .maybeSingle();
-  return data?.work_days_per_week === 6 ? 6 : 5;
+  return {
+    workDays: data?.work_days_per_week === 6 ? 6 : 5,
+    restDay: (data?.work_rest_day as number) === 6 ? 6 : 0,
+  };
 }
 
-function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5): number {
+// restDay only applies to 6-day workers: 0 = Sunday off (default), 6 = Saturday off
+function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5, restDay: 0 | 6 = 0): number {
   const cur = new Date(start);
   const endDate = new Date(end);
   if (endDate < cur) return 0;
   let count = 0;
   while (cur <= endDate) {
     const day = cur.getDay();
-    if (workDays === 6 ? day !== 0 : day !== 0 && day !== 6) count++;
+    if (workDays === 5) {
+      if (day !== 0 && day !== 6) count++;
+    } else {
+      if (day !== restDay) count++;
+    }
     cur.setDate(cur.getDate() + 1);
   }
   return count;

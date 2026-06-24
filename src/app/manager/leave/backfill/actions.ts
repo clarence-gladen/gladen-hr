@@ -21,14 +21,18 @@ interface LeaveEntry {
   halfDay?: boolean;
 }
 
-function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5): number {
+function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5, restDay: 0 | 6 = 0): number {
   const cur = new Date(start + "T00:00:00");
   const endDate = new Date(end + "T00:00:00");
   if (endDate < cur) return 0;
   let count = 0;
   while (cur <= endDate) {
     const day = cur.getDay();
-    if (workDays === 6 ? day !== 0 : day !== 0 && day !== 6) count++;
+    if (workDays === 5) {
+      if (day !== 0 && day !== 6) count++;
+    } else {
+      if (day !== restDay) count++;
+    }
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -45,13 +49,13 @@ async function processEntries(
   entries: LeaveEntry[]
 ): Promise<BackfillResult[]> {
   const results: BackfillResult[] = [];
-  const cache: Record<string, { id: string; full_name: string; work_days_per_week: number } | null> = {};
+  const cache: Record<string, { id: string; full_name: string; work_days_per_week: number; work_rest_day: number } | null> = {};
 
   for (const entry of entries) {
     if (!(entry.nameSearch in cache)) {
       const { data } = await supabase
         .from("employees")
-        .select("id, full_name, work_days_per_week")
+        .select("id, full_name, work_days_per_week, work_rest_day")
         .ilike("full_name", entry.nameSearch)
         .maybeSingle();
       cache[entry.nameSearch] = data;
@@ -64,17 +68,18 @@ async function processEntries(
     }
 
     const workDays: 5 | 6 = emp.work_days_per_week === 6 ? 6 : 5;
+    const restDay: 0 | 6 = (emp.work_rest_day as number) === 6 ? 6 : 0;
     let days: number;
     if (entry.halfDay) {
       days = 0.5;
     } else if (entry.leaveType === "hospitalization" || entry.leaveType === "off_day") {
       days = countCalendarDays(entry.startDate, entry.endDate);
     } else {
-      days = countWorkingDays(entry.startDate, entry.endDate, workDays);
+      days = countWorkingDays(entry.startDate, entry.endDate, workDays, restDay);
     }
 
     if (days === 0) {
-      results.push({ name: emp.full_name, leaveType: entry.leaveType, startDate: entry.startDate, endDate: entry.endDate, days: 0, status: "skipped", message: `0 working days (${workDays}-day worker)` });
+      results.push({ name: emp.full_name, leaveType: entry.leaveType, startDate: entry.startDate, endDate: entry.endDate, days: 0, status: "skipped", message: `0 working days (${workDays}-day worker, rest=${restDay === 6 ? "Sat" : "Sun"})` });
       continue;
     }
 
