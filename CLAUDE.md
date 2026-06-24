@@ -3,8 +3,11 @@
 # Gladen HR — Project Guide for Claude
 
 ## Deployment
-- **Live on Vercel** — pushing to `main` on GitHub auto-deploys to production.
-- Always `git add`, `git commit`, and `git push origin main` after code changes.
+- **Live on Vercel** at `https://gladen-hr.vercel.app`
+- After every code change, always do **both** steps — never stop at just the git push:
+  1. `git add <files> && git commit -m "..." && git push origin main`
+  2. `npx vercel --prod` — triggers a guaranteed production deployment (do not rely on the GitHub webhook alone, it can silently miss pushes)
+- Confirm the deployment is `● Ready` in the output before reporting the task as done.
 - Local dev server (`npm run dev`) is for testing only; users see the Vercel build.
 - If the dev server is stale, kill it with `pkill -f "next dev"` and restart.
 
@@ -70,7 +73,3 @@ The app uses `statusBarStyle: "black-translucent"` + `viewportFit: "cover"`. Thi
 ## Assets
 - Logo files in `public/images/`: `logo-full.png` (full logo with subtitle), `logo-blue.png` (icon only), `logo-white.png`, `logo-on-blue.png`
 - Full logo source: `/Users/Clarence/Desktop/Gladen/Website Stuff and Logo/Gladen-Full Logo Blue words no background.png`
-
-## Pre-Go-Live Checklist
-- Remove Supabase test number `+6597867966` (pin `123456`) before real employees use the app
-- Upgrade Twilio from trial to paid account
