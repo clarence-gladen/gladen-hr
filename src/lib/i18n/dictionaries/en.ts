@@ -133,6 +133,7 @@ const en = {
     sick: "Sick Leave",
     hospitalization: "Hospitalization Leave",
     noPay: "No-Pay Leave",
+    offDay: "Off-Day",
     listView: "List",
     calendarView: "Calendar",
     peopleOnLeave: "On Leave",

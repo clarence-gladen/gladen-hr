@@ -117,7 +117,9 @@ export async function createLeaveForEmployeeAction(
   if (endDate < startDate) return { error: "End date must be on or after start date." };
 
   const workDays = await getEmployeeWorkDays(supabase, employeeId);
-  const days = countWorkingDays(startDate, endDate, workDays);
+  const days = leaveType === "off_day"
+    ? countCalendarDays(startDate, endDate)
+    : countWorkingDays(startDate, endDate, workDays);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { data: request, error: insertError } = await supabase
@@ -159,4 +161,10 @@ function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5): numb
     cur.setDate(cur.getDate() + 1);
   }
   return count;
+}
+
+function countCalendarDays(start: string, end: string): number {
+  const s = new Date(start);
+  const e = new Date(end);
+  return Math.floor((e.getTime() - s.getTime()) / 86_400_000) + 1;
 }

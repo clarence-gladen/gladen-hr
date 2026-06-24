@@ -77,6 +77,7 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
               <option value="sick">{leaveTypeLabel.sick}</option>
               <option value="hospitalization">{leaveTypeLabel.hospitalization}</option>
               <option value="no_pay">{leaveTypeLabel.no_pay}</option>
+              <option value="off_day">{leaveTypeLabel.off_day}</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -185,6 +186,7 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
               <option value="sick">{leaveTypeLabel.sick}</option>
               <option value="hospitalization">{leaveTypeLabel.hospitalization}</option>
               <option value="no_pay">{leaveTypeLabel.no_pay}</option>
+              <option value="off_day">{leaveTypeLabel.off_day}</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -285,6 +287,7 @@ export function LeaveApprovalsClient({
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
     no_pay: t("leave.noPay"),
+    off_day: t("leave.offDay"),
   };
 
   const statusLabel: Record<ApprovalStatus, string> = {

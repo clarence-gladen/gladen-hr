@@ -190,6 +190,7 @@ export function LeaveClient({
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
     no_pay: t("leave.noPay"),
+    off_day: t("leave.offDay"),
   };
 
   const statusLabel: Record<ApprovalStatus, string> = {

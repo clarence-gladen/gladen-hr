@@ -42,6 +42,7 @@ export function LeaveCalendar({ entries }: { entries: LeaveCalendarEntry[] }) {
     sick: t("leave.sick"),
     hospitalization: t("leave.hospitalization"),
     no_pay: t("leave.noPay"),
+    off_day: t("leave.offDay"),
   };
 
   function entriesOnDate(dateStr: string): LeaveCalendarEntry[] {

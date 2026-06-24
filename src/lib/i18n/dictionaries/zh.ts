@@ -135,6 +135,7 @@ const zh: Partial<Dictionary> = {
     sick: "病假",
     hospitalization: "住院假",
     noPay: "无薪假",
+    offDay: "补休",
     listView: "列表",
     calendarView: "日历",
     peopleOnLeave: "请假人员",
