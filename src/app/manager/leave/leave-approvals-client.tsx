@@ -297,8 +297,18 @@ export function LeaveApprovalsClient({
     cancelled: t("leave.cancelled"),
   };
 
+  const [historyFilter, setHistoryFilter] = useState<string>("");
+
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const history = requests.filter((r) => r.status !== "pending");
+
+  const historyEmployees = Array.from(
+    new Map(history.map((r) => [r.employee_id, employeeName(r)])).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]));
+
+  const filteredHistory = historyFilter
+    ? history.filter((r) => r.employee_id === historyFilter)
+    : history;
 
   return (
     <>
@@ -325,12 +335,26 @@ export function LeaveApprovalsClient({
           </ul>
         )}
 
-        <h2 className="mb-2 text-sm font-semibold text-foreground/60">{t("leave.history")}</h2>
-        {history.length === 0 ? (
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-foreground/60">{t("leave.history")}</h2>
+          {historyEmployees.length > 1 && (
+            <select
+              value={historyFilter}
+              onChange={(e) => setHistoryFilter(e.target.value)}
+              className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs text-foreground"
+            >
+              <option value="">All employees</option>
+              {historyEmployees.map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        {filteredHistory.length === 0 ? (
           <p className="text-sm text-foreground/60">{t("leave.noHistory")}</p>
         ) : (
           <ul className="space-y-3">
-            {history.map((request) => (
+            {filteredHistory.map((request) => (
               <HistoryCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
             ))}
           </ul>
