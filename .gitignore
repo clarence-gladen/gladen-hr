@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Guide assets (local only)
+Gladen_HR_Employee_Guide.pdf
+employee-guide.html
+generate-guide.cjs
+generate-guide.mjs
+guide-screenshots/
