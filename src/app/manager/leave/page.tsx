@@ -10,7 +10,7 @@ export default async function ManagerLeavePage() {
       .select(
         "id, employee_id, leave_type, start_date, end_date, days, reason, status, created_at, employees(full_name)"
       )
-      .order("created_at", { ascending: false }),
+      .order("start_date", { ascending: false }),
     supabase
       .from("leave_requests")
       .select("id, leave_type, start_date, end_date, employees(full_name)")
