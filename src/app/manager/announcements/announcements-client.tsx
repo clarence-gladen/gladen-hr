@@ -5,6 +5,7 @@ import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createAnnouncementAction } from "./actions";
 import type { AnnouncementAudience } from "@/lib/types/database";
+import { fmtTimestamp } from "@/lib/utils/date";
 
 interface AnnouncementRow {
   id: string;
@@ -113,7 +114,7 @@ export function AnnouncementsClient({
                 </div>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/60">{announcement.body}</p>
                 <p className="mt-2 text-xs text-foreground/40">
-                  {new Date(announcement.created_at).toLocaleDateString()}
+                  {fmtTimestamp(announcement.created_at)}
                 </p>
               </li>
             ))}

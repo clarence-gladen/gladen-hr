@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useTransition, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
+import { fmtTimestamp } from "@/lib/utils/date";
 import {
   cancelSalaryAdvanceAction,
   markFullyRepaidAction,
@@ -90,7 +91,7 @@ export function AdvanceDetailClient({ advance }: { advance: AdvanceDetail }) {
             <p className="text-lg font-semibold text-white">{advance.employeeName}</p>
             <p className="text-sm text-white/70">
               {t("salaryAdvances.requestedOn")}{" "}
-              {new Date(advance.created_at).toLocaleDateString()}
+              {fmtTimestamp(advance.created_at)}
             </p>
           </div>
           <div className="divide-y divide-black/5">
@@ -172,7 +173,7 @@ export function AdvanceDetailClient({ advance }: { advance: AdvanceDetail }) {
               {advance.repayments.map((r) => (
                 <li key={r.id} className="flex items-center justify-between py-2 text-sm">
                   <span className="text-foreground/60">
-                    {new Date(r.created_at).toLocaleDateString()}
+                    {fmtTimestamp(r.created_at)}
                   </span>
                   <span className="font-medium text-foreground">S${r.amount.toFixed(2)}</span>
                 </li>

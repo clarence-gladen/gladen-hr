@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { Header } from "@/components/header";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
+import { fmtDate } from "@/lib/utils/date";
 
 export interface BalanceByYear {
   year: number;      // employment year number (1, 2, ...)
@@ -154,7 +155,7 @@ export function LeaveHistoryClient({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-foreground">
-                      {req.start_date} – {req.end_date}
+                      {fmtDate(req.start_date)} – {fmtDate(req.end_date)}
                     </p>
                     <p className="mt-1 text-sm text-foreground/60">
                       {req.days} {t("leave.days")}

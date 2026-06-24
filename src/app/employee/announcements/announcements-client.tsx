@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { markAnnouncementReadAction } from "./actions";
+import { fmtTimestamp } from "@/lib/utils/date";
 
 export interface AnnouncementRow {
   id: string;
@@ -56,7 +57,7 @@ export function AnnouncementsClient({
                         {item.title}
                       </p>
                       <p className="text-xs text-foreground/50">
-                        {new Date(item.created_at).toLocaleDateString()}
+                        {fmtTimestamp(item.created_at)}
                       </p>
                     </div>
                   </div>

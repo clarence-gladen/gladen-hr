@@ -8,6 +8,7 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 import { approveLeaveRequestAction, rejectLeaveRequestAction, cancelLeaveRequestAction, editLeaveRequestAction, editApprovedLeaveRequestAction } from "./actions";
 import { LeaveCalendar, type LeaveCalendarEntry } from "@/components/leave-calendar";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
+import { fmtDate } from "@/lib/utils/date";
 
 export interface LeaveRequestRow {
   id: string;
@@ -114,7 +115,7 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
       <p className="mt-1 text-sm text-foreground/60">
         {leaveTypeLabel[request.leave_type]} · {request.days} {t("leave.days")}
       </p>
-      <p className="mt-1 text-sm text-foreground/60">{request.start_date} – {request.end_date}</p>
+      <p className="mt-1 text-sm text-foreground/60">{fmtDate(request.start_date)} – {fmtDate(request.end_date)}</p>
       {request.reason && (
         <p className="mt-1 text-sm text-foreground/60">{t("leave.reason")}: {request.reason}</p>
       )}
@@ -247,7 +248,7 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
           <p className="mt-1 text-sm text-foreground/60">
             {leaveTypeLabel[request.leave_type]} · {request.days} {t("leave.days")}
           </p>
-          <p className="mt-1 text-sm text-foreground/60">{request.start_date} – {request.end_date}</p>
+          <p className="mt-1 text-sm text-foreground/60">{fmtDate(request.start_date)} – {fmtDate(request.end_date)}</p>
         </div>
         <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
           request.status === "approved" ? "bg-brand/10 text-brand"

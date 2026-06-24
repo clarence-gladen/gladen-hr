@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import type { ResidencyStatus } from "@/lib/types/database";
+import { fmtDate } from "@/lib/utils/date";
 
 export interface EmployeeProfile {
   full_name: string;
@@ -51,7 +52,7 @@ export function ProfileClient({ employee }: { employee: EmployeeProfile | null }
               </div>
               <Row label={t("profile.fullName")} value={employee.full_name} />
               <Row label={t("profile.designation")} value={employee.designation} />
-              <Row label={t("profile.startDate")} value={employee.employment_start_date} />
+              <Row label={t("profile.startDate")} value={fmtDate(employee.employment_start_date)} />
               <Row label={t("profile.residency")} value={residencyLabel[employee.residency_status]} />
               <Row label={t("profile.mobile")} value={employee.mobile_number} />
             </div>

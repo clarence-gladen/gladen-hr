@@ -4,6 +4,7 @@ import { useActionState, useTransition, useState, useEffect, useRef } from "reac
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
+import { fmtDate } from "@/lib/utils/date";
 import { submitLeaveRequestAction, editLeaveRequestAction, cancelLeaveRequestAction } from "./actions";
 import { LeaveHistoryTable } from "@/components/leave-history-table";
 import type { LeaveYearHistory } from "@/lib/leave/balances";
@@ -136,7 +137,7 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
         <div>
           <p className="font-semibold text-foreground">{leaveTypeLabel[req.leave_type]}</p>
           <p className="mt-1 text-sm text-foreground/60">
-            {req.start_date} – {req.end_date} · {req.days} {t("leave.days")}
+            {fmtDate(req.start_date)} – {fmtDate(req.end_date)} · {req.days} {t("leave.days")}
           </p>
           {req.reason && <p className="mt-1 text-sm text-foreground/60">{req.reason}</p>}
         </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useTransition } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
+import { fmtDate } from "@/lib/utils/date";
 import {
   addAssignmentAction,
   addExpenseAction,
@@ -119,7 +120,7 @@ export function ContractDetailClient({
             <div>
               <p className="font-semibold text-foreground">{contract.site_name}</p>
               <p className="mt-1 text-sm text-foreground/60">
-                {contract.start_date} – {contract.end_date ?? "—"}
+                {fmtDate(contract.start_date)} – {fmtDate(contract.end_date) ?? "—"}
               </p>
               <p className="mt-1 text-sm text-foreground/60">
                 S${revenue.toFixed(2)} / mo

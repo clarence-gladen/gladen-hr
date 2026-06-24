@@ -9,6 +9,7 @@ import { offboardEmployeeAction, revealNricAction, setEmployeeStatusAction } fro
 import { LeaveHistoryTable } from "@/components/leave-history-table";
 import type { LeaveYearHistory } from "@/lib/leave/balances";
 import type { EmployeeDetail, ResidencyStatus, SkillLevel } from "@/lib/types/database";
+import { fmtDate } from "@/lib/utils/date";
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -85,7 +86,7 @@ export function EmployeeDetailClient({
           <div className="rounded-xl bg-black/5 px-4 py-3 text-sm text-foreground/60">
             {t("employees.inactive")}
             {employee.employment_end_date && (
-              <> · {t("employees.endedOn")} <span className="font-semibold">{employee.employment_end_date}</span></>
+              <> · {t("employees.endedOn")} <span className="font-semibold">{fmtDate(employee.employment_end_date)}</span></>
             )}
           </div>
         )}
@@ -127,9 +128,9 @@ export function EmployeeDetailClient({
           </h2>
           <Row label={t("employees.designation")} value={employee.designation} />
           <Row label={t("employees.skillLevel")} value={skillLabel[employee.skill_level]} />
-          <Row label={t("employees.employmentStartDate")} value={employee.employment_start_date} />
+          <Row label={t("employees.employmentStartDate")} value={fmtDate(employee.employment_start_date)} />
           {employee.employment_end_date && (
-            <Row label={t("employees.employmentEndDate")} value={employee.employment_end_date} />
+            <Row label={t("employees.employmentEndDate")} value={fmtDate(employee.employment_end_date)} />
           )}
           <Row label={t("employees.baseSalary")} value={`S$ ${Number(employee.base_salary).toFixed(2)}`} />
         </div>

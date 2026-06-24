@@ -6,6 +6,7 @@ import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createSalaryAdvanceAction } from "./actions";
 import type { ApprovalStatus } from "@/lib/types/database";
+import { fmtTimestamp } from "@/lib/utils/date";
 
 interface Repayment {
   id: string;
@@ -169,7 +170,7 @@ export function SalaryAdvancesClient({
                         : ""}
                     </p>
                     <p className="text-xs text-foreground/40">
-                      {t("salaryAdvances.requestedOn")} {new Date(advance.created_at).toLocaleDateString()}
+                      {t("salaryAdvances.requestedOn")} {fmtTimestamp(advance.created_at)}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">

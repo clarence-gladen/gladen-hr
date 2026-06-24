@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import type { LeaveType } from "@/lib/types/database";
+import { fmtDate } from "@/lib/utils/date";
 
 export interface LeaveCalendarEntry {
   id: string;
@@ -204,7 +205,7 @@ export function LeaveCalendar({ entries }: { entries: LeaveCalendarEntry[] }) {
                   <p className="text-foreground/60">{leaveTypeLabel[entry.leave_type]}</p>
                 </div>
                 <span className="text-foreground/60">
-                  {entry.start_date} – {entry.end_date}
+                  {fmtDate(entry.start_date)} – {fmtDate(entry.end_date)}
                 </span>
               </li>
             ))

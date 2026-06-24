@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import type { EmployeeStatus, ResidencyStatus } from "@/lib/types/database";
+import { fmtDate } from "@/lib/utils/date";
 
 export interface EmployeeRow {
   id: string;
@@ -40,7 +41,7 @@ function EmployeeCard({ employee }: { employee: EmployeeRow }) {
           </p>
           {employee.status === "inactive" && employee.employment_end_date && (
             <p className="mt-1 text-xs text-foreground/40">
-              {t("employees.endedOn")} {employee.employment_end_date}
+              {t("employees.endedOn")} {fmtDate(employee.employment_end_date)}
             </p>
           )}
         </div>
