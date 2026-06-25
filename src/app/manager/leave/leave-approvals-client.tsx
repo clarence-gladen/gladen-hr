@@ -299,6 +299,7 @@ export function LeaveApprovalsClient({
   };
 
   const [historyFilter, setHistoryFilter] = useState<string>("");
+  const [showMore, setShowMore] = useState(false);
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const history = requests.filter((r) => r.status !== "pending");
@@ -307,9 +308,14 @@ export function LeaveApprovalsClient({
     new Map(history.map((r) => [r.employee_id, employeeName(r)])).entries()
   ).sort((a, b) => a[1].localeCompare(b[1]));
 
-  const filteredHistory = historyFilter
-    ? history.filter((r) => r.employee_id === historyFilter)
-    : history;
+  const sixMonthsCutoff = (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString().slice(0, 10); })();
+  const twoYearsCutoff = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 2); return d.toISOString().slice(0, 10); })();
+
+  const employeeFiltered = historyFilter ? history.filter((r) => r.employee_id === historyFilter) : history;
+  const withinTwoYears = employeeFiltered.filter((r) => r.start_date >= twoYearsCutoff);
+  const withinSixMonths = withinTwoYears.filter((r) => r.start_date >= sixMonthsCutoff);
+  const hasMore = withinTwoYears.length > withinSixMonths.length;
+  const visibleHistory = showMore ? withinTwoYears : withinSixMonths;
 
   return (
     <>
@@ -351,14 +357,32 @@ export function LeaveApprovalsClient({
             </select>
           )}
         </div>
-        {filteredHistory.length === 0 ? (
+        {visibleHistory.length === 0 ? (
           <p className="text-sm text-foreground/60">{t("leave.noHistory")}</p>
         ) : (
           <ul className="space-y-3">
-            {filteredHistory.map((request) => (
+            {visibleHistory.map((request) => (
               <HistoryCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
             ))}
           </ul>
+        )}
+        {hasMore && !showMore && (
+          <button
+            type="button"
+            onClick={() => setShowMore(true)}
+            className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60"
+          >
+            See more (up to 2 years)
+          </button>
+        )}
+        {showMore && hasMore && (
+          <button
+            type="button"
+            onClick={() => setShowMore(false)}
+            className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60"
+          >
+            See less
+          </button>
         )}
       </main>
     </>
