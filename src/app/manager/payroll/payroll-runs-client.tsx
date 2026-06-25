@@ -12,6 +12,7 @@ export interface PayrollRunRow {
   month: number;
   year: number;
   status: PayrollStatus;
+  totalNetPay: number | null;
 }
 
 const inputClass =
@@ -38,7 +39,7 @@ export function PayrollRunsClient({ runs }: { runs: PayrollRunRow[] }) {
   return (
     <>
       <Header titleKey="payroll.title" />
-      <main className="flex-1 px-4 py-6">
+      <main className="flex-1 px-4 py-6 mx-auto w-full max-w-4xl">
         <Link
           href="/manager/payroll/ir8a"
           className="mb-4 flex items-center justify-between rounded-xl bg-brand/5 px-4 py-3"
@@ -103,11 +104,18 @@ export function PayrollRunsClient({ runs }: { runs: PayrollRunRow[] }) {
         ) : (
           <ul className="space-y-3">
             {runs.map((run) => (
-              <li key={run.id} className="rounded-xl bg-white p-4 shadow-sm">
-                <Link href={`/manager/payroll/${run.id}`} className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-foreground">
-                    {monthNames[run.month - 1]} {run.year}
-                  </span>
+              <li key={run.id}>
+                <Link href={`/manager/payroll/${run.id}`} className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm">
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {monthNames[run.month - 1]} {run.year}
+                    </p>
+                    {run.totalNetPay !== null && (
+                      <p className="mt-0.5 text-sm text-foreground/50">
+                        Net pay S${run.totalNetPay.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
                   <span
                     className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
                       run.status === "completed"

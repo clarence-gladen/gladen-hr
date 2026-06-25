@@ -56,6 +56,43 @@ const inputClass =
 const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
 const sectionLabel = "mb-2 text-[10px] font-bold uppercase tracking-wider text-foreground/40";
 
+function PayrollSummaryBar({ payslips }: { payslips: PayslipRow[] }) {
+  const totalGross = payslips.reduce(
+    (sum, p) =>
+      sum +
+      Number(p.basic_salary) +
+      Number(p.transport_allowance) +
+      Number(p.allowances) +
+      Number(p.overtime_amount) +
+      Number(p.bonus) +
+      Number(p.reimbursement),
+    0
+  );
+  const totalNet = payslips.reduce((sum, p) => sum + Number(p.net_pay), 0);
+  const totalCpfEmployer = payslips.reduce((sum, p) => sum + Number(p.cpf_employer), 0);
+
+  return (
+    <div className="grid grid-cols-4 gap-2 rounded-xl bg-white p-3 shadow-sm">
+      <div className="text-center">
+        <p className="text-xl font-bold text-brand">{payslips.length}</p>
+        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Employees</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xl font-bold text-foreground">S${totalGross.toFixed(0)}</p>
+        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Gross</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xl font-bold text-foreground">S${totalCpfEmployer.toFixed(0)}</p>
+        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">CPF (ER)</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xl font-bold text-brand">S${totalNet.toFixed(0)}</p>
+        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Net Pay</p>
+      </div>
+    </div>
+  );
+}
+
 function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; downloadUrl?: string; locked: boolean }) {
   const { t } = useLanguage();
   const router = useRouter();
@@ -301,7 +338,7 @@ export function PayrollRunClient({
   return (
     <>
       <Header title={`${monthNames[run.month - 1]} ${run.year}`} />
-      <main className="flex-1 px-4 py-6">
+      <main className="flex-1 px-4 py-6 mx-auto w-full max-w-4xl">
         <Link href="/manager/payroll" className="mb-4 inline-block text-sm font-medium text-brand">
           ← {t("payroll.back")}
         </Link>
@@ -313,33 +350,46 @@ export function PayrollRunClient({
               <span className="text-green-600">✓</span>
               <span className="text-sm font-semibold text-green-700">{t("payroll.completedBanner")}</span>
             </div>
-            <button
-              type="button"
-              disabled={excelPending}
-              onClick={handleDownloadExcel}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60"
-            >
-              {excelPending ? "Generating…" : "Download Payroll Report"}
-            </button>
-            {excelError && <p className="text-center text-xs text-red-600">{excelError}</p>}
-            <button
-              type="button"
-              disabled={cpfPending}
-              onClick={handleDownloadCpf}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60"
-            >
-              {cpfPending ? "Generating…" : "Download CPF Submission"}
-            </button>
-            {cpfError && <p className="text-center text-xs text-red-600">{cpfError}</p>}
-            <button
-              type="button"
-              disabled={giroPending}
-              onClick={handleDownloadGiro}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60"
-            >
-              {giroPending ? "Generating…" : "Download GIRO Transfer File"}
-            </button>
-            {giroError && <p className="text-center text-xs text-red-600">{giroError}</p>}
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                disabled={excelPending}
+                onClick={handleDownloadExcel}
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-brand/30 bg-brand/5 px-2 py-3 text-brand disabled:opacity-60"
+              >
+                <span className="text-lg">📊</span>
+                <span className="text-center text-xs font-semibold leading-tight">
+                  {excelPending ? "…" : "Payroll Report"}
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={cpfPending}
+                onClick={handleDownloadCpf}
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-brand/30 bg-brand/5 px-2 py-3 text-brand disabled:opacity-60"
+              >
+                <span className="text-lg">🏛️</span>
+                <span className="text-center text-xs font-semibold leading-tight">
+                  {cpfPending ? "…" : "CPF Submission"}
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={giroPending}
+                onClick={handleDownloadGiro}
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-brand/30 bg-brand/5 px-2 py-3 text-brand disabled:opacity-60"
+              >
+                <span className="text-lg">🏦</span>
+                <span className="text-center text-xs font-semibold leading-tight">
+                  {giroPending ? "…" : "GIRO Transfer"}
+                </span>
+              </button>
+            </div>
+            {(excelError || cpfError || giroError) && (
+              <p className="text-center text-xs text-red-600">
+                {excelError ?? cpfError ?? giroError}
+              </p>
+            )}
           </div>
         ) : (
           <div className="mb-4 rounded-xl bg-white p-4 shadow-sm">
@@ -389,16 +439,19 @@ export function PayrollRunClient({
         {payslips.length === 0 ? (
           <p className="text-center text-sm text-foreground/60">{t("payroll.noPayslips")}</p>
         ) : (
-          <ul className="space-y-3">
-            {payslips.map((payslip) => (
-              <PayslipCard
-                key={payslip.id}
-                payslip={payslip}
-                downloadUrl={signedUrls[payslip.id]}
-                locked={isCompleted}
-              />
-            ))}
-          </ul>
+          <>
+            <PayrollSummaryBar payslips={payslips} />
+            <ul className="mt-3 space-y-3">
+              {payslips.map((payslip) => (
+                <PayslipCard
+                  key={payslip.id}
+                  payslip={payslip}
+                  downloadUrl={signedUrls[payslip.id]}
+                  locked={isCompleted}
+                />
+              ))}
+            </ul>
+          </>
         )}
 
         {/* Delete payroll run */}
