@@ -324,6 +324,7 @@ const en = {
     bankName: "Bank",
     bankAccount: "Account No.",
     myDocuments: "My Documents",
+    userGuide: "User Guide",
     noEmployeeLinked: "No employee record linked to your account.",
     fullName: "Full Name",
     mobile: "Mobile",

@@ -75,6 +75,18 @@ export function ProfileClient({ employee }: { employee: EmployeeProfile | null }
                 <span className="text-foreground/40">›</span>
               </Link>
             </div>
+
+            <div className="mt-3 overflow-hidden rounded-xl bg-white shadow-sm">
+              <a
+                href="/employee-guide.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between px-4 py-4"
+              >
+                <span className="text-base font-medium text-foreground">{t("profile.userGuide")}</span>
+                <span className="text-foreground/40">↗</span>
+              </a>
+            </div>
           </>
         )}
       </main>

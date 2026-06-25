@@ -363,6 +363,7 @@ const zh: Partial<Dictionary> = {
     bankName: "银行",
     bankAccount: "账号",
     myDocuments: "我的文件",
+    userGuide: "使用指南",
     noEmployeeLinked: "您的账户未关联员工记录。",
     fullName: "姓名",
     mobile: "手机号码",
