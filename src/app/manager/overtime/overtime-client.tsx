@@ -16,6 +16,26 @@ type OtRecord = {
 
 const INITIAL: { error?: string } = {};
 
+function groupByMonth(records: OtRecord[]) {
+  const groups: { monthKey: string; label: string; total: number; items: OtRecord[] }[] = [];
+  const seen = new Map<string, number>();
+
+  for (const r of records) {
+    const monthKey = r.work_date.slice(0, 7); // "2026-06"
+    if (!seen.has(monthKey)) {
+      const d = new Date(r.work_date + "T00:00:00");
+      const label = d.toLocaleDateString("en-SG", { month: "long", year: "numeric" });
+      seen.set(monthKey, groups.length);
+      groups.push({ monthKey, label, total: 0, items: [] });
+    }
+    const idx = seen.get(monthKey)!;
+    groups[idx].items.push(r);
+    groups[idx].total += Number(r.amount);
+  }
+
+  return groups;
+}
+
 export function OvertimeClient({
   employees,
   records,
@@ -113,51 +133,61 @@ export function OvertimeClient({
         </form>
       </div>
 
-      {/* OT records list */}
-      <div className="rounded-xl bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-black/5">
-          <h2 className="text-sm font-semibold text-foreground">OT Records</h2>
-        </div>
+      {/* OT records grouped by month */}
+      <div>
         {deleteError && (
-          <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
             {deleteError}
           </p>
         )}
         {records.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground">No OT records yet.</p>
+          <div className="rounded-xl bg-white shadow-sm px-4 py-6 text-center text-sm text-muted-foreground">
+            No OT records yet.
+          </div>
         ) : (
-          <ul className="divide-y divide-black/5">
-            {records.map((r) => (
-              <li key={r.id} className="flex items-start gap-3 px-4 py-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {r.employees?.full_name ?? "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(r.work_date + "T00:00:00").toLocaleDateString("en-SG", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                    {r.remarks ? ` · ${r.remarks}` : ""}
-                  </p>
+          <div className="space-y-4">
+            {groupByMonth(records).map(({ monthKey, label, total, items }) => (
+              <div key={monthKey} className="rounded-xl bg-white shadow-sm overflow-hidden">
+                {/* Month header */}
+                <div className="flex items-center justify-between px-4 py-3 bg-black/[0.03] border-b border-black/5">
+                  <h3 className="text-sm font-semibold text-foreground">{label}</h3>
+                  <span className="text-sm font-bold text-brand">${total.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-sm font-semibold text-foreground">
-                    ${Number(r.amount).toFixed(2)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(r.id)}
-                    disabled={deletingId !== null}
-                    className="rounded-lg px-2 py-1 text-xs text-red-600 border border-red-200 disabled:opacity-40"
-                  >
-                    {deletingId === r.id ? "…" : "Delete"}
-                  </button>
-                </div>
-              </li>
+                {/* Records in this month */}
+                <ul className="divide-y divide-black/5">
+                  {items.map((r) => (
+                    <li key={r.id} className="flex items-start gap-3 px-4 py-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {r.employees?.full_name ?? "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(r.work_date + "T00:00:00").toLocaleDateString("en-SG", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                          {r.remarks ? ` · ${r.remarks}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-sm font-semibold text-foreground">
+                          ${Number(r.amount).toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(r.id)}
+                          disabled={deletingId !== null}
+                          className="rounded-lg px-2 py-1 text-xs text-red-600 border border-red-200 disabled:opacity-40"
+                        >
+                          {deletingId === r.id ? "…" : "Delete"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </>
