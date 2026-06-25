@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getExpiringDocuments } from "@/lib/documents/expiry";
 import { DashboardClient } from "./dashboard-client";
 
 export default async function ManagerDashboardPage() {
@@ -7,7 +6,7 @@ export default async function ManagerDashboardPage() {
   const today = new Date().toISOString().slice(0, 10);
   const { data: auth } = await supabase.auth.getUser();
 
-  const [employeesRes, onLeaveTodayRes, pendingRes, expiringDocs, profileRes, announcementsRes] =
+  const [employeesRes, onLeaveTodayRes, pendingRes, profileRes, announcementsRes] =
     await Promise.all([
       supabase.from("employees").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase
@@ -17,7 +16,6 @@ export default async function ManagerDashboardPage() {
         .lte("start_date", today)
         .gte("end_date", today),
       supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      getExpiringDocuments(supabase),
       supabase.from("profiles").select("full_name").eq("id", auth.user!.id).maybeSingle(),
       supabase
         .from("announcements")
@@ -39,7 +37,6 @@ export default async function ManagerDashboardPage() {
       totalEmployees={employeesRes.count ?? 0}
       onLeaveToday={onLeaveToday}
       pendingApprovals={pendingRes.count ?? 0}
-      expiringDocuments={expiringDocs.length}
       announcements={announcementsRes.data ?? []}
     />
   );

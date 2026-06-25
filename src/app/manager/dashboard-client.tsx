@@ -45,14 +45,12 @@ export function DashboardClient({
   totalEmployees,
   onLeaveToday,
   pendingApprovals,
-  expiringDocuments,
   announcements,
 }: {
   firstName: string | null;
   totalEmployees: number;
   onLeaveToday: OnLeaveEntry[];
   pendingApprovals: number;
-  expiringDocuments: number;
   announcements: Announcement[];
 }) {
   const { t } = useLanguage();
@@ -138,12 +136,6 @@ export function DashboardClient({
               {pendingApprovals}
             </p>
             <p className="mt-0.5 text-xs text-foreground/50">{t("summary.pendingApprovals")}</p>
-          </Link>
-          <Link href="/manager/documents" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className={`text-2xl font-bold ${expiringDocuments > 0 ? "text-red-500" : "text-brand"}`}>
-              {expiringDocuments}
-            </p>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.expiringDocuments")}</p>
           </Link>
         </div>
 
