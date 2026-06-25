@@ -54,9 +54,16 @@ function EmployeeCard({ employee }: { employee: EmployeeRow }) {
 export function EmployeesListClient({ employees }: { employees: EmployeeRow[] }) {
   const { t } = useLanguage();
   const [showOffboarded, setShowOffboarded] = useState(false);
+  const [query, setQuery] = useState("");
 
   const active = employees.filter((e) => e.status === "active");
   const offboarded = employees.filter((e) => e.status === "inactive");
+
+  const searchResults = query
+    ? employees.filter((e) =>
+        e.full_name.toLowerCase().includes(query.toLowerCase())
+      )
+    : null;
 
   return (
     <>
@@ -69,37 +76,64 @@ export function EmployeesListClient({ employees }: { employees: EmployeeRow[] })
           {t("employees.addEmployee")}
         </Link>
 
-        {active.length === 0 ? (
-          <p className="text-center text-sm text-foreground/60">{t("employees.noEmployees")}</p>
+        <div className="relative mb-4">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("employees.searchPlaceholder")}
+            className="w-full rounded-xl bg-white px-4 py-3 pl-10 text-sm shadow-sm outline-none ring-1 ring-black/5 focus:ring-brand"
+          />
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/30">
+            🔍
+          </span>
+        </div>
+
+        {searchResults !== null ? (
+          searchResults.length === 0 ? (
+            <p className="text-center text-sm text-foreground/60">{t("employees.noResults")}</p>
+          ) : (
+            <ul className="space-y-3">
+              {searchResults.map((employee) => (
+                <EmployeeCard key={employee.id} employee={employee} />
+              ))}
+            </ul>
+          )
         ) : (
-          <ul className="space-y-3">
-            {active.map((employee) => (
-              <EmployeeCard key={employee.id} employee={employee} />
-            ))}
-          </ul>
-        )}
-
-        {offboarded.length > 0 && (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => setShowOffboarded((v) => !v)}
-              className="flex w-full items-center justify-between rounded-xl bg-black/5 px-4 py-3"
-            >
-              <span className="text-sm font-semibold text-foreground/60">
-                {t("employees.offboardedSection")} ({offboarded.length})
-              </span>
-              <span className="text-foreground/40">{showOffboarded ? "▲" : "▼"}</span>
-            </button>
-
-            {showOffboarded && (
-              <ul className="mt-3 space-y-3">
-                {offboarded.map((employee) => (
+          <>
+            {active.length === 0 ? (
+              <p className="text-center text-sm text-foreground/60">{t("employees.noEmployees")}</p>
+            ) : (
+              <ul className="space-y-3">
+                {active.map((employee) => (
                   <EmployeeCard key={employee.id} employee={employee} />
                 ))}
               </ul>
             )}
-          </div>
+
+            {offboarded.length > 0 && (
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowOffboarded((v) => !v)}
+                  className="flex w-full items-center justify-between rounded-xl bg-black/5 px-4 py-3"
+                >
+                  <span className="text-sm font-semibold text-foreground/60">
+                    {t("employees.offboardedSection")} ({offboarded.length})
+                  </span>
+                  <span className="text-foreground/40">{showOffboarded ? "▲" : "▼"}</span>
+                </button>
+
+                {showOffboarded && (
+                  <ul className="mt-3 space-y-3">
+                    {offboarded.map((employee) => (
+                      <EmployeeCard key={employee.id} employee={employee} />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
         )}
       </main>
     </>

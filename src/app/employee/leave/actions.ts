@@ -9,14 +9,18 @@ import {
   getAvailableHospitalizationLeave,
 } from "@/lib/leave/entitlement";
 
-function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5): number {
+function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5, restDay: 0 | 6 = 0): number {
   const cur = new Date(start);
   const endDate = new Date(end);
   if (endDate < cur) return 0;
   let count = 0;
   while (cur <= endDate) {
     const day = cur.getDay();
-    if (workDays === 6 ? day !== 0 : day !== 0 && day !== 6) count++;
+    if (workDays === 5) {
+      if (day !== 0 && day !== 6) count++;
+    } else {
+      if (day !== restDay) count++;
+    }
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -49,12 +53,13 @@ export async function submitLeaveRequestAction(
 
   const { data: emp } = await supabase
     .from("employees")
-    .select("employment_start_date, work_days_per_week")
+    .select("employment_start_date, work_days_per_week, work_rest_day")
     .eq("id", employeeId)
     .maybeSingle();
 
   const workDays: 5 | 6 = emp?.work_days_per_week === 6 ? 6 : 5;
-  const days = countWorkingDays(startDate, endDate, workDays);
+  const restDay: 0 | 6 = (emp?.work_rest_day as number) === 6 ? 6 : 0;
+  const days = countWorkingDays(startDate, endDate, workDays, restDay);
   if (days === 0) return { error: "No working days in selected range." };
 
   if (leaveType !== "no_pay") {
@@ -143,12 +148,13 @@ export async function editLeaveRequestAction(
 
   const { data: emp } = await supabase
     .from("employees")
-    .select("work_days_per_week")
+    .select("work_days_per_week, work_rest_day")
     .eq("id", profile?.employee_id ?? "")
     .maybeSingle();
 
   const workDays: 5 | 6 = emp?.work_days_per_week === 6 ? 6 : 5;
-  const days = countWorkingDays(startDate, endDate, workDays);
+  const restDay: 0 | 6 = (emp?.work_rest_day as number) === 6 ? 6 : 0;
+  const days = countWorkingDays(startDate, endDate, workDays, restDay);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase

@@ -85,7 +85,9 @@ export async function editApprovedLeaveRequestAction(
     .maybeSingle();
 
   const { workDays, restDay } = await getEmployeeWorkSchedule(supabase, req?.employee_id);
-  const days = countWorkingDays(startDate, endDate, workDays, restDay);
+  const days = leaveType === "off_day"
+    ? countCalendarDays(startDate, endDate)
+    : countWorkingDays(startDate, endDate, workDays, restDay);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase.rpc("edit_approved_leave_request", {

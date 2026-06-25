@@ -114,6 +114,8 @@ const en = {
     reactivate: "Reactivate Employee",
     offboardedSection: "Offboarded Employees",
     noOffboarded: "No offboarded employees.",
+    searchPlaceholder: "Search employees...",
+    noResults: "No employees match your search.",
   },
   leave: {
     managerTitle: "Leave Approvals",

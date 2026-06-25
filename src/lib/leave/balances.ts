@@ -23,6 +23,10 @@ export interface LeaveYearHistory {
 /**
  * Ensures leave_balances rows exist for every employment year from year 1 up to
  * and including the current employment year. Safe to call on every page load.
+ *
+ * For newly created rows, used counts are computed from approved leave_requests
+ * so that pre-approved future leaves (e.g. Oct backfill) are correctly captured
+ * when the employment year row is first created.
  */
 export async function ensureLeaveBalances(
   supabase: SupabaseClient,
@@ -32,20 +36,57 @@ export async function ensureLeaveBalances(
   const today = new Date().toISOString().slice(0, 10);
   const currentYear = getEmploymentYearNumber(employmentStartDate, today);
 
-  const rows = [];
-  for (let yr = 1; yr <= currentYear; yr++) {
+  const allYears = Array.from({ length: currentYear }, (_, i) => {
+    const yr = i + 1;
     const { yearStart, yearEnd } = getEmploymentYearBounds(employmentStartDate, yr);
-    rows.push({
-      employee_id: employeeId,
-      year_start: yearStart,
-      year_end: yearEnd,
-      employment_year: yr,
-    });
-  }
+    return { yr, yearStart, yearEnd };
+  });
 
-  await supabase
+  const { data: existing } = await supabase
     .from("leave_balances")
-    .upsert(rows, { onConflict: "employee_id,year_start", ignoreDuplicates: true });
+    .select("year_start")
+    .eq("employee_id", employeeId);
+
+  const existingStarts = new Set((existing ?? []).map((r) => r.year_start as string));
+  const missing = allYears.filter(({ yearStart }) => !existingStarts.has(yearStart));
+
+  if (missing.length === 0) return;
+
+  // Compute used counts from leave_requests for each missing year so that
+  // already-approved leaves are not lost when the row is first created.
+  const newRows = await Promise.all(
+    missing.map(async ({ yr, yearStart, yearEnd }) => {
+      const { data: reqs } = await supabase
+        .from("leave_requests")
+        .select("leave_type, days")
+        .eq("employee_id", employeeId)
+        .eq("status", "approved")
+        .gte("start_date", yearStart)
+        .lte("start_date", yearEnd);
+
+      let annual_used = 0;
+      let sick_used = 0;
+      let hospitalization_used = 0;
+      for (const req of reqs ?? []) {
+        const d = Number(req.days);
+        if (req.leave_type === "annual") annual_used += d;
+        else if (req.leave_type === "sick") sick_used += d;
+        else if (req.leave_type === "hospitalization") hospitalization_used += d;
+      }
+
+      return {
+        employee_id: employeeId,
+        year_start: yearStart,
+        year_end: yearEnd,
+        employment_year: yr,
+        annual_used,
+        sick_used,
+        hospitalization_used,
+      };
+    })
+  );
+
+  await supabase.from("leave_balances").insert(newRows);
 }
 
 /**

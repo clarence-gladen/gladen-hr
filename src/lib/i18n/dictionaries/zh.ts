@@ -116,6 +116,8 @@ const zh: Partial<Dictionary> = {
     reactivate: "重新激活员工",
     offboardedSection: "已离职员工",
     noOffboarded: "暂无已离职员工。",
+    searchPlaceholder: "搜索员工...",
+    noResults: "没有符合搜索条件的员工。",
   },
   leave: {
     managerTitle: "请假审批",
