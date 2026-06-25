@@ -7,11 +7,18 @@ export type LeaveType = "annual" | "sick" | "hospitalization" | "no_pay" | "off_
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 export type DocumentType =
-  | "work_permit"
+  | "nric_front"
+  | "nric_back"
   | "passport"
-  | "mom_doc"
+  | "work_permit_front"
+  | "work_permit_back"
   | "employment_contract"
-  | "other";
+  | "wsq_certification"
+  | "medical_report"
+  | "other"
+  // Legacy types stored in DB from earlier upload flow
+  | "work_permit"
+  | "mom_doc";
 
 export type ContractStatus = "active" | "completed" | "terminated";
 

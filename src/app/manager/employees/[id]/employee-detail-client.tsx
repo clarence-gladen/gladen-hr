@@ -10,6 +10,7 @@ import { LeaveHistoryTable } from "@/components/leave-history-table";
 import type { LeaveYearHistory } from "@/lib/leave/balances";
 import type { EmployeeDetail, ResidencyStatus, SkillLevel } from "@/lib/types/database";
 import { fmtDate } from "@/lib/utils/date";
+import { EmployeeDocumentsSection, type EmployeeDocumentRow } from "./employee-documents-section";
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -24,9 +25,11 @@ function Row({ label, value }: { label: string; value: string | null | undefined
 export function EmployeeDetailClient({
   employee,
   leaveHistory = [],
+  employeeDocuments = [],
 }: {
   employee: EmployeeDetail;
   leaveHistory?: LeaveYearHistory[];
+  employeeDocuments?: EmployeeDocumentRow[];
 }) {
   const { t } = useLanguage();
   const router = useRouter();
@@ -145,6 +148,18 @@ export function EmployeeDetailClient({
             <Row label={t("profile.bankAccount")} value={employee.bank_account_number} />
           </div>
         )}
+
+        {/* Documents */}
+        <div>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground/40">
+            Documents
+          </h2>
+          <EmployeeDocumentsSection
+            employeeId={employee.id}
+            residencyStatus={employee.residency_status}
+            documents={employeeDocuments}
+          />
+        </div>
 
         {/* Leave history */}
         <div>

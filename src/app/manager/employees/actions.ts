@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ensureLeaveBalances } from "@/lib/leave/balances";
-import type { EmployeeStatus, ResidencyStatus, SkillLevel } from "@/lib/types/database";
+import type { DocumentType, EmployeeStatus, ResidencyStatus, SkillLevel } from "@/lib/types/database";
 
 interface EmployeeFormValues {
   fullName: string;
@@ -177,5 +177,48 @@ export async function offboardEmployeeAction(
   if (error) return { error: error.message };
   revalidatePath("/manager/employees");
   revalidatePath(`/manager/employees/${id}`);
+  return {};
+}
+
+export async function uploadEmployeeDocumentAction(
+  employeeId: string,
+  documentType: DocumentType,
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "No file selected." };
+
+  const ext = file.name.split(".").pop() ?? "bin";
+  const path = `${employeeId}/${documentType}-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
+  if (uploadError) return { error: uploadError.message };
+
+  const { data: auth } = await supabase.auth.getUser();
+  const { error } = await supabase.from("documents").insert({
+    employee_id: employeeId,
+    document_type: documentType,
+    file_url: path,
+    uploaded_by: auth.user?.id,
+  });
+
+  if (error) {
+    await supabase.storage.from("documents").remove([path]);
+    return { error: error.message };
+  }
+
+  return {};
+}
+
+export async function deleteEmployeeDocumentAction(
+  documentId: string,
+  filePath: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  await supabase.storage.from("documents").remove([filePath]);
+  const { error } = await supabase.from("documents").delete().eq("id", documentId);
+  if (error) return { error: error.message };
   return {};
 }

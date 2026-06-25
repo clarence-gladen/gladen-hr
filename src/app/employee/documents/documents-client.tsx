@@ -16,11 +16,17 @@ export function DocumentsClient({ documents }: { documents: DocumentRow[] }) {
   const { t } = useLanguage();
 
   const docTypeLabel: Record<DocumentType, string> = {
-    work_permit: t("documents.workPermit"),
+    nric_front: t("documents.nricFront"),
+    nric_back: t("documents.nricBack"),
     passport: t("documents.passport"),
-    mom_doc: t("documents.momDoc"),
+    work_permit_front: t("documents.workPermitFront"),
+    work_permit_back: t("documents.workPermitBack"),
     employment_contract: t("documents.employmentContract"),
+    wsq_certification: t("documents.wsqCertification"),
+    medical_report: t("documents.medicalReport"),
     other: t("documents.other"),
+    work_permit: t("documents.workPermit"),
+    mom_doc: t("documents.momDoc"),
   };
 
   return (
