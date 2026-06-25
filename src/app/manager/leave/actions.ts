@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { countWorkingDays, countCalendarDays } from "@/lib/leave/counting";
 
 export async function approveLeaveRequestAction(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -50,7 +51,10 @@ export async function editLeaveRequestAction(
     .maybeSingle();
 
   const { workDays, restDay } = await getEmployeeWorkSchedule(supabase, req?.employee_id);
-  const days = countWorkingDays(startDate, endDate, workDays, restDay);
+  const { data: phData } = await supabase.from("public_holidays").select("date")
+    .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
+  const publicHolidays = new Set<string>((phData ?? []).map((r) => r.date as string));
+  const days = countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase
@@ -85,9 +89,12 @@ export async function editApprovedLeaveRequestAction(
     .maybeSingle();
 
   const { workDays, restDay } = await getEmployeeWorkSchedule(supabase, req?.employee_id);
+  const { data: phData1 } = await supabase.from("public_holidays").select("date")
+    .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
+  const publicHolidays1 = new Set<string>((phData1 ?? []).map((r) => r.date as string));
   const days = leaveType === "off_day"
     ? countCalendarDays(startDate, endDate)
-    : countWorkingDays(startDate, endDate, workDays, restDay);
+    : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays1);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase.rpc("edit_approved_leave_request", {
@@ -119,9 +126,12 @@ export async function createLeaveForEmployeeAction(
   if (endDate < startDate) return { error: "End date must be on or after start date." };
 
   const { workDays, restDay } = await getEmployeeWorkSchedule(supabase, employeeId);
+  const { data: phData2 } = await supabase.from("public_holidays").select("date")
+    .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
+  const publicHolidays2 = new Set<string>((phData2 ?? []).map((r) => r.date as string));
   const days = leaveType === "off_day"
     ? countCalendarDays(startDate, endDate)
-    : countWorkingDays(startDate, endDate, workDays, restDay);
+    : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays2);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { data: request, error: insertError } = await supabase
@@ -155,26 +165,3 @@ async function getEmployeeWorkSchedule(
   };
 }
 
-// restDay only applies to 6-day workers: 0 = Sunday off (default), 6 = Saturday off
-function countWorkingDays(start: string, end: string, workDays: 5 | 6 = 5, restDay: 0 | 6 = 0): number {
-  const cur = new Date(start);
-  const endDate = new Date(end);
-  if (endDate < cur) return 0;
-  let count = 0;
-  while (cur <= endDate) {
-    const day = cur.getDay();
-    if (workDays === 5) {
-      if (day !== 0 && day !== 6) count++;
-    } else {
-      if (day !== restDay) count++;
-    }
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
-}
-
-function countCalendarDays(start: string, end: string): number {
-  const s = new Date(start);
-  const e = new Date(end);
-  return Math.floor((e.getTime() - s.getTime()) / 86_400_000) + 1;
-}

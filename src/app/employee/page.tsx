@@ -25,7 +25,11 @@ export default async function EmployeeDashboardPage() {
     month: "long",
   });
 
-  const [employeeRes, payslipRes, announcementsRes, readsRes] = await Promise.all([
+  const in30Days = new Date();
+  in30Days.setDate(in30Days.getDate() + 30);
+  const in30DaysStr = in30Days.toISOString().slice(0, 10);
+
+  const [employeeRes, payslipRes, announcementsRes, readsRes, upcomingLeavesRes] = await Promise.all([
     employeeId
       ? supabase.from("employees").select("employment_start_date").eq("id", employeeId).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -45,6 +49,17 @@ export default async function EmployeeDashboardPage() {
       .limit(2),
     employeeId
       ? supabase.from("announcement_reads").select("announcement_id").eq("employee_id", employeeId)
+      : Promise.resolve({ data: [] }),
+    employeeId
+      ? supabase
+          .from("leave_requests")
+          .select("id, leave_type, start_date, end_date, days")
+          .eq("employee_id", employeeId)
+          .eq("status", "approved")
+          .gte("end_date", todayStr)
+          .lte("start_date", in30DaysStr)
+          .order("start_date", { ascending: true })
+          .limit(3)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -91,6 +106,13 @@ export default async function EmployeeDashboardPage() {
     : null;
 
   const firstName = profile?.full_name?.split(" ")[0] ?? null;
+  const upcomingLeaves = (upcomingLeavesRes.data ?? []) as Array<{
+    id: string;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    days: number;
+  }>;
 
   return (
     <EmployeeDashboardClient
@@ -104,6 +126,7 @@ export default async function EmployeeDashboardPage() {
       onProbation={onProbation}
       confirmDateLabel={confirmDateLabel}
       announcements={announcementsRes.data ?? []}
+      upcomingLeaves={upcomingLeaves}
     />
   );
 }

@@ -344,6 +344,33 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
 
   await supabase.from("payroll_runs").update({ status: "completed" }).eq("id", runId);
 
+  // Notify employees their payslips are ready
+  const monthName = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  });
+  const employeeIds = payslips.map((p) => p.employee_id);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, employee_id")
+    .in("employee_id", employeeIds);
+  if (profiles && profiles.length > 0) {
+    const notificationRows = profiles.map((prof) => {
+      const payslip = payslips.find((p) => p.employee_id === prof.employee_id);
+      const netPay = payslip ? Number(payslip.net_pay).toFixed(2) : null;
+      return {
+        user_id: prof.id,
+        title: `Payslip Ready — ${monthName}`,
+        body: netPay
+          ? `Your payslip for ${monthName} is available. Net pay: S$${netPay}.`
+          : `Your payslip for ${monthName} is now available.`,
+        type: "payslip",
+        is_read: false,
+      };
+    });
+    await supabase.from("notifications").insert(notificationRows);
+  }
+
   revalidatePath(`/manager/payroll/${runId}`);
   revalidatePath("/manager/payroll");
   revalidatePath("/manager/salary-advances");

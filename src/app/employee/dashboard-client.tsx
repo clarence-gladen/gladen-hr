@@ -7,6 +7,8 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 import { NotificationBell } from "@/components/notification-bell";
 import { LanguageToggle } from "@/components/language-toggle";
 import { createClient } from "@/lib/supabase/client";
+import type { LeaveType } from "@/lib/types/database";
+import { fmtDate } from "@/lib/utils/date";
 
 const QUOTES = [
   "The strength of the team is each individual member. The strength of each member is the team.",
@@ -33,6 +35,14 @@ interface Announcement {
   created_at: string;
 }
 
+interface UpcomingLeave {
+  id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+}
+
 export interface DashboardProps {
   firstName: string | null;
   todayLabel: string;
@@ -44,6 +54,7 @@ export interface DashboardProps {
   onProbation: boolean;
   confirmDateLabel: string | null;
   announcements: Announcement[];
+  upcomingLeaves: UpcomingLeave[];
 }
 
 export function EmployeeDashboardClient({
@@ -57,11 +68,20 @@ export function EmployeeDashboardClient({
   onProbation,
   confirmDateLabel,
   announcements,
+  upcomingLeaves,
 }: DashboardProps) {
   const { t } = useLanguage();
   const router = useRouter();
   const supabase = createClient();
   const quote = QUOTES[new Date().getDate() % QUOTES.length];
+
+  const leaveTypeLabel: Record<LeaveType, string> = {
+    annual: t("leave.annual"),
+    sick: t("leave.sick"),
+    hospitalization: t("leave.hospitalization"),
+    no_pay: t("leave.noPay"),
+    off_day: t("leave.offDay"),
+  };
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -141,6 +161,33 @@ export function EmployeeDashboardClient({
             <p className="mt-0.5 text-xs text-foreground/50">{t("summary.unreadAnnouncements")}</p>
           </Link>
         </div>
+
+        {/* Upcoming Approved Leaves */}
+        {upcomingLeaves.length > 0 && (
+          <div className="rounded-xl bg-white p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-foreground">Upcoming Leave</p>
+              <Link href="/employee/leave" className="text-xs font-medium text-brand">View all</Link>
+            </div>
+            <ul className="space-y-2">
+              {upcomingLeaves.map((l) => (
+                <li key={l.id} className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">
+                      {leaveTypeLabel[l.leave_type as LeaveType] ?? l.leave_type}
+                    </p>
+                    <p className="text-xs text-foreground/50">
+                      {fmtDate(l.start_date)} – {fmtDate(l.end_date)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+                    {l.days}d
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Latest Announcements */}
         {announcements.length > 0 && (

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BottomNav, type NavItem } from "@/components/bottom-nav";
+import { ToastProvider } from "@/components/toast";
 
 const navItems: NavItem[] = [
   { href: "/employee", labelKey: "nav.home", icon: "🏠" },
@@ -37,9 +38,11 @@ export default async function EmployeeLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col pb-[calc(4rem+max(env(safe-area-inset-bottom),_8px))]">
-      {children}
-      <BottomNav items={navItems} />
-    </div>
+    <ToastProvider>
+      <div className="flex min-h-screen flex-col pb-[calc(4rem+max(env(safe-area-inset-bottom),_8px))]">
+        {children}
+        <BottomNav items={navItems} />
+      </div>
+    </ToastProvider>
   );
 }

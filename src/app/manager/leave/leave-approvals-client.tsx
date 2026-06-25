@@ -7,6 +7,7 @@ import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { approveLeaveRequestAction, rejectLeaveRequestAction, cancelLeaveRequestAction, editLeaveRequestAction, editApprovedLeaveRequestAction } from "./actions";
 import { LeaveCalendar, type LeaveCalendarEntry } from "@/components/leave-calendar";
+import { useToast } from "@/components/toast";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 import { fmtDate } from "@/lib/utils/date";
 
@@ -35,6 +36,7 @@ const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
 function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; leaveTypeLabel: Record<LeaveType, string> }) {
   const { t } = useLanguage();
   const router = useRouter();
+  const { addToast } = useToast();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -53,7 +55,7 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
     startTransition(async () => {
       const result = await approveLeaveRequestAction(request.id);
       if (result?.error) setActionError(result.error);
-      else router.refresh();
+      else { addToast("Leave approved"); router.refresh(); }
     });
   }
   function handleReject() {
@@ -61,7 +63,7 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
     startTransition(async () => {
       const result = await rejectLeaveRequestAction(request.id);
       if (result?.error) setActionError(result.error);
-      else router.refresh();
+      else { addToast("Leave rejected"); router.refresh(); }
     });
   }
 

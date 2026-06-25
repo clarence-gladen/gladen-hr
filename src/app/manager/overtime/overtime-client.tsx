@@ -3,6 +3,7 @@
 import { useActionState, useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createOvertimeRecordAction, deleteOvertimeRecordAction } from "./actions";
+import { useToast } from "@/components/toast";
 
 type Employee = { id: string; full_name: string };
 
@@ -44,10 +45,12 @@ export function OvertimeClient({
   records: OtRecord[];
 }) {
   const router = useRouter();
+  const { addToast } = useToast();
   const [state, action, pending] = useActionState(createOvertimeRecordAction, INITIAL);
   const [, startTransition] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [employeeFilter, setEmployeeFilter] = useState<string>("");
 
   function handleDelete(id: string) {
     setDeletingId(id);
@@ -59,10 +62,15 @@ export function OvertimeClient({
         setDeletingId(null);
       } else {
         setDeletingId(null);
+        addToast("OT record deleted");
         router.refresh();
       }
     });
   }
+
+  const filteredRecords = employeeFilter
+    ? records.filter((r) => r.employees?.full_name === employeeFilter)
+    : records;
 
   return (
     <>
@@ -133,6 +141,31 @@ export function OvertimeClient({
         </form>
       </div>
 
+      {/* Employee filter */}
+      {employees.length > 1 && (
+        <div className="flex items-center gap-2">
+          <select
+            value={employeeFilter}
+            onChange={(e) => setEmployeeFilter(e.target.value)}
+            className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm"
+          >
+            <option value="">All employees</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.full_name}>{e.full_name}</option>
+            ))}
+          </select>
+          {employeeFilter && (
+            <button
+              type="button"
+              onClick={() => setEmployeeFilter("")}
+              className="shrink-0 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-foreground/60"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {/* OT records grouped by month */}
       <div>
         {deleteError && (
@@ -140,13 +173,13 @@ export function OvertimeClient({
             {deleteError}
           </p>
         )}
-        {records.length === 0 ? (
+        {filteredRecords.length === 0 ? (
           <div className="rounded-xl bg-white shadow-sm px-4 py-6 text-center text-sm text-muted-foreground">
-            No OT records yet.
+            {employeeFilter ? "No OT records for this employee." : "No OT records yet."}
           </div>
         ) : (
           <div className="space-y-4">
-            {groupByMonth(records).map(({ monthKey, label, total, items }) => (
+            {groupByMonth(filteredRecords).map(({ monthKey, label, total, items }) => (
               <div key={monthKey} className="rounded-xl bg-white shadow-sm overflow-hidden">
                 {/* Month header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-black/[0.03] border-b border-black/5">
