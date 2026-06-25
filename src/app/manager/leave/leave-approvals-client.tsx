@@ -279,9 +279,11 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
 export function LeaveApprovalsClient({
   requests,
   calendarEntries,
+  publicHolidays,
 }: {
   requests: LeaveRequestRow[];
   calendarEntries: LeaveCalendarEntry[];
+  publicHolidays: { date: string; name: string }[];
 }) {
   const { t } = useLanguage();
 
@@ -330,7 +332,7 @@ export function LeaveApprovalsClient({
 
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">{t("leave.peopleOnLeave")}</h2>
         <div className="mb-6">
-          <LeaveCalendar entries={calendarEntries} />
+          <LeaveCalendar entries={calendarEntries} publicHolidays={publicHolidays} />
         </div>
 
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">{t("leave.pendingRequests")}</h2>

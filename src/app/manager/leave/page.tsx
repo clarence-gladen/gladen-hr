@@ -4,7 +4,7 @@ import { LeaveApprovalsClient } from "./leave-approvals-client";
 export default async function ManagerLeavePage() {
   const supabase = await createClient();
 
-  const [requestsRes, approvedRes] = await Promise.all([
+  const [requestsRes, approvedRes, publicHolidaysRes] = await Promise.all([
     supabase
       .from("leave_requests")
       .select(
@@ -15,6 +15,10 @@ export default async function ManagerLeavePage() {
       .from("leave_requests")
       .select("id, leave_type, start_date, end_date, employees(full_name)")
       .eq("status", "approved"),
+    supabase
+      .from("public_holidays")
+      .select("date, name")
+      .order("date", { ascending: true }),
   ]);
 
   const calendarEntries = (approvedRes.data ?? []).map((row) => {
@@ -28,5 +32,13 @@ export default async function ManagerLeavePage() {
     };
   });
 
-  return <LeaveApprovalsClient requests={requestsRes.data ?? []} calendarEntries={calendarEntries} />;
+  const publicHolidays = (publicHolidaysRes.data ?? []) as { date: string; name: string }[];
+
+  return (
+    <LeaveApprovalsClient
+      requests={requestsRes.data ?? []}
+      calendarEntries={calendarEntries}
+      publicHolidays={publicHolidays}
+    />
+  );
 }
