@@ -452,3 +452,150 @@ export async function downloadPayrollExcelAction(
 
   return { base64, filename };
 }
+
+export async function downloadCpfSubmissionAction(
+  runId: string
+): Promise<{ base64?: string; filename?: string; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("month, year")
+    .eq("id", runId)
+    .single();
+
+  if (!run) return { error: "Payroll run not found." };
+
+  const { data: payslips } = await supabase
+    .from("payslips")
+    .select(
+      "employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, cpf_employee, cpf_employer, employees(full_name)"
+    )
+    .eq("payroll_run_id", runId)
+    .order("employees(full_name)");
+
+  if (!payslips || payslips.length === 0) return { error: "No payslips found." };
+
+  const nricResults = await Promise.all(
+    payslips.map((p) =>
+      supabase.rpc("get_employee_nric", {
+        p_employee_id: p.employee_id,
+        p_secret: process.env.NRIC_ENCRYPTION_KEY!,
+      })
+    )
+  );
+
+  const monthName = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const rows = payslips.map((p, i) => {
+    const emp = Array.isArray(p.employees) ? p.employees[0] : p.employees;
+    const ow = Number(p.basic_salary) + Number(p.transport_allowance) + Number(p.allowances) + Number(p.overtime_amount);
+    const aw = Number(p.bonus);
+    const eeCpf = Number(p.cpf_employee);
+    const erCpf = Number(p.cpf_employer);
+    return {
+      "No.": i + 1,
+      "Employee Name": emp?.full_name ?? "",
+      "NRIC / FIN": (nricResults[i].data as string | null) ?? "—",
+      "Ordinary Wages": ow,
+      "Additional Wages": aw,
+      "Total Wages": ow + aw,
+      "CPF (Employee)": eeCpf,
+      "CPF (Employer)": erCpf,
+      "Total CPF": eeCpf + erCpf,
+    };
+  });
+
+  const totalRow = {
+    "No.": "",
+    "Employee Name": "TOTAL",
+    "NRIC / FIN": "",
+    "Ordinary Wages": rows.reduce((s, r) => s + Number(r["Ordinary Wages"]), 0),
+    "Additional Wages": rows.reduce((s, r) => s + Number(r["Additional Wages"]), 0),
+    "Total Wages": rows.reduce((s, r) => s + Number(r["Total Wages"]), 0),
+    "CPF (Employee)": rows.reduce((s, r) => s + Number(r["CPF (Employee)"]), 0),
+    "CPF (Employer)": rows.reduce((s, r) => s + Number(r["CPF (Employer)"]), 0),
+    "Total CPF": rows.reduce((s, r) => s + Number(r["Total CPF"]), 0),
+  };
+
+  const ws = XLSX.utils.json_to_sheet([...rows, totalRow]);
+  ws["!cols"] = [
+    { wch: 5 }, { wch: 28 }, { wch: 14 },
+    { wch: 18 }, { wch: 18 }, { wch: 14 },
+    { wch: 16 }, { wch: 16 }, { wch: 14 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `CPF ${monthName}`);
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  return {
+    base64: buffer.toString("base64"),
+    filename: `CPF_Submission_${run.year}_${String(run.month).padStart(2, "0")}.xlsx`,
+  };
+}
+
+export async function downloadGiroAction(
+  runId: string
+): Promise<{ base64?: string; filename?: string; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("month, year")
+    .eq("id", runId)
+    .single();
+
+  if (!run) return { error: "Payroll run not found." };
+
+  const { data: payslips } = await supabase
+    .from("payslips")
+    .select("net_pay, employees(full_name, bank_name, bank_account_number)")
+    .eq("payroll_run_id", runId)
+    .order("employees(full_name)");
+
+  if (!payslips || payslips.length === 0) return { error: "No payslips found." };
+
+  const monthName = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const rows = payslips.map((p, i) => {
+    const emp = Array.isArray(p.employees) ? p.employees[0] : p.employees;
+    return {
+      "No.": i + 1,
+      "Employee Name": emp?.full_name ?? "",
+      "Bank Name": emp?.bank_name ?? "",
+      "Account Number": emp?.bank_account_number ?? "",
+      "Net Pay (SGD)": Number(p.net_pay),
+      "Payment Reference": `Salary ${monthName}`,
+    };
+  });
+
+  const totalRow = {
+    "No.": "",
+    "Employee Name": "TOTAL",
+    "Bank Name": "",
+    "Account Number": "",
+    "Net Pay (SGD)": rows.reduce((s, r) => s + Number(r["Net Pay (SGD)"]), 0),
+    "Payment Reference": "",
+  };
+
+  const ws = XLSX.utils.json_to_sheet([...rows, totalRow]);
+  ws["!cols"] = [
+    { wch: 5 }, { wch: 28 }, { wch: 18 }, { wch: 24 }, { wch: 16 }, { wch: 22 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `GIRO ${monthName}`);
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  return {
+    base64: buffer.toString("base64"),
+    filename: `GIRO_${run.year}_${String(run.month).padStart(2, "0")}.xlsx`,
+  };
+}

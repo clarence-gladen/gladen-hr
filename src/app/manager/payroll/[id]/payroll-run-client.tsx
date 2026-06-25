@@ -7,6 +7,8 @@ import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import {
   deletePayrollRunAction,
+  downloadCpfSubmissionAction,
+  downloadGiroAction,
   downloadPayrollExcelAction,
   finalisePayrollAction,
   generatePayslipsAction,
@@ -227,6 +229,10 @@ export function PayrollRunClient({
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
   const [excelError, setExcelError] = useState<string | null>(null);
   const [excelPending, startExcelTransition] = useTransition();
+  const [cpfError, setCpfError] = useState<string | null>(null);
+  const [cpfPending, startCpfTransition] = useTransition();
+  const [giroError, setGiroError] = useState<string | null>(null);
+  const [giroPending, startGiroTransition] = useTransition();
 
   const isCompleted = run.status === "completed";
   const hasPayslips = payslips.length > 0;
@@ -254,19 +260,41 @@ export function PayrollRunClient({
     });
   }
 
+  function triggerXlsxDownload(base64: string, filename: string) {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleDownloadExcel() {
     setExcelError(null);
     startExcelTransition(async () => {
       const result = await downloadPayrollExcelAction(run.id);
       if (result.error) { setExcelError(result.error); return; }
-      const bytes = Uint8Array.from(atob(result.base64!), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = result.filename!;
-      a.click();
-      URL.revokeObjectURL(url);
+      triggerXlsxDownload(result.base64!, result.filename!);
+    });
+  }
+
+  function handleDownloadCpf() {
+    setCpfError(null);
+    startCpfTransition(async () => {
+      const result = await downloadCpfSubmissionAction(run.id);
+      if (result.error) { setCpfError(result.error); return; }
+      triggerXlsxDownload(result.base64!, result.filename!);
+    });
+  }
+
+  function handleDownloadGiro() {
+    setGiroError(null);
+    startGiroTransition(async () => {
+      const result = await downloadGiroAction(run.id);
+      if (result.error) { setGiroError(result.error); return; }
+      triggerXlsxDownload(result.base64!, result.filename!);
     });
   }
 
@@ -291,9 +319,27 @@ export function PayrollRunClient({
               onClick={handleDownloadExcel}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60"
             >
-              {excelPending ? "Generating…" : "Download Excel (GIRO)"}
+              {excelPending ? "Generating…" : "Download Payroll Report"}
             </button>
             {excelError && <p className="text-center text-xs text-red-600">{excelError}</p>}
+            <button
+              type="button"
+              disabled={cpfPending}
+              onClick={handleDownloadCpf}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60"
+            >
+              {cpfPending ? "Generating…" : "Download CPF Submission"}
+            </button>
+            {cpfError && <p className="text-center text-xs text-red-600">{cpfError}</p>}
+            <button
+              type="button"
+              disabled={giroPending}
+              onClick={handleDownloadGiro}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60"
+            >
+              {giroPending ? "Generating…" : "Download GIRO Transfer File"}
+            </button>
+            {giroError && <p className="text-center text-xs text-red-600">{giroError}</p>}
           </div>
         ) : (
           <div className="mb-4 rounded-xl bg-white p-4 shadow-sm">
