@@ -84,7 +84,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
   const nextYear = run.month === 12 ? run.year + 1 : run.year;
   const monthEnd = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
 
-  const [cpfRates, fwlRates, sdlConfig, employeesRes, otRes] = await Promise.all([
+  const [cpfRates, fwlRates, sdlConfig, employeesRes, otRes, prevRunRes] = await Promise.all([
     getCpfRates(supabase, payDate),
     getFwlRates(supabase, payDate),
     getSdlConfig(supabase, payDate),
@@ -97,6 +97,14 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
       .select("employee_id, amount")
       .gte("work_date", monthStart)
       .lt("work_date", monthEnd),
+    supabase
+      .from("payroll_runs")
+      .select("id")
+      .neq("id", runId)
+      .or(`year.lt.${run.year},and(year.eq.${run.year},month.lt.${run.month})`)
+      .order("year", { ascending: false })
+      .order("month", { ascending: false })
+      .limit(1),
   ]);
 
   if (!sdlConfig) return { error: "No statutory rates found. Please configure rates in Settings → Statutory Rates." };
@@ -107,6 +115,26 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
     const current = otByEmployee.get(ot.employee_id) ?? 0;
     otByEmployee.set(ot.employee_id, current + Number(ot.amount));
   }
+
+  // Carry over recurring fields from the most recent previous payroll run
+  type PrevFields = { transport_allowance: number; allowances: number; deductions: number; mid_month_payment: number };
+  const prevPayslips = new Map<string, PrevFields>();
+  const prevRunId = prevRunRes.data?.[0]?.id ?? null;
+  if (prevRunId) {
+    const { data: prevData } = await supabase
+      .from("payslips")
+      .select("employee_id, transport_allowance, allowances, deductions, mid_month_payment")
+      .eq("payroll_run_id", prevRunId);
+    for (const p of prevData ?? []) {
+      prevPayslips.set(p.employee_id, {
+        transport_allowance: Number(p.transport_allowance),
+        allowances: Number(p.allowances),
+        deductions: Number(p.deductions),
+        mid_month_payment: Number(p.mid_month_payment),
+      });
+    }
+  }
+
   const outstandingAdvances = await getOutstandingAdvances(supabase);
   const advancesByEmployee = new Map<string, number>();
   for (const advance of outstandingAdvances) {
@@ -115,17 +143,18 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
   }
 
   const rows = employees.map((employee) => {
+    const prev = prevPayslips.get(employee.id);
     const result = calculatePayslip(
       {
         basicSalary: Number(employee.base_salary),
-        transportAllowance: 0,
-        allowances: 0,
+        transportAllowance: prev?.transport_allowance ?? 0,
+        allowances: prev?.allowances ?? 0,
         overtimeAmount: otByEmployee.get(employee.id) ?? 0,
         bonus: 0,
         reimbursement: 0,
-        midMonthPayment: 0,
+        midMonthPayment: prev?.mid_month_payment ?? 0,
         salaryAdvanceDeduction: advancesByEmployee.get(employee.id) ?? 0,
-        deductions: 0,
+        deductions: prev?.deductions ?? 0,
         dateOfBirth: employee.date_of_birth,
         residencyStatus: employee.residency_status,
         skillLevel: employee.skill_level,
