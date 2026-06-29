@@ -302,24 +302,57 @@ export function LeaveApprovalsClient({
     cancelled: t("leave.cancelled"),
   };
 
-  const [historyFilter, setHistoryFilter] = useState<string>("");
+  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("");
   const [showMore, setShowMore] = useState(false);
 
-  const pendingRequests = requests.filter((r) => r.status === "pending");
-  const history = requests.filter((r) => r.status !== "pending");
+  const today = new Date().toISOString().slice(0, 10);
 
-  const historyEmployees = Array.from(
-    new Map(history.map((r) => [r.employee_id, employeeName(r)])).entries()
+  // Pending always shows in Upcoming regardless of date (needs action)
+  const pendingRequests = requests.filter((r) => r.status === "pending");
+  const nonPending = requests.filter((r) => r.status !== "pending");
+
+  // Split non-pending by whether the leave has ended
+  const upcomingNonPending = nonPending.filter((r) => r.end_date >= today);
+  const allPastRequests = nonPending.filter((r) => r.end_date < today);
+
+  // Upcoming: pending first (sorted by start_date ASC), then non-pending upcoming (sorted ASC)
+  const sortedPending = [...pendingRequests].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const sortedUpcomingNonPending = [...upcomingNonPending].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const allUpcoming = [...sortedPending, ...sortedUpcomingNonPending];
+
+  // Past: most recently started first (DESC)
+  const allPastSorted = [...allPastRequests].sort((a, b) => b.start_date.localeCompare(a.start_date));
+
+  // Employee list for filter dropdown (derived from all non-pending)
+  const allNonPendingEmployees = [...upcomingNonPending, ...allPastRequests];
+  const employeeList = Array.from(
+    new Map(allNonPendingEmployees.map((r) => [r.employee_id, employeeName(r)])).entries()
   ).sort((a, b) => a[1].localeCompare(b[1]));
 
+  // Apply employee filter
+  const filteredUpcoming = employeeFilter
+    ? allUpcoming.filter((r) => r.status === "pending" || r.employee_id === employeeFilter)
+    : allUpcoming;
+
+  const filteredPast = employeeFilter
+    ? allPastSorted.filter((r) => r.employee_id === employeeFilter)
+    : allPastSorted;
+
+  // Past tab windowing: default 6 months, expandable to 2 years
   const sixMonthsCutoff = (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString().slice(0, 10); })();
   const twoYearsCutoff = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 2); return d.toISOString().slice(0, 10); })();
+  const pastWithinTwoYears = filteredPast.filter((r) => r.start_date >= twoYearsCutoff);
+  const pastWithinSixMonths = pastWithinTwoYears.filter((r) => r.start_date >= sixMonthsCutoff);
+  const hasMore = pastWithinTwoYears.length > pastWithinSixMonths.length;
+  const visiblePast = showMore ? pastWithinTwoYears : pastWithinSixMonths;
 
-  const employeeFiltered = historyFilter ? history.filter((r) => r.employee_id === historyFilter) : history;
-  const withinTwoYears = employeeFiltered.filter((r) => r.start_date >= twoYearsCutoff);
-  const withinSixMonths = withinTwoYears.filter((r) => r.start_date >= sixMonthsCutoff);
-  const hasMore = withinTwoYears.length > withinSixMonths.length;
-  const visibleHistory = showMore ? withinTwoYears : withinSixMonths;
+  const pendingCount = pendingRequests.length;
+
+  function switchTab(next: "upcoming" | "past") {
+    setTab(next);
+    setShowMore(false);
+  }
 
   return (
     <>
@@ -331,62 +364,97 @@ export function LeaveApprovalsClient({
         </Link>
 
         <h2 className="mb-2 text-sm font-semibold text-foreground/60">{t("leave.peopleOnLeave")}</h2>
-        <div className="mb-6">
+        <div className="mb-5">
           <LeaveCalendar entries={calendarEntries} publicHolidays={publicHolidays} />
         </div>
 
-        <h2 className="mb-2 text-sm font-semibold text-foreground/60">{t("leave.pendingRequests")}</h2>
-        {pendingRequests.length === 0 ? (
-          <p className="mb-6 text-sm text-foreground/60">{t("leave.noPendingRequests")}</p>
-        ) : (
-          <ul className="mb-6 space-y-3">
-            {pendingRequests.map((request) => (
-              <PendingCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} />
-            ))}
-          </ul>
-        )}
+        {/* Tab switcher */}
+        <div className="mb-4 flex rounded-xl bg-black/5 p-1">
+          <button
+            type="button"
+            onClick={() => switchTab("upcoming")}
+            className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              tab === "upcoming" ? "bg-white text-brand shadow-sm" : "text-foreground/50"
+            }`}
+          >
+            Upcoming
+            {pendingCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchTab("past")}
+            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              tab === "past" ? "bg-white text-brand shadow-sm" : "text-foreground/50"
+            }`}
+          >
+            Past
+          </button>
+        </div>
 
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-foreground/60">{t("leave.history")}</h2>
-          {historyEmployees.length > 1 && (
+        {/* Employee filter */}
+        {employeeList.length > 1 && (
+          <div className="mb-3 flex justify-end">
             <select
-              value={historyFilter}
-              onChange={(e) => setHistoryFilter(e.target.value)}
+              value={employeeFilter}
+              onChange={(e) => { setEmployeeFilter(e.target.value); setShowMore(false); }}
               className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs text-foreground"
             >
               <option value="">All employees</option>
-              {historyEmployees.map(([id, name]) => (
+              {employeeList.map(([id, name]) => (
                 <option key={id} value={id}>{name}</option>
               ))}
             </select>
-          )}
-        </div>
-        {visibleHistory.length === 0 ? (
-          <p className="text-sm text-foreground/60">{t("leave.noHistory")}</p>
-        ) : (
-          <ul className="space-y-3">
-            {visibleHistory.map((request) => (
-              <HistoryCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
-            ))}
-          </ul>
+          </div>
         )}
-        {hasMore && !showMore && (
-          <button
-            type="button"
-            onClick={() => setShowMore(true)}
-            className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60"
-          >
-            See more (up to 2 years)
-          </button>
+
+        {/* Upcoming tab */}
+        {tab === "upcoming" && (
+          <>
+            {filteredUpcoming.length === 0 ? (
+              <p className="py-6 text-center text-sm text-foreground/50">No upcoming leave.</p>
+            ) : (
+              <ul className="space-y-3">
+                {filteredUpcoming.map((request) =>
+                  request.status === "pending" ? (
+                    <PendingCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} />
+                  ) : (
+                    <HistoryCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
+                  )
+                )}
+              </ul>
+            )}
+          </>
         )}
-        {showMore && hasMore && (
-          <button
-            type="button"
-            onClick={() => setShowMore(false)}
-            className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60"
-          >
-            See less
-          </button>
+
+        {/* Past tab */}
+        {tab === "past" && (
+          <>
+            {visiblePast.length === 0 ? (
+              <p className="py-6 text-center text-sm text-foreground/50">{t("leave.noHistory")}</p>
+            ) : (
+              <ul className="space-y-3">
+                {visiblePast.map((request) => (
+                  <HistoryCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
+                ))}
+              </ul>
+            )}
+            {hasMore && !showMore && (
+              <button type="button" onClick={() => setShowMore(true)}
+                className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60">
+                See more (up to 2 years)
+              </button>
+            )}
+            {showMore && hasMore && (
+              <button type="button" onClick={() => setShowMore(false)}
+                className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60">
+                See less
+              </button>
+            )}
+          </>
         )}
       </main>
     </>
