@@ -18,23 +18,27 @@ type OtRecord = {
 const INITIAL: { error?: string } = {};
 
 function groupByMonth(records: OtRecord[]) {
-  const groups: { monthKey: string; label: string; total: number; items: OtRecord[] }[] = [];
-  const seen = new Map<string, number>();
+  const map = new Map<string, { monthKey: string; label: string; total: number; items: OtRecord[] }>();
 
   for (const r of records) {
     const monthKey = r.work_date.slice(0, 7); // "2026-06"
-    if (!seen.has(monthKey)) {
+    if (!map.has(monthKey)) {
       const d = new Date(r.work_date + "T00:00:00");
       const label = d.toLocaleDateString("en-SG", { month: "long", year: "numeric" });
-      seen.set(monthKey, groups.length);
-      groups.push({ monthKey, label, total: 0, items: [] });
+      map.set(monthKey, { monthKey, label, total: 0, items: [] });
     }
-    const idx = seen.get(monthKey)!;
-    groups[idx].items.push(r);
-    groups[idx].total += Number(r.amount);
+    const group = map.get(monthKey)!;
+    group.items.push(r);
+    group.total += Number(r.amount);
   }
 
-  return groups;
+  // Sort months newest first; within each month sort by work_date newest first
+  return [...map.values()]
+    .sort((a, b) => b.monthKey.localeCompare(a.monthKey))
+    .map((g) => ({
+      ...g,
+      items: [...g.items].sort((a, b) => b.work_date.localeCompare(a.work_date)),
+    }));
 }
 
 export function OvertimeClient({
@@ -178,39 +182,46 @@ export function OvertimeClient({
             {employeeFilter ? "No OT records for this employee." : "No OT records yet."}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {groupByMonth(filteredRecords).map(({ monthKey, label, total, items }) => (
-              <div key={monthKey} className="rounded-xl bg-white shadow-sm overflow-hidden">
-                {/* Month header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-black/[0.03] border-b border-black/5">
-                  <h3 className="text-sm font-semibold text-foreground">{label}</h3>
-                  <span className="text-sm font-bold text-brand">${total.toFixed(2)}</span>
+              <div key={monthKey}>
+                {/* Month breaker */}
+                <div className="mb-2 flex items-center justify-between rounded-lg bg-brand px-4 py-2.5">
+                  <h3 className="text-sm font-bold tracking-wide text-white">{label}</h3>
+                  <span className="text-sm font-semibold text-white/80">
+                    S$ {total.toFixed(2)}
+                  </span>
                 </div>
                 {/* Records in this month */}
-                <ul className="divide-y divide-black/5">
+                <ul className="overflow-hidden rounded-xl bg-white shadow-sm divide-y divide-black/5">
                   {items.map((r) => (
-                    <li key={r.id} className="flex items-start gap-3 px-4 py-3">
+                    <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+                      {/* Date badge */}
+                      <div className="flex w-10 shrink-0 flex-col items-center rounded-lg bg-brand/8 py-1">
+                        <span className="text-[11px] font-semibold uppercase leading-none text-brand">
+                          {new Date(r.work_date + "T00:00:00").toLocaleDateString("en-SG", { month: "short" })}
+                        </span>
+                        <span className="text-base font-bold leading-tight text-brand">
+                          {new Date(r.work_date + "T00:00:00").getDate()}
+                        </span>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
                           {r.employees?.full_name ?? "—"}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(r.work_date + "T00:00:00").toLocaleDateString("en-SG", {
-                            day: "numeric",
-                            month: "short",
-                          })}
-                          {r.remarks ? ` · ${r.remarks}` : ""}
-                        </p>
+                        {r.remarks && (
+                          <p className="text-xs text-foreground/50 truncate">{r.remarks}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-sm font-semibold text-foreground">
-                          ${Number(r.amount).toFixed(2)}
+                          S$ {Number(r.amount).toFixed(2)}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleDelete(r.id)}
                           disabled={deletingId !== null}
-                          className="rounded-lg px-2 py-1 text-xs text-red-600 border border-red-200 disabled:opacity-40"
+                          className="rounded-lg px-2 py-1 text-xs text-red-500 border border-red-200 disabled:opacity-40"
                         >
                           {deletingId === r.id ? "…" : "Delete"}
                         </button>
