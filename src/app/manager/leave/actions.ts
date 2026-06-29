@@ -38,7 +38,8 @@ export async function editLeaveRequestAction(
 
   const leaveType = formData.get("leaveType") as string;
   const startDate = formData.get("startDate") as string;
-  const endDate = formData.get("endDate") as string;
+  const halfDay = formData.get("halfDay") === "true";
+  const endDate = halfDay ? startDate : (formData.get("endDate") as string);
   const reason = (formData.get("reason") as string | null) || null;
 
   if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
@@ -54,7 +55,7 @@ export async function editLeaveRequestAction(
   const { data: phData } = await supabase.from("public_holidays").select("date")
     .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
   const publicHolidays = new Set<string>((phData ?? []).map((r) => r.date as string));
-  const days = countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
+  const days = halfDay ? 0.5 : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase
@@ -76,7 +77,8 @@ export async function editApprovedLeaveRequestAction(
 
   const leaveType = formData.get("leaveType") as string;
   const startDate = formData.get("startDate") as string;
-  const endDate = formData.get("endDate") as string;
+  const halfDay = formData.get("halfDay") === "true";
+  const endDate = halfDay ? startDate : (formData.get("endDate") as string);
   const reason = (formData.get("reason") as string | null) || null;
 
   if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
@@ -92,7 +94,8 @@ export async function editApprovedLeaveRequestAction(
   const { data: phData1 } = await supabase.from("public_holidays").select("date")
     .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
   const publicHolidays1 = new Set<string>((phData1 ?? []).map((r) => r.date as string));
-  const days = leaveType === "off_day"
+  const days = halfDay ? 0.5
+    : leaveType === "off_day"
     ? countCalendarDays(startDate, endDate)
     : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays1);
   if (days === 0) return { error: "No working days in selected range." };
@@ -119,7 +122,8 @@ export async function createLeaveForEmployeeAction(
   const employeeId = formData.get("employeeId") as string;
   const leaveType = formData.get("leaveType") as string;
   const startDate = formData.get("startDate") as string;
-  const endDate = formData.get("endDate") as string;
+  const halfDay = formData.get("halfDay") === "true";
+  const endDate = halfDay ? startDate : (formData.get("endDate") as string);
   const reason = (formData.get("reason") as string | null) || null;
 
   if (!employeeId || !leaveType || !startDate || !endDate) return { error: "All fields are required." };
@@ -129,7 +133,8 @@ export async function createLeaveForEmployeeAction(
   const { data: phData2 } = await supabase.from("public_holidays").select("date")
     .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
   const publicHolidays2 = new Set<string>((phData2 ?? []).map((r) => r.date as string));
-  const days = leaveType === "off_day"
+  const days = halfDay ? 0.5
+    : leaveType === "off_day"
     ? countCalendarDays(startDate, endDate)
     : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays2);
   if (days === 0) return { error: "No working days in selected range." };

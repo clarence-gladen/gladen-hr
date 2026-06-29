@@ -30,7 +30,8 @@ export async function submitLeaveRequestAction(
 
   const leaveType = formData.get("leaveType") as string;
   const startDate = formData.get("startDate") as string;
-  const endDate = formData.get("endDate") as string;
+  const halfDay = formData.get("halfDay") === "true";
+  const endDate = halfDay ? startDate : (formData.get("endDate") as string);
   const reason = (formData.get("reason") as string | null) || null;
 
   if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
@@ -47,7 +48,7 @@ export async function submitLeaveRequestAction(
   const { data: phData } = await supabase.from("public_holidays").select("date")
     .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
   const publicHolidays = new Set<string>((phData ?? []).map((r) => r.date as string));
-  const days = countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
+  const days = halfDay ? 0.5 : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
   if (days === 0) return { error: "No working days in selected range." };
 
   if (leaveType !== "no_pay") {
@@ -128,7 +129,8 @@ export async function editLeaveRequestAction(
 
   const leaveType = formData.get("leaveType") as string;
   const startDate = formData.get("startDate") as string;
-  const endDate = formData.get("endDate") as string;
+  const halfDay = formData.get("halfDay") === "true";
+  const endDate = halfDay ? startDate : (formData.get("endDate") as string);
   const reason = (formData.get("reason") as string | null) || null;
 
   if (!leaveType || !startDate || !endDate) return { error: "All fields are required." };
@@ -145,7 +147,7 @@ export async function editLeaveRequestAction(
   const { data: phData } = await supabase.from("public_holidays").select("date")
     .gte("year", parseInt(startDate.slice(0, 4))).lte("year", parseInt(endDate.slice(0, 4)));
   const publicHolidays = new Set<string>((phData ?? []).map((r) => r.date as string));
-  const days = countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
+  const days = halfDay ? 0.5 : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
   if (days === 0) return { error: "No working days in selected range." };
 
   const { error } = await supabase

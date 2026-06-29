@@ -36,6 +36,80 @@ const dateInputClass =
   "w-full rounded-lg border border-black/10 bg-white px-2 py-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-sm font-medium text-foreground";
 
+function EditLeaveCard({
+  req, editAction, editState, isEditing, onCancel, labelClass, inputClass, dateInputClass, t,
+}: {
+  req: LeaveRequestRow;
+  editAction: (payload: FormData) => void;
+  editState: { error?: string };
+  isEditing: boolean;
+  onCancel: () => void;
+  labelClass: string;
+  inputClass: string;
+  dateInputClass: string;
+  t: (key: string) => string;
+}) {
+  const [halfDay, setHalfDay] = useState(req.days === 0.5);
+  const [startDate, setStartDate] = useState(req.start_date);
+
+  return (
+    <li className="rounded-xl bg-white p-4 shadow-sm">
+      <p className="mb-3 text-sm font-semibold text-foreground">{t("leave.editRequest")}</p>
+      <form action={editAction} className="space-y-3">
+        <div>
+          <label className={labelClass}>{t("leave.leaveType")}</label>
+          <select name="leaveType" defaultValue={req.leave_type} required className={inputClass}>
+            <option value="annual">{t("leave.annual")}</option>
+            <option value="sick">{t("leave.sick")}</option>
+            <option value="hospitalization">{t("leave.hospitalization")}</option>
+            <option value="no_pay">{t("leave.noPay")}</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className={halfDay ? "col-span-2 min-w-0" : "min-w-0"}>
+            <label className={labelClass}>{t("leave.startDate")}</label>
+            <input
+              name="startDate" type="date" required
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={dateInputClass}
+            />
+          </div>
+          {!halfDay && (
+            <div className="min-w-0">
+              <label className={labelClass}>{t("leave.endDate")}</label>
+              <input name="endDate" type="date" defaultValue={req.end_date} required className={dateInputClass} />
+            </div>
+          )}
+        </div>
+        {halfDay && <input type="hidden" name="endDate" value={startDate} />}
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox" name="halfDay" value="true"
+            checked={halfDay}
+            onChange={(e) => setHalfDay(e.target.checked)}
+            className="h-4 w-4 rounded border-black/20 accent-brand"
+          />
+          <span className="text-sm text-foreground/70">Half day <span className="text-foreground/40">(0.5 days)</span></span>
+        </label>
+        <div>
+          <label className={labelClass}>{t("leave.reason")}</label>
+          <textarea name="reason" rows={2} defaultValue={req.reason ?? ""} className={inputClass} />
+        </div>
+        {editState?.error && <p className="text-sm text-red-600">{editState.error}</p>}
+        <div className="flex gap-2">
+          <button type="submit" disabled={isEditing} className="flex-1 rounded-lg bg-brand py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+            {t("leave.saveChanges")}
+          </button>
+          <button type="button" onClick={onCancel} className="flex-1 rounded-lg bg-black/5 py-2.5 text-sm font-semibold text-foreground">
+            {t("leave.cancelEdit")}
+          </button>
+        </div>
+      </form>
+    </li>
+  );
+}
+
 function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
   req: LeaveRequestRow;
   leaveTypeLabel: Record<LeaveType, string>;
@@ -72,43 +146,17 @@ function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
 
   if (mode === "edit") {
     return (
-      <li className="rounded-xl bg-white p-4 shadow-sm">
-        <p className="mb-3 text-sm font-semibold text-foreground">{t("leave.editRequest")}</p>
-        <form action={editAction} className="space-y-3">
-          <div>
-            <label className={labelClass}>{t("leave.leaveType")}</label>
-            <select name="leaveType" defaultValue={req.leave_type} required className={inputClass}>
-              <option value="annual">{t("leave.annual")}</option>
-              <option value="sick">{t("leave.sick")}</option>
-              <option value="hospitalization">{t("leave.hospitalization")}</option>
-              <option value="no_pay">{t("leave.noPay")}</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0">
-              <label className={labelClass}>{t("leave.startDate")}</label>
-              <input name="startDate" type="date" defaultValue={req.start_date} required className={dateInputClass} />
-            </div>
-            <div className="min-w-0">
-              <label className={labelClass}>{t("leave.endDate")}</label>
-              <input name="endDate" type="date" defaultValue={req.end_date} required className={dateInputClass} />
-            </div>
-          </div>
-          <div>
-            <label className={labelClass}>{t("leave.reason")}</label>
-            <textarea name="reason" rows={2} defaultValue={req.reason ?? ""} className={inputClass} />
-          </div>
-          {editState?.error && <p className="text-sm text-red-600">{editState.error}</p>}
-          <div className="flex gap-2">
-            <button type="submit" className="flex-1 rounded-lg bg-brand py-2.5 text-sm font-semibold text-white">
-              {t("leave.saveChanges")}
-            </button>
-            <button type="button" onClick={() => setMode("view")} className="flex-1 rounded-lg bg-black/5 py-2.5 text-sm font-semibold text-foreground">
-              {t("leave.cancelEdit")}
-            </button>
-          </div>
-        </form>
-      </li>
+      <EditLeaveCard
+        req={req}
+        editAction={editAction}
+        editState={editState}
+        isEditing={isEditing}
+        onCancel={() => setMode("view")}
+        labelClass={labelClass}
+        inputClass={inputClass}
+        dateInputClass={dateInputClass}
+        t={t}
+      />
     );
   }
 
@@ -187,6 +235,7 @@ export function LeaveClient({
   const [showHistory, setShowHistory] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [halfDay, setHalfDay] = useState(false);
 
   const leaveTypeLabel: Record<LeaveType, string> = {
     annual: t("leave.annual"),
@@ -266,7 +315,7 @@ export function LeaveClient({
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0">
+            <div className={halfDay ? "col-span-2 min-w-0" : "min-w-0"}>
               <label className={labelClass} htmlFor="startDate">{t("leave.startDate")}</label>
               <input
                 id="startDate" name="startDate" type="date" required
@@ -274,22 +323,34 @@ export function LeaveClient({
                 onChange={(e) => {
                   const v = e.target.value;
                   setStartDate(v);
-                  if (!endDate || endDate < v) setEndDate(v);
+                  if (!halfDay && (!endDate || endDate < v)) setEndDate(v);
                 }}
                 className={dateInputClass}
               />
             </div>
-            <div className="min-w-0">
-              <label className={labelClass} htmlFor="endDate">{t("leave.endDate")}</label>
-              <input
-                id="endDate" name="endDate" type="date" required
-                value={endDate}
-                min={startDate || undefined}
-                onChange={(e) => setEndDate(e.target.value)}
-                className={dateInputClass}
-              />
-            </div>
+            {!halfDay && (
+              <div className="min-w-0">
+                <label className={labelClass} htmlFor="endDate">{t("leave.endDate")}</label>
+                <input
+                  id="endDate" name="endDate" type="date" required
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className={dateInputClass}
+                />
+              </div>
+            )}
           </div>
+          {halfDay && <input type="hidden" name="endDate" value={startDate} />}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox" name="halfDay" value="true"
+              checked={halfDay}
+              onChange={(e) => setHalfDay(e.target.checked)}
+              className="h-4 w-4 rounded border-black/20 accent-brand"
+            />
+            <span className="text-sm text-foreground/70">Half day <span className="text-foreground/40">(0.5 days deducted)</span></span>
+          </label>
           <div>
             <label className={labelClass} htmlFor="reason">{t("leave.reason")}</label>
             <textarea id="reason" name="reason" rows={2} className={inputClass} />

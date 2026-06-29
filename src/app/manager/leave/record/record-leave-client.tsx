@@ -20,6 +20,7 @@ export function RecordLeaveClient({
   const [state, formAction, pending] = useActionState(createLeaveForEmployeeAction, {});
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [halfDay, setHalfDay] = useState(false);
 
   return (
     <>
@@ -56,7 +57,7 @@ export function RecordLeaveClient({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0">
+            <div className={halfDay ? "col-span-2 min-w-0" : "min-w-0"}>
               <label className={labelClass} htmlFor="startDate">
                 {t("leave.startDate")}
               </label>
@@ -66,24 +67,36 @@ export function RecordLeaveClient({
                 onChange={(e) => {
                   const v = e.target.value;
                   setStartDate(v);
-                  if (!endDate || endDate < v) setEndDate(v);
+                  if (!halfDay && (!endDate || endDate < v)) setEndDate(v);
                 }}
                 className={dateInputClass}
               />
             </div>
-            <div className="min-w-0">
-              <label className={labelClass} htmlFor="endDate">
-                {t("leave.endDate")}
-              </label>
-              <input
-                id="endDate" name="endDate" type="date" required
-                value={endDate}
-                min={startDate || undefined}
-                onChange={(e) => setEndDate(e.target.value)}
-                className={dateInputClass}
-              />
-            </div>
+            {!halfDay && (
+              <div className="min-w-0">
+                <label className={labelClass} htmlFor="endDate">
+                  {t("leave.endDate")}
+                </label>
+                <input
+                  id="endDate" name="endDate" type="date" required
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className={dateInputClass}
+                />
+              </div>
+            )}
           </div>
+          {halfDay && <input type="hidden" name="endDate" value={startDate} />}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox" name="halfDay" value="true"
+              checked={halfDay}
+              onChange={(e) => setHalfDay(e.target.checked)}
+              className="h-4 w-4 rounded border-black/20 accent-brand"
+            />
+            <span className="text-sm text-foreground/70">Half day <span className="text-foreground/40">(0.5 days deducted)</span></span>
+          </label>
 
           <div>
             <label className={labelClass} htmlFor="reason">
