@@ -185,6 +185,8 @@ export function LeaveClient({
   const { t } = useLanguage();
   const [submitState, formAction, pending] = useActionState(submitLeaveRequestAction, {});
   const [showHistory, setShowHistory] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const leaveTypeLabel: Record<LeaveType, string> = {
     annual: t("leave.annual"),
@@ -266,11 +268,26 @@ export function LeaveClient({
           <div className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
               <label className={labelClass} htmlFor="startDate">{t("leave.startDate")}</label>
-              <input id="startDate" name="startDate" type="date" required className={dateInputClass} />
+              <input
+                id="startDate" name="startDate" type="date" required
+                value={startDate}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setStartDate(v);
+                  if (!endDate || endDate < v) setEndDate(v);
+                }}
+                className={dateInputClass}
+              />
             </div>
             <div className="min-w-0">
               <label className={labelClass} htmlFor="endDate">{t("leave.endDate")}</label>
-              <input id="endDate" name="endDate" type="date" required className={dateInputClass} />
+              <input
+                id="endDate" name="endDate" type="date" required
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={dateInputClass}
+              />
             </div>
           </div>
           <div>

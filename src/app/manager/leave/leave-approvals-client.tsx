@@ -397,11 +397,11 @@ export function LeaveApprovalsClient({
 
         {/* Employee filter */}
         {employeeList.length > 1 && (
-          <div className="mb-3 flex justify-end">
+          <div className="mb-3">
             <select
               value={employeeFilter}
               onChange={(e) => { setEmployeeFilter(e.target.value); setShowMore(false); }}
-              className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs text-foreground"
+              className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-foreground"
             >
               <option value="">All employees</option>
               {employeeList.map(([id, name]) => (

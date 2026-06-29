@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createLeaveForEmployeeAction } from "../actions";
@@ -18,6 +18,8 @@ export function RecordLeaveClient({
 }) {
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(createLeaveForEmployeeAction, {});
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   return (
     <>
@@ -58,13 +60,28 @@ export function RecordLeaveClient({
               <label className={labelClass} htmlFor="startDate">
                 {t("leave.startDate")}
               </label>
-              <input id="startDate" name="startDate" type="date" required className={dateInputClass} />
+              <input
+                id="startDate" name="startDate" type="date" required
+                value={startDate}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setStartDate(v);
+                  if (!endDate || endDate < v) setEndDate(v);
+                }}
+                className={dateInputClass}
+              />
             </div>
             <div className="min-w-0">
               <label className={labelClass} htmlFor="endDate">
                 {t("leave.endDate")}
               </label>
-              <input id="endDate" name="endDate" type="date" required className={dateInputClass} />
+              <input
+                id="endDate" name="endDate" type="date" required
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={dateInputClass}
+              />
             </div>
           </div>
 
