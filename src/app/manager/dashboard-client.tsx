@@ -46,12 +46,14 @@ export function DashboardClient({
   onLeaveToday,
   pendingApprovals,
   announcements,
+  anniversaryCount,
 }: {
   firstName: string | null;
   totalEmployees: number;
   onLeaveToday: OnLeaveEntry[];
   pendingApprovals: number;
   announcements: Announcement[];
+  anniversaryCount: number;
 }) {
   const { t } = useLanguage();
   const router = useRouter();
@@ -136,6 +138,12 @@ export function DashboardClient({
               {pendingApprovals}
             </p>
             <p className="mt-0.5 text-xs text-foreground/50">{t("summary.pendingApprovals")}</p>
+          </Link>
+          <Link href="/manager/anniversaries" className="rounded-xl bg-amber-50 p-3 shadow-sm">
+            <p className={`text-2xl font-bold ${anniversaryCount > 0 ? "text-amber-600" : "text-amber-300"}`}>
+              {anniversaryCount}
+            </p>
+            <p className="mt-0.5 text-xs text-amber-600/70">Employment Anniversaries</p>
           </Link>
         </div>
 
