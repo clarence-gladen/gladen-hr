@@ -56,6 +56,15 @@ const inputClass =
 const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
 const sectionLabel = "mb-2 text-[10px] font-bold uppercase tracking-wider text-foreground/40";
 
+function SummaryCell({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="rounded-lg bg-black/[0.03] px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40">{label}</p>
+      <p className={`mt-1 text-lg font-bold ${highlight ? "text-brand" : "text-foreground"}`}>{value}</p>
+    </div>
+  );
+}
+
 function PayrollSummaryBar({ payslips }: { payslips: PayslipRow[] }) {
   const totalGross = payslips.reduce(
     (sum, p) =>
@@ -70,24 +79,17 @@ function PayrollSummaryBar({ payslips }: { payslips: PayslipRow[] }) {
   );
   const totalNet = payslips.reduce((sum, p) => sum + Number(p.net_pay), 0);
   const totalCpfEmployer = payslips.reduce((sum, p) => sum + Number(p.cpf_employer), 0);
+  const totalCpfEmployee = payslips.reduce((sum, p) => sum + Number(p.cpf_employee), 0);
 
   return (
-    <div className="grid grid-cols-4 gap-2 rounded-xl bg-white p-3 shadow-sm">
-      <div className="text-center">
-        <p className="text-xl font-bold text-brand">{payslips.length}</p>
-        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Employees</p>
+    <div className="rounded-xl bg-white p-3 shadow-sm space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <SummaryCell label={`${payslips.length} Employee${payslips.length !== 1 ? "s" : ""} — Gross`} value={`S$ ${totalGross.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+        <SummaryCell label="CPF Employer" value={`S$ ${totalCpfEmployer.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
       </div>
-      <div className="text-center">
-        <p className="text-xl font-bold text-foreground">S${totalGross.toFixed(0)}</p>
-        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Gross</p>
-      </div>
-      <div className="text-center">
-        <p className="text-xl font-bold text-foreground">S${totalCpfEmployer.toFixed(0)}</p>
-        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">CPF (ER)</p>
-      </div>
-      <div className="text-center">
-        <p className="text-xl font-bold text-brand">S${totalNet.toFixed(0)}</p>
-        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Net Pay</p>
+      <div className="grid grid-cols-2 gap-2">
+        <SummaryCell label="CPF Employee" value={`S$ ${totalCpfEmployee.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+        <SummaryCell label="Total Net Pay" value={`S$ ${totalNet.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} highlight />
       </div>
     </div>
   );
@@ -111,18 +113,27 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
     });
   }
 
+  const gross =
+    Number(payslip.basic_salary) +
+    Number(payslip.transport_allowance) +
+    Number(payslip.allowances) +
+    Number(payslip.overtime_amount) +
+    Number(payslip.bonus) +
+    Number(payslip.reimbursement);
+
   return (
     <li className="rounded-xl bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex flex-1 items-center justify-between gap-3 text-left"
+          className="flex flex-1 items-start justify-between gap-3 text-left"
         >
           <span className="font-semibold text-foreground">{employeeName(payslip)}</span>
-          <span className="shrink-0 text-sm font-semibold text-brand">
-            S${Number(payslip.net_pay).toFixed(2)}
-          </span>
+          <div className="shrink-0 text-right">
+            <p className="text-xs text-foreground/40">Gross S$ {gross.toFixed(2)}</p>
+            <p className="text-sm font-bold text-brand">Net S$ {Number(payslip.net_pay).toFixed(2)}</p>
+          </div>
         </button>
         {downloadUrl && (
           <a
@@ -215,23 +226,27 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
             </div>
           </div>
 
-          {/* Auto-calculated */}
-          <div className="space-y-1 rounded-lg bg-black/5 p-3 text-sm text-foreground/60">
+          {/* Auto-calculated totals */}
+          <div className="rounded-lg bg-black/[0.04] p-3 space-y-1.5 text-sm">
+            <div className="flex justify-between text-foreground/60">
+              <span>Gross Pay</span>
+              <span>S$ {gross.toFixed(2)}</span>
+            </div>
             {Number(payslip.cpf_employee) > 0 && (
-              <div className="flex justify-between">
+              <div className="flex justify-between text-foreground/60">
                 <span>{t("payroll.cpfEmployee")}</span>
-                <span>S${Number(payslip.cpf_employee).toFixed(2)}</span>
+                <span>− S$ {Number(payslip.cpf_employee).toFixed(2)}</span>
               </div>
             )}
             {Number(payslip.cpf_employer) > 0 && (
-              <div className="flex justify-between">
-                <span>{t("payroll.cpfEmployer")}</span>
-                <span>S${Number(payslip.cpf_employer).toFixed(2)}</span>
+              <div className="flex justify-between text-foreground/60">
+                <span>{t("payroll.cpfEmployer")} (cost)</span>
+                <span>S$ {Number(payslip.cpf_employer).toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between font-semibold text-foreground">
+            <div className="border-t border-black/10 pt-1.5 flex justify-between font-bold text-foreground">
               <span>{t("payroll.netPay")}</span>
-              <span>S${Number(payslip.net_pay).toFixed(2)}</span>
+              <span className="text-brand">S$ {Number(payslip.net_pay).toFixed(2)}</span>
             </div>
           </div>
 
