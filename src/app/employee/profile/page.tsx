@@ -14,15 +14,24 @@ export default async function EmployeeProfilePage() {
 
   const employeeId = profile?.employee_id;
 
-  const { data: employee } = employeeId
-    ? await supabase
-        .from("employees")
-        .select(
-          "full_name, designation, employment_start_date, residency_status, bank_name, bank_account_number, mobile_number"
-        )
-        .eq("id", employeeId)
-        .maybeSingle()
-    : { data: null };
+  const [employeeRes, leaveRes] = await Promise.all([
+    employeeId
+      ? supabase
+          .from("employees")
+          .select("full_name, designation, employment_start_date, residency_status, bank_name, bank_account_number, mobile_number")
+          .eq("id", employeeId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    employeeId
+      ? supabase
+          .from("leave_requests")
+          .select("id, leave_type, start_date, end_date, days, reason, status, created_at")
+          .eq("employee_id", employeeId)
+          .order("start_date", { ascending: false })
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const employee = employeeRes.data;
 
   return (
     <ProfileClient
@@ -39,6 +48,7 @@ export default async function EmployeeProfilePage() {
             }
           : null
       }
+      leaveRequests={(leaveRes.data ?? []) as import("../leave/leave-client").LeaveRequestRow[]}
     />
   );
 }

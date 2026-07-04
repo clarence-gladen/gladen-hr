@@ -36,7 +36,7 @@ const dateInputClass =
   "w-full rounded-lg border border-black/10 bg-white px-2 py-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-sm font-medium text-foreground";
 
-function EditLeaveCard({
+export function EditLeaveCard({
   req, editAction, editState, isEditing, onCancel, labelClass, inputClass, dateInputClass, t,
 }: {
   req: LeaveRequestRow;
@@ -110,7 +110,7 @@ function EditLeaveCard({
   );
 }
 
-function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
+export function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass }: {
   req: LeaveRequestRow;
   leaveTypeLabel: Record<LeaveType, string>;
   statusLabel: Record<ApprovalStatus, string>;
