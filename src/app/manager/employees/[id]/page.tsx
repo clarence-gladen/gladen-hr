@@ -13,7 +13,7 @@ export default async function EmployeeDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [employeeRes, rawDocsRes] = await Promise.all([
+  const [employeeRes, rawDocsRes, leaveRes] = await Promise.all([
     supabase
       .from("employees")
       .select(
@@ -26,6 +26,11 @@ export default async function EmployeeDetailPage({
       .select("id, document_type, file_url, created_at")
       .eq("employee_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("leave_requests")
+      .select("id, leave_type, start_date, end_date, days, reason, status, created_at")
+      .eq("employee_id", id)
+      .order("start_date", { ascending: false }),
   ]);
 
   if (!employeeRes.data) notFound();
@@ -70,6 +75,7 @@ export default async function EmployeeDetailPage({
     <EmployeeDetailClient
       employee={employee}
       leaveHistory={leaveHistory}
+      leaveRequests={leaveRes.data ?? []}
       employeeDocuments={employeeDocuments}
     />
   );

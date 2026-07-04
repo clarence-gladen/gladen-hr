@@ -1,16 +1,183 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { offboardEmployeeAction, revealNricAction, setEmployeeStatusAction } from "../actions";
+import { cancelLeaveRequestAction, editLeaveRequestAction, editApprovedLeaveRequestAction } from "../../leave/actions";
 import { LeaveHistoryTable } from "@/components/leave-history-table";
 import type { LeaveYearHistory } from "@/lib/leave/balances";
-import type { EmployeeDetail, ResidencyStatus, SkillLevel } from "@/lib/types/database";
+import type { EmployeeDetail, ResidencyStatus, SkillLevel, LeaveType, ApprovalStatus } from "@/lib/types/database";
 import { fmtDate } from "@/lib/utils/date";
 import { EmployeeDocumentsSection, type EmployeeDocumentRow } from "./employee-documents-section";
+
+export interface EmployeeLeaveRow {
+  id: string;
+  leave_type: LeaveType;
+  start_date: string;
+  end_date: string;
+  days: number;
+  reason: string | null;
+  status: ApprovalStatus;
+  created_at: string;
+}
+
+const inputClass = "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const dateInputClass = "w-full rounded-lg border border-black/10 bg-white px-1 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
+
+function LeaveCard({
+  request,
+  leaveTypeLabel,
+  statusLabel,
+}: {
+  request: EmployeeLeaveRow;
+  leaveTypeLabel: Record<LeaveType, string>;
+  statusLabel: Record<ApprovalStatus, string>;
+}) {
+  const { t } = useLanguage();
+  const router = useRouter();
+  const [mode, setMode] = useState<"view" | "edit" | "cancelConfirm">("view");
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const editAction = request.status === "pending"
+    ? editLeaveRequestAction.bind(null, request.id)
+    : editApprovedLeaveRequestAction.bind(null, request.id);
+
+  const [editState, dispatchEdit, isEditing] = useActionState(editAction, {} as { error?: string });
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !isEditing && !editState?.error) {
+      setMode("view");
+      router.refresh();
+    }
+    wasEditing.current = isEditing;
+  }, [isEditing, editState, router]);
+
+  function handleCancel() {
+    setCancelError(null);
+    startTransition(async () => {
+      const result = await cancelLeaveRequestAction(request.id);
+      if (result?.error) setCancelError(result.error);
+      else { setMode("view"); router.refresh(); }
+    });
+  }
+
+  const canEdit = request.status === "pending" || request.status === "approved";
+  const canCancel = request.status === "pending" || request.status === "approved";
+
+  if (mode === "edit") {
+    return (
+      <li className="rounded-xl bg-white p-4 shadow-sm">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("leave.editRequest")}</p>
+        <form action={dispatchEdit} className="space-y-3">
+          <div>
+            <label className={labelClass}>{t("leave.leaveType")}</label>
+            <select name="leaveType" defaultValue={request.leave_type} required className={inputClass}>
+              <option value="annual">{leaveTypeLabel.annual}</option>
+              <option value="sick">{leaveTypeLabel.sick}</option>
+              <option value="hospitalization">{leaveTypeLabel.hospitalization}</option>
+              <option value="no_pay">{leaveTypeLabel.no_pay}</option>
+              <option value="off_day">{leaveTypeLabel.off_day}</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0">
+              <label className={labelClass}>{t("leave.startDate")}</label>
+              <input name="startDate" type="date" defaultValue={request.start_date} required className={dateInputClass} />
+            </div>
+            <div className="min-w-0">
+              <label className={labelClass}>{t("leave.endDate")}</label>
+              <input name="endDate" type="date" defaultValue={request.end_date} required className={dateInputClass} />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>{t("leave.reason")}</label>
+            <textarea name="reason" rows={2} defaultValue={request.reason ?? ""} className={inputClass} />
+          </div>
+          {editState?.error && <p className="text-sm text-red-600">{editState.error}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={isEditing}
+              className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white disabled:opacity-60">
+              {isEditing ? t("common.loading") : t("leave.saveChanges")}
+            </button>
+            <button type="button" onClick={() => setMode("view")}
+              className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground">
+              {t("leave.cancelEdit")}
+            </button>
+          </div>
+        </form>
+      </li>
+    );
+  }
+
+  if (mode === "cancelConfirm") {
+    return (
+      <li className="rounded-xl border border-red-200 bg-red-50 p-4">
+        <p className="mb-3 text-sm text-red-700">{t("leave.cancelApprovedConfirm")}</p>
+        <div className="flex gap-2">
+          <button type="button" disabled={isPending} onClick={handleCancel}
+            className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            {isPending ? t("common.loading") : t("leave.cancelApprovedYes")}
+          </button>
+          <button type="button" onClick={() => setMode("view")}
+            className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground">
+            {t("common.back")}
+          </button>
+        </div>
+        {cancelError && <p className="mt-2 text-sm text-red-700">{cancelError}</p>}
+      </li>
+    );
+  }
+
+  const statusClass: Record<ApprovalStatus, string> = {
+    pending: "bg-amber-100 text-amber-700",
+    approved: "bg-brand/10 text-brand",
+    rejected: "bg-black/5 text-foreground/60",
+    cancelled: "bg-orange-100 text-orange-600",
+  };
+
+  return (
+    <li className="rounded-xl bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            {leaveTypeLabel[request.leave_type]}
+            <span className="ml-1.5 font-normal text-foreground/50">· {request.days} {t("leave.days")}</span>
+          </p>
+          <p className="mt-0.5 text-sm text-foreground/60">
+            {fmtDate(request.start_date)}{request.start_date !== request.end_date ? ` – ${fmtDate(request.end_date)}` : ""}
+          </p>
+          {request.reason && (
+            <p className="mt-0.5 text-xs text-foreground/50">{request.reason}</p>
+          )}
+        </div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusClass[request.status]}`}>
+          {statusLabel[request.status]}
+        </span>
+      </div>
+      {(canEdit || canCancel) && (
+        <div className="mt-3 flex gap-2">
+          {canEdit && (
+            <button type="button" onClick={() => setMode("edit")}
+              className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
+              {t("leave.editRequest")}
+            </button>
+          )}
+          {canCancel && (
+            <button type="button" onClick={() => setMode("cancelConfirm")}
+              className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
+              {t("leave.cancelApproved")}
+            </button>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -25,15 +192,18 @@ function Row({ label, value }: { label: string; value: string | null | undefined
 export function EmployeeDetailClient({
   employee,
   leaveHistory = [],
+  leaveRequests = [],
   employeeDocuments = [],
 }: {
   employee: EmployeeDetail;
   leaveHistory?: LeaveYearHistory[];
+  leaveRequests?: EmployeeLeaveRow[];
   employeeDocuments?: EmployeeDocumentRow[];
 }) {
   const { t } = useLanguage();
   const router = useRouter();
   const [showOffboard, setShowOffboard] = useState(false);
+  const [leaveTab, setLeaveTab] = useState<"upcoming" | "past">("upcoming");
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
   const [isPending, startTransition] = useTransition();
   const [nric, setNric] = useState<string | null>(null);
@@ -78,6 +248,29 @@ export function EmployeeDetailClient({
   }
 
   const isActive = employee.status === "active";
+
+  const leaveTypeLabel: Record<LeaveType, string> = {
+    annual: t("leave.annual"),
+    sick: t("leave.sick"),
+    hospitalization: t("leave.hospitalization"),
+    no_pay: t("leave.noPay"),
+    off_day: t("leave.offDay"),
+  };
+  const statusLabel: Record<ApprovalStatus, string> = {
+    pending: t("leave.pending"),
+    approved: t("leave.approved"),
+    rejected: t("leave.rejected"),
+    cancelled: t("leave.cancelled"),
+  };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingLeave = leaveRequests
+    .filter((r) => r.status !== "cancelled" && r.status !== "rejected" && r.end_date >= today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const pastLeave = leaveRequests
+    .filter((r) => r.end_date < today || r.status === "cancelled" || r.status === "rejected")
+    .sort((a, b) => b.start_date.localeCompare(a.start_date));
+  const activeLeaveList = leaveTab === "upcoming" ? upcomingLeave : pastLeave;
 
   return (
     <>
@@ -167,6 +360,63 @@ export function EmployeeDetailClient({
             Leave History (Last 3 Employment Years)
           </h2>
           <LeaveHistoryTable history={leaveHistory} />
+        </div>
+
+        {/* Leave requests */}
+        <div>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground/40">
+            Leave Requests
+          </h2>
+          <div className="mb-3 flex rounded-xl bg-black/5 p-1">
+            <button
+              type="button"
+              onClick={() => setLeaveTab("upcoming")}
+              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
+                leaveTab === "upcoming" ? "bg-white text-foreground shadow-sm" : "text-foreground/50"
+              }`}
+            >
+              Upcoming
+              {upcomingLeave.length > 0 && (
+                <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  leaveTab === "upcoming" ? "bg-brand text-white" : "bg-black/10 text-foreground/50"
+                }`}>
+                  {upcomingLeave.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLeaveTab("past")}
+              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
+                leaveTab === "past" ? "bg-white text-foreground shadow-sm" : "text-foreground/50"
+              }`}
+            >
+              Past
+              {pastLeave.length > 0 && (
+                <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  leaveTab === "past" ? "bg-black/10 text-foreground/60" : "bg-black/10 text-foreground/50"
+                }`}>
+                  {pastLeave.length}
+                </span>
+              )}
+            </button>
+          </div>
+          {activeLeaveList.length === 0 ? (
+            <p className="py-6 text-center text-sm text-foreground/40">
+              {leaveTab === "upcoming" ? "No upcoming leave." : "No past leave records."}
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {activeLeaveList.map((req) => (
+                <LeaveCard
+                  key={req.id}
+                  request={req}
+                  leaveTypeLabel={leaveTypeLabel}
+                  statusLabel={statusLabel}
+                />
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Actions */}
