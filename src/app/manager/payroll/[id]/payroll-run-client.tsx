@@ -157,42 +157,42 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
                 <label className={labelClass} htmlFor={`basicSalary-${payslip.id}`}>
                   {t("payroll.basicSalary")}
                 </label>
-                <input id={`basicSalary-${payslip.id}`} name="basicSalary" type="number" step="0.01"
+                <input id={`basicSalary-${payslip.id}`} name="basicSalary" type="text" inputMode="decimal"
                   defaultValue={payslip.basic_salary} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`transportAllowance-${payslip.id}`}>
                   {t("payroll.transportAllowance")}
                 </label>
-                <input id={`transportAllowance-${payslip.id}`} name="transportAllowance" type="number" step="0.01"
+                <input id={`transportAllowance-${payslip.id}`} name="transportAllowance" type="text" inputMode="decimal"
                   defaultValue={payslip.transport_allowance} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`allowances-${payslip.id}`}>
                   {t("payroll.otherAllowance")}
                 </label>
-                <input id={`allowances-${payslip.id}`} name="allowances" type="number" step="0.01"
+                <input id={`allowances-${payslip.id}`} name="allowances" type="text" inputMode="decimal"
                   defaultValue={payslip.allowances} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`overtimeAmount-${payslip.id}`}>
                   {t("payroll.overtime")}
                 </label>
-                <input id={`overtimeAmount-${payslip.id}`} name="overtimeAmount" type="number" step="0.01"
+                <input id={`overtimeAmount-${payslip.id}`} name="overtimeAmount" type="text" inputMode="decimal"
                   defaultValue={payslip.overtime_amount} className={inputClass} disabled={locked} />
               </div>
               <div className="col-span-2">
                 <label className={labelClass} htmlFor={`bonus-${payslip.id}`}>
                   Bonus (AW — CPF applies)
                 </label>
-                <input id={`bonus-${payslip.id}`} name="bonus" type="number" step="0.01"
+                <input id={`bonus-${payslip.id}`} name="bonus" type="text" inputMode="decimal"
                   defaultValue={payslip.bonus} className={inputClass} disabled={locked} />
               </div>
               <div className="col-span-2">
                 <label className={labelClass} htmlFor={`reimbursement-${payslip.id}`}>
                   Reimbursement (Tax-Exempt)
                 </label>
-                <input id={`reimbursement-${payslip.id}`} name="reimbursement" type="number" step="0.01"
+                <input id={`reimbursement-${payslip.id}`} name="reimbursement" type="text" inputMode="decimal"
                   defaultValue={payslip.reimbursement} className={inputClass} disabled={locked} />
               </div>
             </div>
@@ -206,21 +206,21 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
                 <label className={labelClass} htmlFor={`midMonthPayment-${payslip.id}`}>
                   {t("payroll.midMonthPayment")}
                 </label>
-                <input id={`midMonthPayment-${payslip.id}`} name="midMonthPayment" type="number" step="0.01"
+                <input id={`midMonthPayment-${payslip.id}`} name="midMonthPayment" type="text" inputMode="decimal"
                   defaultValue={payslip.mid_month_payment} className={inputClass} disabled={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`salaryAdvanceDeduction-${payslip.id}`}>
                   {t("payroll.salaryLoan")}
                 </label>
-                <input id={`salaryAdvanceDeduction-${payslip.id}`} name="salaryAdvanceDeduction" type="number" step="0.01"
+                <input id={`salaryAdvanceDeduction-${payslip.id}`} name="salaryAdvanceDeduction" type="text" inputMode="decimal"
                   defaultValue={payslip.salary_advance_deduction} className={inputClass} disabled={locked} />
               </div>
               <div className="col-span-2">
                 <label className={labelClass} htmlFor={`deductions-${payslip.id}`}>
                   {t("payroll.otherDeductions")}
                 </label>
-                <input id={`deductions-${payslip.id}`} name="deductions" type="number" step="0.01"
+                <input id={`deductions-${payslip.id}`} name="deductions" type="text" inputMode="decimal"
                   defaultValue={payslip.deductions} className={inputClass} disabled={locked} />
               </div>
             </div>
