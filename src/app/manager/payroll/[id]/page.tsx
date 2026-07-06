@@ -20,12 +20,19 @@ export default async function PayrollRunPage({
     notFound();
   }
 
-  const { data: payslips } = await supabase
+  const { data: rawPayslips } = await supabase
     .from("payslips")
     .select(
       "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, pdf_url, employees(full_name)"
     )
     .eq("payroll_run_id", id);
+
+  const payslips = (rawPayslips ?? []).sort((a, b) => {
+    const emp = (e: typeof a.employees) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Array.isArray(e) ? (e as any[])[0]?.full_name : (e as any)?.full_name) ?? "";
+    return emp(a.employees).localeCompare(emp(b.employees));
+  });
 
   const signedUrls = new Map<string, string>();
   if (payslips) {
