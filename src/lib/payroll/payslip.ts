@@ -3,6 +3,8 @@ import {
   calculateAge,
   calculateCpf,
   calculateCpfOnAw,
+  calculateFwl,
+  calculateSdl,
   type CpfRate,
   type FwlRate,
   type SdlConfig,
@@ -107,8 +109,10 @@ export function calculatePayslip(
     deductions: inputs.deductions,
     cpfEmployee,
     cpfEmployer,
-    fwlAmount: 0,
-    sdlAmount: 0,
+    fwlAmount: inputs.skillLevel
+      ? calculateFwl(inputs.residencyStatus, inputs.skillLevel, rates.fwlRates)
+      : 0,
+    sdlAmount: calculateSdl(ordinaryWage + inputs.bonus, rates.sdlConfig),
     netPay,
   };
 }

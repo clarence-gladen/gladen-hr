@@ -27,6 +27,10 @@ function roundToDollar(value: number): number {
   return Math.round(value);
 }
 
+function floorToDollar(value: number): number {
+  return Math.floor(value);
+}
+
 /** Age in completed years as of a given date. */
 export function calculateAge(
   dateOfBirth: string | Date,
@@ -59,16 +63,18 @@ export function calculateCpf(
     return { employeeContribution: 0, employerContribution: 0 };
   }
 
-  const ordinaryWage = Math.min(wage, bracket.ow_ceiling);
+  const cappedWage = Math.min(wage, bracket.ow_ceiling);
+  const totalRate = bracket.employee_rate + bracket.employer_rate;
 
-  return {
-    employeeContribution: roundToDollar(
-      (ordinaryWage * bracket.employee_rate) / 100
-    ),
-    employerContribution: roundToDollar(
-      (ordinaryWage * bracket.employer_rate) / 100
-    ),
-  };
+  // CPF Board method:
+  // 1. Total = (employer + employee rate) × wage, rounded to nearest dollar
+  // 2. Employee = total × (employee / total_rate), rounded DOWN (floor)
+  // 3. Employer = Total − Employee
+  const totalCpf = roundToDollar((cappedWage * totalRate) / 100);
+  const employeeContribution = floorToDollar((cappedWage * bracket.employee_rate) / 100);
+  const employerContribution = totalCpf - employeeContribution;
+
+  return { employeeContribution, employerContribution };
 }
 
 /**
@@ -85,10 +91,12 @@ export function calculateCpfOnAw(
   if (!bracket || awAmount <= 0) {
     return { employeeContribution: 0, employerContribution: 0 };
   }
-  return {
-    employeeContribution: roundToDollar((awAmount * bracket.employee_rate) / 100),
-    employerContribution: roundToDollar((awAmount * bracket.employer_rate) / 100),
-  };
+  const totalRate = bracket.employee_rate + bracket.employer_rate;
+  const totalCpf = roundToDollar((awAmount * totalRate) / 100);
+  const employeeContribution = floorToDollar((awAmount * bracket.employee_rate) / 100);
+  const employerContribution = totalCpf - employeeContribution;
+
+  return { employeeContribution, employerContribution };
 }
 
 /**
