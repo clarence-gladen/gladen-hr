@@ -27,6 +27,7 @@ interface PayslipRow {
   reimbursement: number;
   mid_month_payment: number;
   salary_advance_deduction: number;
+  unpaid_leave: number;
   deductions: number;
   cpf_employee: number;
   cpf_employer: number;
@@ -183,7 +184,7 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
               </div>
               <div className="col-span-2">
                 <label className={labelClass} htmlFor={`bonus-${payslip.id}`}>
-                  Bonus (AW — CPF applies)
+                  Bonus / Leave Encashment (AW — CPF applies)
                 </label>
                 <input id={`bonus-${payslip.id}`} name="bonus" type="text" inputMode="decimal"
                   defaultValue={payslip.bonus} className={inputClass} disabled={locked} />
@@ -216,7 +217,14 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
                 <input id={`salaryAdvanceDeduction-${payslip.id}`} name="salaryAdvanceDeduction" type="text" inputMode="decimal"
                   defaultValue={payslip.salary_advance_deduction} className={inputClass} disabled={locked} />
               </div>
-              <div className="col-span-2">
+              <div>
+                <label className={labelClass} htmlFor={`unpaidLeave-${payslip.id}`}>
+                  Unpaid Leave
+                </label>
+                <input id={`unpaidLeave-${payslip.id}`} name="unpaidLeave" type="text" inputMode="decimal"
+                  defaultValue={payslip.unpaid_leave} className={inputClass} disabled={locked} />
+              </div>
+              <div>
                 <label className={labelClass} htmlFor={`deductions-${payslip.id}`}>
                   {t("payroll.otherDeductions")}
                 </label>

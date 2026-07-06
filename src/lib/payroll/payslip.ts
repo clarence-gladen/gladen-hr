@@ -17,6 +17,7 @@ export interface PayslipInputs {
   reimbursement: number; // Tax-exempt — not subject to CPF or income tax
   midMonthPayment: number;
   salaryAdvanceDeduction: number; // "Salary Loan"
+  unpaidLeave: number; // "Unpaid Leave"
   deductions: number; // "Other Deductions"
   dateOfBirth: string;
   residencyStatus: ResidencyStatus;
@@ -38,6 +39,7 @@ export interface PayslipResult {
   reimbursement: number;
   midMonthPayment: number;
   salaryAdvanceDeduction: number;
+  unpaidLeave: number;
   deductions: number;
   cpfEmployee: number;
   cpfEmployer: number;
@@ -88,6 +90,7 @@ export function calculatePayslip(
       cpfEmployee -
       inputs.midMonthPayment -
       inputs.salaryAdvanceDeduction -
+      inputs.unpaidLeave -
       inputs.deductions
   );
 
@@ -100,6 +103,7 @@ export function calculatePayslip(
     reimbursement: inputs.reimbursement,
     midMonthPayment: inputs.midMonthPayment,
     salaryAdvanceDeduction: inputs.salaryAdvanceDeduction,
+    unpaidLeave: inputs.unpaidLeave,
     deductions: inputs.deductions,
     cpfEmployee,
     cpfEmployer,

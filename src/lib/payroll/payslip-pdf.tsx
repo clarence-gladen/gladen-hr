@@ -152,6 +152,7 @@ export interface PayslipPdfData {
   reimbursement: number;
   midMonthPayment: number;
   salaryAdvanceDeduction: number;
+  unpaidLeave: number;
   deductions: number;
   cpfEmployee: number;
   cpfEmployer: number;
@@ -189,7 +190,7 @@ function PayslipDocument({ data }: { data: PayslipPdfData }) {
     data.basicSalary + data.transportAllowance + data.allowances + data.overtimeAmount + data.bonus;
   // reimbursement is excluded from totalEarnings — it is tax-exempt and shown separately
   const totalDeductions =
-    data.cpfEmployee + data.midMonthPayment + data.salaryAdvanceDeduction + data.deductions;
+    data.cpfEmployee + data.midMonthPayment + data.salaryAdvanceDeduction + data.unpaidLeave + data.deductions;
 
   return (
     <Document>
@@ -257,6 +258,7 @@ function PayslipDocument({ data }: { data: PayslipPdfData }) {
           <LineItem label="CPF (Employee)" amount={data.cpfEmployee} deduction />
           <LineItem label="Mid-Month Payment" amount={data.midMonthPayment} deduction />
           <LineItem label="Salary Loan" amount={data.salaryAdvanceDeduction} deduction />
+          <LineItem label="Unpaid Leave" amount={data.unpaidLeave} deduction />
           <LineItem label="Other Deductions" amount={data.deductions} deduction />
           <View style={styles.subtotalRow}>
             <Text style={styles.subtotalLabel}>Total Deductions</Text>

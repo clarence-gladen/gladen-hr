@@ -154,6 +154,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
         reimbursement: 0,
         midMonthPayment: prev?.mid_month_payment ?? 0,
         salaryAdvanceDeduction: advancesByEmployee.get(employee.id) ?? 0,
+        unpaidLeave: 0,
         deductions: prev?.deductions ?? 0,
         dateOfBirth: employee.date_of_birth,
         residencyStatus: employee.residency_status,
@@ -174,6 +175,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
       reimbursement: result.reimbursement,
       mid_month_payment: result.midMonthPayment,
       salary_advance_deduction: result.salaryAdvanceDeduction,
+      unpaid_leave: result.unpaidLeave,
       deductions: result.deductions,
       cpf_employee: result.cpfEmployee,
       cpf_employer: result.cpfEmployer,
@@ -234,6 +236,7 @@ export async function updatePayslipAction(
       reimbursement: Number(formData.get("reimbursement")) || 0,
       midMonthPayment: Number(formData.get("midMonthPayment")) || 0,
       salaryAdvanceDeduction: Number(formData.get("salaryAdvanceDeduction")) || 0,
+      unpaidLeave: Number(formData.get("unpaidLeave")) || 0,
       deductions: Number(formData.get("deductions")) || 0,
       dateOfBirth: employee.date_of_birth,
       residencyStatus: employee.residency_status,
@@ -254,6 +257,7 @@ export async function updatePayslipAction(
       reimbursement: result.reimbursement,
       mid_month_payment: result.midMonthPayment,
       salary_advance_deduction: result.salaryAdvanceDeduction,
+      unpaid_leave: result.unpaidLeave,
       deductions: result.deductions,
       cpf_employee: result.cpfEmployee,
       cpf_employer: result.cpfEmployer,
@@ -285,7 +289,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)"
+      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)"
     )
     .eq("payroll_run_id", runId);
 
@@ -308,6 +312,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
         reimbursement: Number(payslip.reimbursement),
         midMonthPayment: Number(payslip.mid_month_payment),
         salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
+        unpaidLeave: Number(payslip.unpaid_leave),
         deductions: Number(payslip.deductions),
         cpfEmployee: Number(payslip.cpf_employee),
         cpfEmployer: Number(payslip.cpf_employer),
@@ -412,7 +417,7 @@ export async function downloadPayrollExcelAction(
     .from("payslips")
     .select(
       `id, basic_salary, transport_allowance, allowances, overtime_amount, bonus,
-       reimbursement, mid_month_payment, salary_advance_deduction, deductions,
+       reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions,
        cpf_employee, cpf_employer, net_pay,
        employees(full_name, bank_name, bank_account_number)`
     )
@@ -441,6 +446,7 @@ export async function downloadPayrollExcelAction(
       "Reimbursement": Number(p.reimbursement),
       "Mid-Month Advance": Number(p.mid_month_payment),
       "Salary Advance Repayment": Number(p.salary_advance_deduction),
+      "Unpaid Leave": Number(p.unpaid_leave),
       "Other Deductions": Number(p.deductions),
       "CPF (Employee)": Number(p.cpf_employee),
       "CPF (Employer)": Number(p.cpf_employer),
@@ -464,6 +470,7 @@ export async function downloadPayrollExcelAction(
     { wch: 14 }, // Reimbursement
     { wch: 18 }, // Mid-Month Advance
     { wch: 24 }, // Salary Advance Repayment
+    { wch: 14 }, // Unpaid Leave
     { wch: 16 }, // Other Deductions
     { wch: 16 }, // CPF (Employee)
     { wch: 16 }, // CPF (Employer)
