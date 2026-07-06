@@ -96,35 +96,17 @@ export default function LoginPage() {
       return;
     }
 
-    // Look up employee record by phone number to get the link
-    const userPhone = data.user.phone ?? "";
-    const { data: emp } = await supabase
-      .from("employees")
-      .select("id, full_name")
-      .eq("mobile_number", userPhone)
-      .maybeSingle();
+    // Link profile → employee record via SECURITY DEFINER RPC (bypasses RLS).
+    // This solves the chicken-and-egg problem: the employees table is only
+    // readable once employee_id is already set, so a direct query from the
+    // client always returns nothing on first login.
+    await supabase.rpc("link_profile_to_employee");
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, employee_id")
+      .select("role")
       .eq("id", data.user.id)
       .maybeSingle();
-
-    if (!profile) {
-      // First-ever login — create profile with employee link
-      await supabase.from("profiles").insert({
-        id: data.user.id,
-        role: "employee",
-        employee_id: emp?.id ?? null,
-        full_name: emp?.full_name ?? null,
-      });
-    } else if (!profile.employee_id && emp?.id) {
-      // Profile exists but was created without a link — patch it now
-      await supabase
-        .from("profiles")
-        .update({ employee_id: emp.id, full_name: emp.full_name ?? null })
-        .eq("id", data.user.id);
-    }
 
     setLoading(false);
     const role = profile?.role ?? "employee";
