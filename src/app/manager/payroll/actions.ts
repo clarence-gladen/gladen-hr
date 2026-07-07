@@ -540,6 +540,55 @@ export async function deletePayrollRunAction(runId: string): Promise<{ error?: s
   redirect("/manager/payroll");
 }
 
+export async function downloadAllPdfsAction(
+  runId: string
+): Promise<{ base64?: string; filename?: string; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("month, year")
+    .eq("id", runId)
+    .single();
+
+  if (!run) return { error: "Payroll run not found." };
+
+  const { data: payslips } = await supabase
+    .from("payslips")
+    .select("id, pdf_url, employees(full_name)")
+    .eq("payroll_run_id", runId)
+    .not("pdf_url", "is", null);
+
+  if (!payslips || payslips.length === 0)
+    return { error: "No PDFs found. Finalise the payroll run first." };
+
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+
+  for (const payslip of payslips) {
+    const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
+    const name = (emp as { full_name?: string } | null)?.full_name ?? payslip.id;
+
+    const { data: fileData, error: dlError } = await supabase.storage
+      .from("payslips")
+      .download(payslip.pdf_url!);
+
+    if (dlError || !fileData) continue;
+
+    const arrayBuffer = await fileData.arrayBuffer();
+    const safeName = name.replace(/[^a-zA-Z0-9 _\-]/g, "").trim();
+    zip.file(`${safeName}.pdf`, arrayBuffer);
+  }
+
+  const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+  const month = String(run.month).padStart(2, "0");
+
+  return {
+    base64: zipBuffer.toString("base64"),
+    filename: `Payslips_${run.year}_${month}.zip`,
+  };
+}
+
 export async function downloadPayrollExcelAction(
   runId: string
 ): Promise<{ base64?: string; filename?: string; error?: string }> {

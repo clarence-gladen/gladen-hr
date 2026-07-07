@@ -7,6 +7,7 @@ import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import {
   deletePayrollRunAction,
+  downloadAllPdfsAction,
   downloadCpfSubmissionAction,
   downloadGiroAction,
   downloadPayrollExcelAction,
@@ -296,6 +297,8 @@ export function PayrollRunClient({
   const [giroPending, startGiroTransition] = useTransition();
   const [regenError, setRegenError] = useState<string | null>(null);
   const [regenPending, startRegenTransition] = useTransition();
+  const [zipError, setZipError] = useState<string | null>(null);
+  const [zipPending, startZipTransition] = useTransition();
 
   const isCompleted = run.status === "completed";
   const hasPayslips = payslips.length > 0;
@@ -323,15 +326,19 @@ export function PayrollRunClient({
     });
   }
 
-  function triggerXlsxDownload(base64: string, filename: string) {
+  function triggerDownload(base64: string, filename: string, mime: string) {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const blob = new Blob([bytes], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function triggerXlsxDownload(base64: string, filename: string) {
+    triggerDownload(base64, filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   }
 
   function handleDownloadExcel() {
@@ -427,10 +434,28 @@ export function PayrollRunClient({
                   {regenPending ? "…" : "Regenerate PDFs"}
                 </span>
               </button>
+              <button
+                type="button"
+                disabled={zipPending}
+                onClick={() => {
+                  setZipError(null);
+                  startZipTransition(async () => {
+                    const result = await downloadAllPdfsAction(run.id);
+                    if (result.error) { setZipError(result.error); return; }
+                    triggerDownload(result.base64!, result.filename!, "application/zip");
+                  });
+                }}
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-brand/30 bg-brand/5 px-2 py-3 text-brand disabled:opacity-60"
+              >
+                <span className="text-lg">📦</span>
+                <span className="text-center text-xs font-semibold leading-tight">
+                  {zipPending ? "…" : "Download All PDFs"}
+                </span>
+              </button>
             </div>
-            {(excelError || cpfError || giroError || regenError) && (
+            {(excelError || cpfError || giroError || regenError || zipError) && (
               <p className="text-center text-xs text-red-600">
-                {excelError ?? cpfError ?? giroError ?? regenError}
+                {excelError ?? cpfError ?? giroError ?? regenError ?? zipError}
               </p>
             )}
           </div>
