@@ -48,6 +48,11 @@ export function calculateAge(
   return age;
 }
 
+/** Returns the CPF rate bracket for a given age, or null if none matches. */
+export function getCpfBracket(age: number, rates: CpfRate[]): CpfRate | null {
+  return rates.find((r) => age >= r.age_from && age <= r.age_to) ?? null;
+}
+
 /**
  * CPF contributions for a citizen/PR employee, based on Ordinary Wage capped
  * at the applicable ow_ceiling for their age bracket. Returns zero if no

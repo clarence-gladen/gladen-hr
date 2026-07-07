@@ -143,6 +143,11 @@ const styles = StyleSheet.create({
 
 export interface PayslipPdfData {
   employeeName: string;
+  nricMasked: string;
+  dateOfBirth: string;
+  employmentStartDate: string;
+  cpfEmployeeRate: number;
+  cpfEmployerRate: number;
   periodLabel: string;
   basicSalary: number;
   transportAllowance: number;
@@ -157,10 +162,19 @@ export interface PayslipPdfData {
   cpfEmployee: number;
   cpfEmployer: number;
   netPay: number;
+  annualLeaveBalance: number;
+  sickLeaveBalance: number;
+  hospitalizationLeaveBalance: number;
 }
 
 function fmt(n: number) {
   return `S$${n.toFixed(2)}`;
+}
+
+function fmtDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 function LineItem({
@@ -217,10 +231,22 @@ function PayslipDocument({ data }: { data: PayslipPdfData }) {
           <View>
             <Text style={styles.infoLabel}>Employee Name</Text>
             <Text style={styles.infoValue}>{data.employeeName}</Text>
+            <Text style={[styles.infoLabel, { marginTop: 5 }]}>NRIC</Text>
+            <Text style={styles.infoValue}>{data.nricMasked}</Text>
+            <Text style={[styles.infoLabel, { marginTop: 5 }]}>Date of Birth</Text>
+            <Text style={styles.infoValue}>{fmtDate(data.dateOfBirth)}</Text>
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={styles.infoLabel}>Pay Period</Text>
             <Text style={styles.infoValue}>{data.periodLabel}</Text>
+            <Text style={[styles.infoLabel, { marginTop: 5 }]}>Employment Start</Text>
+            <Text style={styles.infoValue}>{fmtDate(data.employmentStartDate)}</Text>
+            {data.cpfEmployeeRate > 0 && (
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={[styles.infoLabel, { marginTop: 5 }]}>CPF Rates (EE / ER)</Text>
+                <Text style={styles.infoValue}>{data.cpfEmployeeRate}% / {data.cpfEmployerRate}%</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -280,6 +306,25 @@ function PayslipDocument({ data }: { data: PayslipPdfData }) {
         <View style={styles.netPayBox}>
           <Text style={styles.netPayLabel}>Net Pay</Text>
           <Text style={styles.netPayAmount}>{fmt(data.netPay)}</Text>
+        </View>
+
+        {/* Leave Balance */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Leave Balance (Remaining)</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Annual Leave</Text>
+            <Text style={styles.rowAmount}>{data.annualLeaveBalance} day(s)</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Medical Leave</Text>
+            <Text style={styles.rowAmount}>{data.sickLeaveBalance} day(s)</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Hospitalisation Leave</Text>
+            <Text style={styles.rowAmount}>{data.hospitalizationLeaveBalance} day(s)</Text>
+          </View>
         </View>
 
         {/* Footer */}

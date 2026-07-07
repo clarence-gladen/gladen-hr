@@ -12,6 +12,13 @@ import {
   suggestedDeduction,
 } from "@/lib/payroll/salary-advances";
 import { generatePayslipPdf } from "@/lib/payroll/payslip-pdf";
+import { calculateAge, getCpfBracket } from "@/lib/payroll/statutory";
+import {
+  isOnProbation,
+  getAvailableAnnualLeave,
+  getAvailableSickLeave,
+  getAvailableHospitalizationLeave,
+} from "@/lib/leave/entitlement";
 
 function payDateForRun(month: number, year: number): string {
   return new Date(year, month, 0).toISOString().slice(0, 10);
@@ -289,20 +296,54 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name)"
+      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name, nric_last4, date_of_birth, employment_start_date, residency_status)"
     )
     .eq("payroll_run_id", runId);
 
   if (!payslips || payslips.length === 0) return { error: "No payslips to finalise." };
 
+  const payDate = payDateForRun(run.month, run.year);
+  const cpfRates = await getCpfRates(supabase, payDate);
+
+  const employeeIds = payslips.map((p) => p.employee_id);
+  const { data: leaveBalancesData } = await supabase
+    .from("leave_balances")
+    .select("employee_id, annual_used, sick_used, hospitalization_used")
+    .in("employee_id", employeeIds)
+    .lte("year_start", payDate)
+    .gte("year_end", payDate);
+  const leaveBalanceMap = new Map(
+    (leaveBalancesData ?? []).map((lb) => [lb.employee_id, lb])
+  );
+
   // Generate and upload PDFs
   for (const payslip of payslips) {
     const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
 
+    const dob = (emp as { date_of_birth?: string } | null)?.date_of_birth ?? "";
+    const startDate = (emp as { employment_start_date?: string } | null)?.employment_start_date ?? "";
+    const residency = (emp as { residency_status?: string } | null)?.residency_status ?? "";
+    const nricLast4 = (emp as { nric_last4?: string } | null)?.nric_last4 ?? "";
+
+    const isCpfEligible = residency === "citizen" || residency === "pr";
+    const age = dob ? calculateAge(dob, payDate) : null;
+    const bracket = isCpfEligible && age !== null ? getCpfBracket(age, cpfRates) : null;
+
+    const lb = leaveBalanceMap.get(payslip.employee_id);
+    const onProbation = startDate ? isOnProbation(startDate, payDate) : true;
+    const annualEntitlement = startDate && !onProbation ? getAvailableAnnualLeave(startDate, payDate) : 0;
+    const sickEntitlement = startDate && !onProbation ? getAvailableSickLeave(startDate, payDate) : 0;
+    const hospEntitlement = startDate && !onProbation ? getAvailableHospitalizationLeave(startDate, payDate) : 0;
+
     let pdfBuffer: Buffer;
     try {
       pdfBuffer = await generatePayslipPdf({
-        employeeName: emp?.full_name ?? "Unknown",
+        employeeName: (emp as { full_name?: string } | null)?.full_name ?? "Unknown",
+        nricMasked: nricLast4 ? `*****${nricLast4}` : "N/A",
+        dateOfBirth: dob,
+        employmentStartDate: startDate,
+        cpfEmployeeRate: bracket?.employee_rate ?? 0,
+        cpfEmployerRate: bracket?.employer_rate ?? 0,
         periodLabel: label,
         basicSalary: Number(payslip.basic_salary),
         transportAllowance: Number(payslip.transport_allowance),
@@ -317,6 +358,9 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
         cpfEmployee: Number(payslip.cpf_employee),
         cpfEmployer: Number(payslip.cpf_employer),
         netPay: Number(payslip.net_pay),
+        annualLeaveBalance: Math.max(0, annualEntitlement - Number(lb?.annual_used ?? 0)),
+        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0)),
+        hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
       });
     } catch (e) {
       return { error: `PDF render failed: ${e instanceof Error ? e.message : String(e)}` };
@@ -354,7 +398,6 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
     month: "long",
     year: "numeric",
   });
-  const employeeIds = payslips.map((p) => p.employee_id);
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, employee_id")
