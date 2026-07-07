@@ -564,6 +564,10 @@ export async function downloadAllPdfsAction(
 
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
+  const monthLabel = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  }).replace(" ", ""); // e.g. "June2026"
 
   for (const payslip of payslips) {
     const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
@@ -577,7 +581,7 @@ export async function downloadAllPdfsAction(
 
     const arrayBuffer = await fileData.arrayBuffer();
     const safeName = name.replace(/[^a-zA-Z0-9 _\-]/g, "").trim();
-    zip.file(`${safeName}.pdf`, arrayBuffer);
+    zip.file(`${safeName}_${monthLabel}.pdf`, arrayBuffer);
   }
 
   const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
