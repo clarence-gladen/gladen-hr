@@ -312,7 +312,7 @@ export function EmployeeDetailClient({
           {nricError && (
             <p className="text-xs text-red-600 pb-2">{nricError}</p>
           )}
-          <Row label={t("employees.dateOfBirth")} value={employee.date_of_birth} />
+          <Row label={t("employees.dateOfBirth")} value={fmtDate(employee.date_of_birth)} />
           <Row label={t("employees.mobileNumber")} value={`+${employee.mobile_number}`} />
           <Row label={t("employees.residencyStatus")} value={residencyLabel[employee.residency_status]} />
         </div>
