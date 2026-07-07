@@ -13,7 +13,6 @@ import {
   downloadPayrollExcelAction,
   finalisePayrollAction,
   generatePayslipsAction,
-  regeneratePdfsAction,
   updatePayslipAction,
 } from "../actions";
 import type { PayrollStatus } from "@/lib/types/database";
@@ -295,8 +294,6 @@ export function PayrollRunClient({
   const [cpfPending, startCpfTransition] = useTransition();
   const [giroError, setGiroError] = useState<string | null>(null);
   const [giroPending, startGiroTransition] = useTransition();
-  const [regenError, setRegenError] = useState<string | null>(null);
-  const [regenPending, startRegenTransition] = useTransition();
   const [zipError, setZipError] = useState<string | null>(null);
   const [zipPending, startZipTransition] = useTransition();
 
@@ -419,23 +416,6 @@ export function PayrollRunClient({
               </button>
               <button
                 type="button"
-                disabled={regenPending}
-                onClick={() => {
-                  setRegenError(null);
-                  startRegenTransition(async () => {
-                    const result = await regeneratePdfsAction(run.id);
-                    if (result?.error) setRegenError(result.error);
-                  });
-                }}
-                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-brand/30 bg-brand/5 px-2 py-3 text-brand disabled:opacity-60"
-              >
-                <span className="text-lg">🔄</span>
-                <span className="text-center text-xs font-semibold leading-tight">
-                  {regenPending ? "…" : "Regenerate PDFs"}
-                </span>
-              </button>
-              <button
-                type="button"
                 disabled={zipPending}
                 onClick={() => {
                   setZipError(null);
@@ -453,9 +433,9 @@ export function PayrollRunClient({
                 </span>
               </button>
             </div>
-            {(excelError || cpfError || giroError || regenError || zipError) && (
+            {(excelError || cpfError || giroError || zipError) && (
               <p className="text-center text-xs text-red-600">
-                {excelError ?? cpfError ?? giroError ?? regenError ?? zipError}
+                {excelError ?? cpfError ?? giroError ?? zipError}
               </p>
             )}
           </div>

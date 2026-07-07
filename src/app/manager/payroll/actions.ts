@@ -569,20 +569,22 @@ export async function downloadAllPdfsAction(
     year: "numeric",
   }).replace(" ", ""); // e.g. "June2026"
 
-  for (const payslip of payslips) {
-    const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
-    const name = (emp as { full_name?: string } | null)?.full_name ?? payslip.id;
+  await Promise.all(
+    payslips.map(async (payslip) => {
+      const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
+      const name = (emp as { full_name?: string } | null)?.full_name ?? payslip.id;
 
-    const { data: fileData, error: dlError } = await supabase.storage
-      .from("payslips")
-      .download(payslip.pdf_url!);
+      const { data: fileData, error: dlError } = await supabase.storage
+        .from("payslips")
+        .download(payslip.pdf_url!);
 
-    if (dlError || !fileData) continue;
+      if (dlError || !fileData) return;
 
-    const arrayBuffer = await fileData.arrayBuffer();
-    const safeName = name.replace(/[^a-zA-Z0-9 _\-]/g, "").trim();
-    zip.file(`${safeName}_${monthLabel}.pdf`, arrayBuffer);
-  }
+      const arrayBuffer = await fileData.arrayBuffer();
+      const safeName = name.replace(/[^a-zA-Z0-9 _\-]/g, "").trim();
+      zip.file(`${safeName}_${monthLabel}.pdf`, arrayBuffer);
+    })
+  );
 
   const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
   const month = String(run.month).padStart(2, "0");
