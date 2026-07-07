@@ -96,11 +96,13 @@ export default function LoginPage() {
       return;
     }
 
-    // Link profile → employee record via SECURITY DEFINER RPC (bypasses RLS).
-    // This solves the chicken-and-egg problem: the employees table is only
-    // readable once employee_id is already set, so a direct query from the
-    // client always returns nothing on first login.
-    await supabase.rpc("link_profile_to_employee");
+    // Fallback: link profile → employee for existing unlinked profiles.
+    // New logins are handled by the handle_new_user trigger; this covers
+    // any profiles that were created before the trigger was updated.
+    const { error: rpcError } = await supabase.rpc("link_profile_to_employee");
+    if (rpcError) {
+      console.error("[login] link_profile_to_employee failed:", rpcError.message);
+    }
 
     const { data: profile } = await supabase
       .from("profiles")
