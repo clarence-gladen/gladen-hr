@@ -137,8 +137,9 @@ export async function getLeaveHistory(
       },
       sick: {
         entitlement: SICK_LEAVE_PER_YEAR,
-        used: sickUsed,
-        unused: Math.max(0, SICK_LEAVE_PER_YEAR - sickUsed),
+        // Per MOM: hospitalisation leave consumes sick leave concurrently.
+        used: Math.min(sickUsed + hospitalizationUsed, SICK_LEAVE_PER_YEAR),
+        unused: Math.max(0, SICK_LEAVE_PER_YEAR - sickUsed - hospitalizationUsed),
       },
       hospitalization: {
         entitlement: HOSPITALIZATION_PER_YEAR,

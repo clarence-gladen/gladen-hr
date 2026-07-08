@@ -262,7 +262,7 @@ export function LeaveClient({
   const balanceItems = balance
     ? [
         { label: t("leave.annual"), available: balance.annual_entitlement - balance.annual_used, used: balance.annual_used, entitlement: balance.annual_entitlement },
-        { label: t("leave.sick"), available: balance.sick_entitlement - balance.sick_used, used: balance.sick_used, entitlement: balance.sick_entitlement },
+        { label: t("leave.sick"), available: Math.max(0, balance.sick_entitlement - balance.sick_used - balance.hospitalization_used), used: Math.min(balance.sick_used + balance.hospitalization_used, balance.sick_entitlement), entitlement: balance.sick_entitlement },
         { label: t("leave.hospitalization"), available: balance.hospitalization_entitlement - balance.hospitalization_used, used: balance.hospitalization_used, entitlement: balance.hospitalization_entitlement },
       ]
     : [];

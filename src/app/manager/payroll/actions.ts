@@ -355,7 +355,7 @@ export async function regeneratePdfsAction(runId: string): Promise<{ error?: str
         cpfEmployer: Number(payslip.cpf_employer),
         netPay: Number(payslip.net_pay),
         annualLeaveBalance: Math.max(0, annualEntitlement - Number(lb?.annual_used ?? 0)),
-        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0)),
+        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0) - Number(lb?.hospitalization_used ?? 0)),
         hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
       });
     } catch (e) {
@@ -456,7 +456,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
         cpfEmployer: Number(payslip.cpf_employer),
         netPay: Number(payslip.net_pay),
         annualLeaveBalance: Math.max(0, annualEntitlement - Number(lb?.annual_used ?? 0)),
-        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0)),
+        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0) - Number(lb?.hospitalization_used ?? 0)),
         hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
       });
     } catch (e) {

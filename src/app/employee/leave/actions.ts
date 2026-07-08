@@ -80,10 +80,11 @@ export async function submitLeaveRequestAction(
       }
     } else if (leaveType === "sick") {
       const entitlement = getAvailableSickLeave(empStartDate, startDate);
-      const used = Number(bal?.sick_used ?? 0);
-      if (days > entitlement - used) {
+      // Per MOM: hospitalisation leave consumes sick leave concurrently, so both pools are checked.
+      const effectiveUsed = Number(bal?.sick_used ?? 0) + Number(bal?.hospitalization_used ?? 0);
+      if (days > entitlement - effectiveUsed) {
         return {
-          error: `Insufficient sick leave. You have ${Math.max(0, entitlement - used)} day(s) available.`,
+          error: `Insufficient sick leave. You have ${Math.max(0, entitlement - effectiveUsed)} day(s) available.`,
         };
       }
     } else if (leaveType === "hospitalization") {
