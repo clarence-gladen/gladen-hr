@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createSalaryAdvanceAction } from "./actions";
@@ -70,6 +70,15 @@ export function SalaryAdvancesClient({
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(createSalaryAdvanceAction, {});
 
+  // Default the advance date to today in the user's timezone; done after mount
+  // because the server renders in UTC (a day behind SGT before 8am).
+  const advanceDateRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (advanceDateRef.current && !advanceDateRef.current.value) {
+      advanceDateRef.current.value = new Date().toLocaleDateString("en-CA");
+    }
+  }, []);
+
   const statusLabel: Record<ApprovalStatus, string> = {
     pending: t("salaryAdvances.pending"),
     approved: t("salaryAdvances.approved"),
@@ -119,6 +128,21 @@ export function SalaryAdvancesClient({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="advanceDate">
+              {t("salaryAdvances.advanceDate")}
+            </label>
+            <input
+              id="advanceDate"
+              name="advanceDate"
+              type="date"
+              required
+              ref={advanceDateRef}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-foreground/50">{t("salaryAdvances.advanceDateHint")}</p>
           </div>
 
           <div>

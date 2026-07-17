@@ -257,6 +257,8 @@ const zh: Partial<Dictionary> = {
     cancelled: "已撤销",
     noAdvances: "暂无薪资预支记录。",
     requestedOn: "申请于",
+    advanceDate: "预支日期",
+    advanceDateHint: "默认为今天——如补录之前发放的预支，请修改日期。",
     repaymentHistory: "还款记录",
     noRepayments: "暂无还款记录。",
     totalOutstanding: "总未还金额",

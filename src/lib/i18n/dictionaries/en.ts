@@ -255,6 +255,8 @@ const en = {
     cancelled: "Cancelled",
     noAdvances: "No salary advances recorded yet.",
     requestedOn: "Requested",
+    advanceDate: "Advance Date",
+    advanceDateHint: "Defaults to today — change it if you're recording an advance given earlier.",
     repaymentHistory: "Repayment History",
     noRepayments: "No repayments recorded yet.",
     totalOutstanding: "Total Outstanding",

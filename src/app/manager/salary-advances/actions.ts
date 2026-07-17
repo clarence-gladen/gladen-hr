@@ -19,9 +19,13 @@ export async function createSalaryAdvanceAction(
   const repaymentRaw = String(formData.get("repaymentAmountPerMonth") ?? "").trim();
   const repaymentAmountPerMonth = repaymentRaw ? Number(repaymentRaw) : null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const advanceDate = String(formData.get("advanceDate") ?? "").trim();
 
   if (!employeeId || !amount || amount <= 0) {
     return { error: "Please select an employee and enter a valid amount." };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(advanceDate)) {
+    return { error: "Please enter a valid advance date." };
   }
 
   const { data: userRes } = await supabase.auth.getUser();
@@ -34,6 +38,9 @@ export async function createSalaryAdvanceAction(
     status: "approved",
     approved_by: userRes.user?.id,
     status_updated_at: new Date().toISOString(),
+    // The date the advance was actually given; drives display, month
+    // grouping, and oldest-first repayment allocation.
+    created_at: advanceDate,
   });
 
   if (error) {
