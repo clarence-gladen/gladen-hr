@@ -38,6 +38,24 @@ function employeeName(row: AdvanceRow): string {
   return employee?.full_name ?? "—";
 }
 
+function groupByMonth(advances: AdvanceRow[]) {
+  const map = new Map<string, { monthKey: string; label: string; items: AdvanceRow[] }>();
+  for (const advance of advances) {
+    const monthKey = advance.created_at.slice(0, 7); // "2026-07"
+    if (!map.has(monthKey)) {
+      const d = new Date(advance.created_at);
+      map.set(monthKey, {
+        monthKey,
+        label: d.toLocaleDateString("en-SG", { month: "long", year: "numeric" }),
+        items: [],
+      });
+    }
+    map.get(monthKey)!.items.push(advance);
+  }
+  // Newest month first; items within keep the created_at desc order from the query
+  return [...map.values()].sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+}
+
 const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
 const labelClass = "mb-1 block text-sm font-medium text-foreground";
@@ -154,39 +172,48 @@ export function SalaryAdvancesClient({
         {advances.length === 0 ? (
           <p className="text-center text-sm text-foreground/60">{t("salaryAdvances.noAdvances")}</p>
         ) : (
-          <ul className="space-y-3">
-            {advances.map((advance) => (
-              <li key={advance.id}>
-                <Link
-                  href={`/manager/salary-advances/${advance.id}`}
-                  className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm"
-                >
-                  <div>
-                    <p className="font-semibold text-foreground">{employeeName(advance)}</p>
-                    <p className="text-sm text-foreground/60">
-                      S${Number(advance.amount).toFixed(2)}
-                      {advance.repayment_amount_per_month != null
-                        ? ` · S$${Number(advance.repayment_amount_per_month).toFixed(2)}/mo`
-                        : ""}
-                    </p>
-                    <p className="text-xs text-foreground/40">
-                      {t("salaryAdvances.requestedOn")} {fmtTimestamp(advance.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass[advance.status]}`}>
-                      {statusLabel[advance.status]}
-                    </span>
-                    <span className="text-sm font-semibold text-foreground">
-                      {advance.outstanding > 0.001
-                        ? `S$${advance.outstanding.toFixed(2)}`
-                        : t("salaryAdvances.fullyRepaid")}
-                    </span>
-                  </div>
-                </Link>
-              </li>
+          <div className="space-y-5">
+            {groupByMonth(advances).map(({ monthKey, label, items }) => (
+              <div key={monthKey}>
+                <div className="mb-2 rounded-lg bg-brand px-4 py-2.5">
+                  <h3 className="text-sm font-bold tracking-wide text-white">{label}</h3>
+                </div>
+                <ul className="space-y-3">
+                  {items.map((advance) => (
+                    <li key={advance.id}>
+                      <Link
+                        href={`/manager/salary-advances/${advance.id}`}
+                        className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm"
+                      >
+                        <div>
+                          <p className="font-semibold text-foreground">{employeeName(advance)}</p>
+                          <p className="text-sm text-foreground/60">
+                            S${Number(advance.amount).toFixed(2)}
+                            {advance.repayment_amount_per_month != null
+                              ? ` · S$${Number(advance.repayment_amount_per_month).toFixed(2)}/mo`
+                              : ""}
+                          </p>
+                          <p className="text-xs text-foreground/40">
+                            {t("salaryAdvances.requestedOn")} {fmtTimestamp(advance.created_at)}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass[advance.status]}`}>
+                            {statusLabel[advance.status]}
+                          </span>
+                          <span className="text-sm font-semibold text-foreground">
+                            {advance.outstanding > 0.001
+                              ? `S$${advance.outstanding.toFixed(2)}`
+                              : t("salaryAdvances.fullyRepaid")}
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </main>
     </>
