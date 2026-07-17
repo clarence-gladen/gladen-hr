@@ -85,10 +85,21 @@ export default async function EmployeeLeavePage() {
     ? requestsRes
     : (requestsRes as { data: unknown[] }).data ?? [];
 
+  // Sort by nearest date to today first: upcoming requests soonest-first,
+  // then past requests most-recent-first.
+  const sortedRequests = [...(requests as { start_date: string }[])].sort((a, b) => {
+    const aUpcoming = a.start_date >= todayStr;
+    const bUpcoming = b.start_date >= todayStr;
+    if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+    return aUpcoming
+      ? a.start_date.localeCompare(b.start_date)
+      : b.start_date.localeCompare(a.start_date);
+  });
+
   return (
     <LeaveClient
       balance={balance}
-      requests={requests as Parameters<typeof LeaveClient>[0]["requests"]}
+      requests={sortedRequests as Parameters<typeof LeaveClient>[0]["requests"]}
       onProbation={onProbation}
       confirmDateLabel={confirmDateLabel}
       leaveHistory={Array.isArray(historyRes) ? historyRes : []}
