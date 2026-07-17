@@ -16,7 +16,7 @@ export function BottomNav({ items }: { items: NavItem[] }) {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-black/5 bg-white pb-[max(env(safe-area-inset-bottom),_8px)]">
-      <ul className="grid grid-cols-5">
+      <ul className={items.length === 6 ? "grid grid-cols-6" : "grid grid-cols-5"}>
         {items.map((item) => {
           const active =
             pathname === item.href ||

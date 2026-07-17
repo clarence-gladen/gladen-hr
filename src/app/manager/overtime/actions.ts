@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { parseManagerOtForm } from "@/lib/ot/parse";
 
 export async function createOvertimeRecordAction(
   _prev: { error?: string },
@@ -69,6 +70,50 @@ export async function deleteOvertimeRecordAction(id: string): Promise<{ error?: 
   }
 
   const { error } = await supabase.from("overtime_records").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  return {};
+}
+
+// ── Period-based OT log (supervisor entries) — separate from payroll OT ──
+
+export async function createOtLogEntryAction(
+  _prev: { error?: string },
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const parsed = parseManagerOtForm(formData);
+  if (parsed.error || !parsed.values) return { error: parsed.error };
+
+  const { error } = await supabase.from("ot_entries").insert(parsed.values);
+  if (error) return { error: error.message };
+
+  revalidatePath("/manager/overtime");
+  return {};
+}
+
+export async function updateOtLogEntryAction(
+  id: string,
+  _prev: { error?: string },
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const parsed = parseManagerOtForm(formData);
+  if (parsed.error || !parsed.values) return { error: parsed.error };
+
+  const { error } = await supabase.from("ot_entries").update(parsed.values).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/manager/overtime");
+  return {};
+}
+
+export async function deleteOtLogEntryAction(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("ot_entries").delete().eq("id", id);
   if (error) return { error: error.message };
 
   return {};

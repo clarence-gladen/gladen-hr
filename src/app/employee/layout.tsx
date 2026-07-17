@@ -29,7 +29,7 @@ export default async function EmployeeLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, employees(is_supervisor)")
     .eq("id", auth.user.id)
     .maybeSingle();
 
@@ -37,11 +37,24 @@ export default async function EmployeeLayout({
     redirect("/manager");
   }
 
+  const employee = Array.isArray(profile?.employees)
+    ? profile?.employees[0]
+    : profile?.employees;
+  const isSupervisor = Boolean(employee?.is_supervisor);
+
+  const items: NavItem[] = isSupervisor
+    ? [
+        ...navItems.slice(0, 2),
+        { href: "/employee/ot", labelKey: "nav.ot", icon: "⏰" },
+        ...navItems.slice(2),
+      ]
+    : navItems;
+
   return (
     <ToastProvider>
       <div className="flex min-h-screen flex-col pb-[calc(4rem+max(env(safe-area-inset-bottom),_8px))]">
         {children}
-        <BottomNav items={navItems} />
+        <BottomNav items={items} />
       </div>
     </ToastProvider>
   );
