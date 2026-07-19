@@ -527,7 +527,12 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
         is_read: false,
       };
     });
-    await supabase.from("notifications").insert(notificationRows);
+    const { error: notifyError } = await supabase.from("notifications").insert(notificationRows);
+    if (notifyError) {
+      // Best-effort: the run is already finalised, so don't fail here — just
+      // surface it in logs instead of swallowing it silently.
+      console.error("Failed to insert payslip-ready notifications:", notifyError.message);
+    }
   }
 
   revalidatePath(`/manager/payroll/${runId}`);
