@@ -314,8 +314,10 @@ export async function regeneratePdfsAction(runId: string): Promise<{ error?: str
     (leaveBalancesData ?? []).map((lb) => [lb.employee_id, lb])
   );
 
+  const pdfFailures: string[] = [];
   for (const payslip of payslips) {
     const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
+    const empName = (emp as { full_name?: string } | null)?.full_name ?? "Unknown";
     const dob = (emp as { date_of_birth?: string } | null)?.date_of_birth ?? "";
     const startDate = (emp as { employment_start_date?: string } | null)?.employment_start_date ?? "";
     const residency = (emp as { residency_status?: string } | null)?.residency_status ?? "";
@@ -331,10 +333,9 @@ export async function regeneratePdfsAction(runId: string): Promise<{ error?: str
     const sickEntitlement = startDate && !onProbation ? getAvailableSickLeave(startDate, payDate) : 0;
     const hospEntitlement = startDate && !onProbation ? getAvailableHospitalizationLeave(startDate, payDate) : 0;
 
-    let pdfBuffer: Buffer;
     try {
-      pdfBuffer = await generatePayslipPdf({
-        employeeName: (emp as { full_name?: string } | null)?.full_name ?? "Unknown",
+      const pdfBuffer = await generatePayslipPdf({
+        employeeName: empName,
         nricMasked: nricLast4 ? `*****${nricLast4}` : "N/A",
         dateOfBirth: dob,
         employmentStartDate: startDate,
@@ -358,20 +359,27 @@ export async function regeneratePdfsAction(runId: string): Promise<{ error?: str
         sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0) - Number(lb?.hospitalization_used ?? 0)),
         hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
       });
-    } catch (e) {
-      return { error: `PDF render failed for ${(emp as { full_name?: string } | null)?.full_name}: ${e instanceof Error ? e.message : String(e)}` };
+
+      const path = `${payslip.employee_id}/${payslip.id}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("payslips")
+        .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) {
+        pdfFailures.push(empName);
+        continue;
+      }
+
+      await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
+    } catch {
+      pdfFailures.push(empName);
+      continue;
     }
-
-    const path = `${payslip.employee_id}/${payslip.id}.pdf`;
-    const { error: uploadError } = await supabase.storage
-      .from("payslips")
-      .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
-
-    if (uploadError) return { error: `Upload failed: ${uploadError.message}` };
-
-    await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
   }
 
+  if (pdfFailures.length > 0) {
+    return { error: `PDFs could not be generated for: ${pdfFailures.join(", ")}. Please check their employee records and try again.` };
+  }
   return {};
 }
 
@@ -413,9 +421,12 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
     (leaveBalancesData ?? []).map((lb) => [lb.employee_id, lb])
   );
 
-  // Generate and upload PDFs
+  // Generate and upload PDFs. A single employee's failure must NOT abort the
+  // whole run — collect failures and keep going so everyone else still gets a PDF.
+  const pdfFailures: string[] = [];
   for (const payslip of payslips) {
     const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
+    const empName = (emp as { full_name?: string } | null)?.full_name ?? "Unknown";
 
     const dob = (emp as { date_of_birth?: string } | null)?.date_of_birth ?? "";
     const startDate = (emp as { employment_start_date?: string } | null)?.employment_start_date ?? "";
@@ -432,10 +443,9 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
     const sickEntitlement = startDate && !onProbation ? getAvailableSickLeave(startDate, payDate) : 0;
     const hospEntitlement = startDate && !onProbation ? getAvailableHospitalizationLeave(startDate, payDate) : 0;
 
-    let pdfBuffer: Buffer;
     try {
-      pdfBuffer = await generatePayslipPdf({
-        employeeName: (emp as { full_name?: string } | null)?.full_name ?? "Unknown",
+      const pdfBuffer = await generatePayslipPdf({
+        employeeName: empName,
         nricMasked: nricLast4 ? `*****${nricLast4}` : "N/A",
         dateOfBirth: dob,
         employmentStartDate: startDate,
@@ -459,18 +469,22 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
         sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0) - Number(lb?.hospitalization_used ?? 0)),
         hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
       });
-    } catch (e) {
-      return { error: `PDF render failed: ${e instanceof Error ? e.message : String(e)}` };
+
+      const path = `${payslip.employee_id}/${payslip.id}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("payslips")
+        .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) {
+        pdfFailures.push(empName);
+        continue;
+      }
+
+      await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
+    } catch {
+      pdfFailures.push(empName);
+      continue;
     }
-
-    const path = `${payslip.employee_id}/${payslip.id}.pdf`;
-    const { error: uploadError } = await supabase.storage
-      .from("payslips")
-      .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
-
-    if (uploadError) return { error: `Upload failed: ${uploadError.message}` };
-
-    await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
   }
 
   // Record salary advance repayments
@@ -519,6 +533,12 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
   revalidatePath(`/manager/payroll/${runId}`);
   revalidatePath("/manager/payroll");
   revalidatePath("/manager/salary-advances");
+
+  if (pdfFailures.length > 0) {
+    return {
+      error: `Payroll finalised, but PDFs could not be generated for: ${pdfFailures.join(", ")}. Use "Regenerate PDFs" to retry.`,
+    };
+  }
   return {};
 }
 

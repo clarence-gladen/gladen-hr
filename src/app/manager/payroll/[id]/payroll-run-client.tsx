@@ -13,6 +13,7 @@ import {
   downloadPayrollExcelAction,
   finalisePayrollAction,
   generatePayslipsAction,
+  regeneratePdfsAction,
   updatePayslipAction,
 } from "../actions";
 import type { PayrollStatus } from "@/lib/types/database";
@@ -296,6 +297,9 @@ export function PayrollRunClient({
   const [giroPending, startGiroTransition] = useTransition();
   const [zipError, setZipError] = useState<string | null>(null);
   const [zipPending, startZipTransition] = useTransition();
+  const [regenMsg, setRegenMsg] = useState<string | null>(null);
+  const [regenPending, startRegenTransition] = useTransition();
+  const router = useRouter();
 
   const isCompleted = run.status === "completed";
   const hasPayslips = payslips.length > 0;
@@ -433,6 +437,24 @@ export function PayrollRunClient({
                 </span>
               </button>
             </div>
+            <button
+              type="button"
+              disabled={regenPending}
+              onClick={() => {
+                setRegenMsg(null);
+                startRegenTransition(async () => {
+                  const result = await regeneratePdfsAction(run.id);
+                  setRegenMsg(result.error ?? "PDFs regenerated successfully.");
+                  if (!result.error) router.refresh();
+                });
+              }}
+              className="w-full rounded-xl border border-brand/30 bg-brand/5 py-2.5 text-sm font-semibold text-brand disabled:opacity-60"
+            >
+              {regenPending ? "Regenerating PDFs…" : "🔄 Regenerate PDFs"}
+            </button>
+            {regenMsg && (
+              <p className="text-center text-xs text-foreground/70">{regenMsg}</p>
+            )}
             {(excelError || cpfError || giroError || zipError) && (
               <p className="text-center text-xs text-red-600">
                 {excelError ?? cpfError ?? giroError ?? zipError}

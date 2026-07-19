@@ -23,7 +23,7 @@ export default async function EmployeePayslipDetailPage({
   const { data: slip } = await supabase
     .from("payslips")
     .select(
-      "id, basic_salary, transport_allowance, allowances, overtime_amount, reimbursement, mid_month_payment, salary_advance_deduction, deductions, cpf_employee, cpf_employer, net_pay, pdf_url, payroll_runs(month, year)"
+      "id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions, cpf_employee, cpf_employer, net_pay, pdf_url, payroll_runs(month, year)"
     )
     .eq("id", id)
     .eq("employee_id", employeeId)
@@ -49,9 +49,11 @@ export default async function EmployeePayslipDetailPage({
         transport_allowance: Number(slip.transport_allowance),
         allowances: Number(slip.allowances),
         overtime_amount: Number(slip.overtime_amount),
+        bonus: Number(slip.bonus),
         reimbursement: Number(slip.reimbursement),
         mid_month_payment: Number(slip.mid_month_payment),
         salary_advance_deduction: Number(slip.salary_advance_deduction),
+        unpaid_leave: Number(slip.unpaid_leave),
         deductions: Number(slip.deductions),
         cpf_employee: Number(slip.cpf_employee),
         cpf_employer: Number(slip.cpf_employer),

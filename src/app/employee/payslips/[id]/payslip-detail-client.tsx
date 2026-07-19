@@ -10,9 +10,11 @@ export interface PayslipDetail {
   transport_allowance: number;
   allowances: number;
   overtime_amount: number;
+  bonus: number;
   reimbursement: number;
   mid_month_payment: number;
   salary_advance_deduction: number;
+  unpaid_leave: number;
   deductions: number;
   cpf_employee: number;
   cpf_employer: number;
@@ -65,6 +67,7 @@ export function PayslipDetailClient({ slip, downloadUrl }: { slip: PayslipDetail
     slip.cpf_employee > 0 ||
     slip.mid_month_payment > 0 ||
     slip.salary_advance_deduction > 0 ||
+    slip.unpaid_leave > 0 ||
     slip.deductions > 0;
 
   return (
@@ -93,6 +96,7 @@ export function PayslipDetailClient({ slip, downloadUrl }: { slip: PayslipDetail
             <LineItem label={t("payroll.transportAllowance")} amount={slip.transport_allowance} />
             <LineItem label={t("payroll.otherAllowance")} amount={slip.allowances} />
             <LineItem label={t("payroll.overtime")} amount={slip.overtime_amount} />
+            <LineItem label={t("payroll.bonus")} amount={slip.bonus} />
 
             {/* Reimbursements */}
             {slip.reimbursement > 0 && (
@@ -117,6 +121,7 @@ export function PayslipDetailClient({ slip, downloadUrl }: { slip: PayslipDetail
                 <LineItem label={t("payroll.cpfEmployee")} amount={slip.cpf_employee} deduction />
                 <LineItem label={t("payroll.midMonthPayment")} amount={slip.mid_month_payment} deduction />
                 <LineItem label={t("payroll.salaryLoan")} amount={slip.salary_advance_deduction} deduction />
+                <LineItem label={t("payroll.unpaidLeave")} amount={slip.unpaid_leave} deduction />
                 <LineItem label={t("payroll.otherDeductions")} amount={slip.deductions} deduction />
               </>
             )}
