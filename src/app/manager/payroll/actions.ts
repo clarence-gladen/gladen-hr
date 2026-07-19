@@ -536,7 +536,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
 
   if (pdfFailures.length > 0) {
     return {
-      error: `Payroll finalised, but PDFs could not be generated for: ${pdfFailures.join(", ")}. Use "Regenerate PDFs" to retry.`,
+      error: `Payroll finalised, but PDFs could not be generated for: ${pdfFailures.join(", ")}. Please check their employee records.`,
     };
   }
   return {};
