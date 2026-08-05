@@ -12,9 +12,9 @@ import {
 import { countWorkingDays } from "@/lib/leave/counting";
 
 export async function submitLeaveRequestAction(
-  _prev: { error?: string },
+  _prev: { error?: string; warning?: string },
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; warning?: string }> {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { error: "Not authenticated." };
@@ -51,11 +51,15 @@ export async function submitLeaveRequestAction(
   const days = halfDay ? 0.5 : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays);
   if (days === 0) return { error: "No working days in selected range." };
 
+  // Warning (not a hard block): if the balance is used up, the request still goes
+  // through so the manager can review it (approve, charge an adjacent period, or
+  // convert to no-pay).
+  let warning: string | undefined;
   if (leaveType !== "no_pay") {
     const empStartDate = emp?.employment_start_date;
     if (!empStartDate) return { error: "Employment start date not found." };
 
-    // Probation check: based on today (not leave start date)
+    // Probation check remains a hard block: based on today (not leave start date)
     const today = new Date().toISOString().slice(0, 10);
     if (isOnProbation(empStartDate, today)) {
       return { error: "You are on probation. Only no-pay leave is available during probation." };
@@ -72,28 +76,23 @@ export async function submitLeaveRequestAction(
 
     if (leaveType === "annual") {
       const accrued = getAvailableAnnualLeave(empStartDate, startDate);
-      const used = Number(bal?.annual_used ?? 0);
-      if (days > accrued - used) {
-        return {
-          error: `Insufficient annual leave. You have ${Math.max(0, accrued - used)} day(s) available.`,
-        };
+      const available = Math.max(0, accrued - Number(bal?.annual_used ?? 0));
+      if (days > available) {
+        warning = `This exceeds your available annual leave (${available} day(s) left). Your request has been submitted for your manager to review.`;
       }
     } else if (leaveType === "sick") {
       const entitlement = getAvailableSickLeave(empStartDate, startDate);
       // Per MOM: hospitalisation leave consumes sick leave concurrently, so both pools are checked.
       const effectiveUsed = Number(bal?.sick_used ?? 0) + Number(bal?.hospitalization_used ?? 0);
-      if (days > entitlement - effectiveUsed) {
-        return {
-          error: `Insufficient sick leave. You have ${Math.max(0, entitlement - effectiveUsed)} day(s) available.`,
-        };
+      const available = Math.max(0, entitlement - effectiveUsed);
+      if (days > available) {
+        warning = `This exceeds your available sick leave (${available} day(s) left). Your request has been submitted for your manager to review.`;
       }
     } else if (leaveType === "hospitalization") {
       const entitlement = getAvailableHospitalizationLeave(empStartDate, startDate);
-      const used = Number(bal?.hospitalization_used ?? 0);
-      if (days > entitlement - used) {
-        return {
-          error: `Insufficient hospitalisation leave. You have ${Math.max(0, entitlement - used)} day(s) available.`,
-        };
+      const available = Math.max(0, entitlement - Number(bal?.hospitalization_used ?? 0));
+      if (days > available) {
+        warning = `This exceeds your available hospitalisation leave (${available} day(s) left). Your request has been submitted for your manager to review.`;
       }
     }
   }
@@ -110,7 +109,7 @@ export async function submitLeaveRequestAction(
 
   if (error) return { error: error.message };
   revalidatePath("/employee/leave");
-  return {};
+  return warning ? { warning } : {};
 }
 
 export async function editLeaveRequestAction(

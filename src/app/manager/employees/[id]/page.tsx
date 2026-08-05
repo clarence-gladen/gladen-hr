@@ -28,7 +28,7 @@ export default async function EmployeeDetailPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("leave_requests")
-      .select("id, leave_type, start_date, end_date, days, reason, status, created_at")
+      .select("id, leave_type, start_date, end_date, days, reason, status, created_at, annual_charge_offset")
       .eq("employee_id", id)
       .order("start_date", { ascending: false }),
   ]);
@@ -69,7 +69,7 @@ export default async function EmployeeDetailPage({
 
   // Ensure leave balance rows are up-to-date, then fetch last 3 years' history
   await ensureLeaveBalances(supabase, id, data.employment_start_date);
-  const leaveHistory = await getLeaveHistory(supabase, id, data.employment_start_date, 3);
+  const leaveHistory = await getLeaveHistory(supabase, id, data.employment_start_date, 4);
 
   return (
     <EmployeeDetailClient

@@ -4,10 +4,23 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { countWorkingDays, countCalendarDays } from "@/lib/leave/counting";
+import {
+  getEmploymentYearNumber,
+  getEmploymentYearBounds,
+  getAnnualLeaveForYear,
+  SICK_LEAVE_PER_YEAR,
+  HOSPITALIZATION_PER_YEAR,
+} from "@/lib/leave/entitlement";
 
-export async function approveLeaveRequestAction(id: string): Promise<{ error?: string }> {
+export async function approveLeaveRequestAction(
+  id: string,
+  annualChargeOffset = 0
+): Promise<{ error?: string }> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("approve_leave_request", { request_id: id });
+  const { error } = await supabase.rpc("approve_leave_request", {
+    request_id: id,
+    p_annual_charge_offset: annualChargeOffset,
+  });
   if (error) return { error: error.message };
   revalidatePath("/manager/leave");
   return {};
@@ -107,6 +120,8 @@ export async function editApprovedLeaveRequestAction(
     p_end_date: endDate,
     p_days: days,
     p_reason: reason,
+    p_annual_charge_offset:
+      leaveType === "annual" ? Number(formData.get("annualChargeOffset") ?? 0) : 0,
   });
 
   if (error) return { error: error.message };
@@ -114,9 +129,9 @@ export async function editApprovedLeaveRequestAction(
 }
 
 export async function createLeaveForEmployeeAction(
-  _prev: { error?: string },
+  _prev: { error?: string; warning?: string },
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; warning?: string }> {
   const supabase = await createClient();
 
   const employeeId = formData.get("employeeId") as string;
@@ -125,6 +140,8 @@ export async function createLeaveForEmployeeAction(
   const halfDay = formData.get("halfDay") === "true";
   const endDate = halfDay ? startDate : (formData.get("endDate") as string);
   const reason = (formData.get("reason") as string | null) || null;
+  const annualChargeOffset =
+    leaveType === "annual" ? Number(formData.get("annualChargeOffset") ?? 0) : 0;
 
   if (!employeeId || !leaveType || !startDate || !endDate) return { error: "All fields are required." };
   if (endDate < startDate) return { error: "End date must be on or after start date." };
@@ -147,11 +164,70 @@ export async function createLeaveForEmployeeAction(
 
   if (insertError || !request) return { error: insertError?.message ?? "Failed to create request." };
 
-  const { error: approveError } = await supabase.rpc("approve_leave_request", { request_id: request.id });
+  const { error: approveError } = await supabase.rpc("approve_leave_request", {
+    request_id: request.id,
+    p_annual_charge_offset: annualChargeOffset,
+  });
   if (approveError) return { error: approveError.message };
 
+  // Warning (still recorded): the charged period's balance is now over entitlement.
+  const warning = await overBalanceWarning(supabase, employeeId, leaveType, startDate, annualChargeOffset);
+
   revalidatePath("/manager/leave");
+  if (warning) return { warning };
   redirect("/manager/leave");
+}
+
+/**
+ * Returns a warning string if the given (already-approved) leave has pushed the
+ * charged employment year's usage over its entitlement. Annual/sick/hospitalisation only.
+ */
+async function overBalanceWarning(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  employeeId: string,
+  leaveType: string,
+  startDate: string,
+  annualChargeOffset: number
+): Promise<string | undefined> {
+  if (!["annual", "sick", "hospitalization"].includes(leaveType)) return undefined;
+
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("employment_start_date")
+    .eq("id", employeeId)
+    .maybeSingle();
+  const empStart = emp?.employment_start_date as string | undefined;
+  if (!empStart) return undefined;
+
+  const offset = leaveType === "annual" ? annualChargeOffset : 0;
+  const naturalYear = getEmploymentYearNumber(empStart, startDate);
+  const targetYear = Math.max(1, naturalYear + offset);
+  const { yearStart } = getEmploymentYearBounds(empStart, targetYear);
+
+  const { data: bal } = await supabase
+    .from("leave_balances")
+    .select("annual_used, sick_used, hospitalization_used")
+    .eq("employee_id", employeeId)
+    .eq("year_start", yearStart)
+    .maybeSingle();
+  if (!bal) return undefined;
+
+  if (leaveType === "annual") {
+    const ent = getAnnualLeaveForYear(targetYear);
+    if (Number(bal.annual_used) > ent) {
+      return `Recorded. Note: this employee's annual leave for the charged period is now over the ${ent}-day entitlement.`;
+    }
+  } else if (leaveType === "sick") {
+    const used = Number(bal.sick_used) + Number(bal.hospitalization_used);
+    if (used > SICK_LEAVE_PER_YEAR) {
+      return `Recorded. Note: sick leave is now over the ${SICK_LEAVE_PER_YEAR}-day entitlement — consider changing the excess to no-pay leave.`;
+    }
+  } else {
+    if (Number(bal.hospitalization_used) > HOSPITALIZATION_PER_YEAR) {
+      return `Recorded. Note: hospitalisation leave is now over the ${HOSPITALIZATION_PER_YEAR}-day entitlement — consider changing the excess to no-pay leave.`;
+    }
+  }
+  return undefined;
 }
 
 async function getEmployeeWorkSchedule(

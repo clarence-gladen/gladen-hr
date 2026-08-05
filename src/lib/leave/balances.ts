@@ -15,6 +15,7 @@ export interface LeaveYearHistory {
   yearStart: string;
   yearEnd: string;
   isCurrent: boolean;
+  isUpcoming: boolean;
   annual: { entitlement: number; used: number; unused: number };
   sick: { entitlement: number; used: number; unused: number };
   hospitalization: { entitlement: number; used: number; unused: number };
@@ -22,7 +23,10 @@ export interface LeaveYearHistory {
 
 /**
  * Ensures leave_balances rows exist for every employment year from year 1 up to
- * and including the current employment year. Safe to call on every page load.
+ * and including the NEXT (upcoming) employment year. Safe to call on every page load.
+ *
+ * The upcoming year row is created so that annual leave can be charged to the
+ * "upcoming employment period" (see approve_leave_request charge offset).
  *
  * For newly created rows, used counts are computed from approved leave_requests
  * so that pre-approved future leaves (e.g. Oct backfill) are correctly captured
@@ -36,7 +40,8 @@ export async function ensureLeaveBalances(
   const today = new Date().toISOString().slice(0, 10);
   const currentYear = getEmploymentYearNumber(employmentStartDate, today);
 
-  const allYears = Array.from({ length: currentYear }, (_, i) => {
+  // Include the upcoming (next) employment year so its pool exists for charging.
+  const allYears = Array.from({ length: currentYear + 1 }, (_, i) => {
     const yr = i + 1;
     const { yearStart, yearEnd } = getEmploymentYearBounds(employmentStartDate, yr);
     return { yr, yearStart, yearEnd };
@@ -113,6 +118,7 @@ export async function getLeaveHistory(
 
   return rows.map((row) => {
     const isCurrent = row.employment_year === currentEmpYear;
+    const isUpcoming = (row.employment_year as number) > currentEmpYear;
     const yearNum = row.employment_year as number;
 
     // Annual: current Year 1 shows accrued; all other years show full entitlement
@@ -130,6 +136,7 @@ export async function getLeaveHistory(
       yearStart: row.year_start as string,
       yearEnd: row.year_end as string,
       isCurrent,
+      isUpcoming,
       annual: {
         entitlement: annualEntitlement,
         used: annualUsed,

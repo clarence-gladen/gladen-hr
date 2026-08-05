@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createLeaveForEmployeeAction } from "../actions";
+import { ChargePeriodField } from "@/components/charge-period-field";
 
 const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
@@ -18,6 +19,7 @@ export function RecordLeaveClient({
 }) {
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(createLeaveForEmployeeAction, {});
+  const [leaveType, setLeaveType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [halfDay, setHalfDay] = useState(false);
@@ -46,7 +48,8 @@ export function RecordLeaveClient({
             <label className={labelClass} htmlFor="leaveType">
               {t("leave.leaveType")}
             </label>
-            <select id="leaveType" name="leaveType" required className={inputClass} defaultValue="">
+            <select id="leaveType" name="leaveType" required className={inputClass}
+              value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
               <option value="" disabled>{t("leave.leaveType")}</option>
               <option value="annual">{t("leave.annual")}</option>
               <option value="sick">{t("leave.sick")}</option>
@@ -55,6 +58,8 @@ export function RecordLeaveClient({
               <option value="off_day">{t("leave.offDay")}</option>
             </select>
           </div>
+
+          {leaveType === "annual" && <ChargePeriodField />}
 
           <div className="grid grid-cols-2 gap-3">
             <div className={halfDay ? "col-span-2 min-w-0" : "min-w-0"}>
@@ -107,6 +112,9 @@ export function RecordLeaveClient({
 
           {state.error && (
             <p className="text-sm text-red-600">{state.error}</p>
+          )}
+          {state.warning && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">{state.warning}</p>
           )}
 
           <button

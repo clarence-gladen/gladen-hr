@@ -10,6 +10,7 @@ import { LeaveCalendar, type LeaveCalendarEntry } from "@/components/leave-calen
 import { useToast } from "@/components/toast";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 import { fmtDate } from "@/lib/utils/date";
+import { ChargePeriodField, chargePeriodTag } from "@/components/charge-period-field";
 
 export interface LeaveRequestRow {
   id: string;
@@ -21,6 +22,7 @@ export interface LeaveRequestRow {
   reason: string | null;
   status: ApprovalStatus;
   created_at: string;
+  annual_charge_offset?: number | null;
   employees: { full_name: string } | { full_name: string }[] | null;
 }
 
@@ -39,6 +41,7 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
   const { addToast } = useToast();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [chargeOffset, setChargeOffset] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [editState, editAction, isEditing] = useActionState(editLeaveRequestAction.bind(null, request.id), {} as { error?: string });
   const wasEditing = useRef(false);
@@ -53,7 +56,10 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
   function handleApprove() {
     setActionError(null);
     startTransition(async () => {
-      const result = await approveLeaveRequestAction(request.id);
+      const result = await approveLeaveRequestAction(
+        request.id,
+        request.leave_type === "annual" ? chargeOffset : 0
+      );
       if (result?.error) setActionError(result.error);
       else { addToast("Leave approved"); router.refresh(); }
     });
@@ -120,6 +126,29 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
       <p className="mt-1 text-sm text-foreground/60">{fmtDate(request.start_date)} – {fmtDate(request.end_date)}</p>
       {request.reason && (
         <p className="mt-1 text-sm text-foreground/60">{t("leave.reason")}: {request.reason}</p>
+      )}
+      {request.leave_type === "annual" && (
+        <div className="mt-3 rounded-lg bg-black/[0.03] p-3">
+          <p className="mb-1.5 text-xs font-medium text-foreground/60">Charge annual leave to</p>
+          <div className="flex flex-col gap-1">
+            {[
+              { v: 0, label: "Current period (default)" },
+              { v: -1, label: "Previous period" },
+              { v: 1, label: "Upcoming period" },
+            ].map((o) => (
+              <label key={o.v} className="flex items-center gap-2 text-sm text-foreground/80">
+                <input
+                  type="radio"
+                  name={`charge-${request.id}`}
+                  checked={chargeOffset === o.v}
+                  onChange={() => setChargeOffset(o.v)}
+                  className="h-4 w-4 accent-brand"
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        </div>
       )}
       <div className="mt-3 flex gap-2">
         <button type="button" disabled={isPending} onClick={handleApprove}
@@ -202,6 +231,9 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
               <input name="endDate" type="date" defaultValue={request.end_date} required className={dateInputClass} />
             </div>
           </div>
+          {request.leave_type === "annual" && (
+            <ChargePeriodField defaultOffset={request.annual_charge_offset ?? 0} />
+          )}
           <div>
             <label className={labelClass}>{t("leave.reason")}</label>
             <textarea name="reason" rows={2} defaultValue={request.reason ?? ""} className={inputClass} />
@@ -251,6 +283,14 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
             {leaveTypeLabel[request.leave_type]} · {request.days} {t("leave.days")}
           </p>
           <p className="mt-1 text-sm text-foreground/60">{fmtDate(request.start_date)} – {fmtDate(request.end_date)}</p>
+          {request.reason && (
+            <p className="mt-1 text-sm text-foreground/60">{t("leave.reason")}: {request.reason}</p>
+          )}
+          {chargePeriodTag(request.annual_charge_offset) && (
+            <span className="mt-1 inline-block rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
+              {chargePeriodTag(request.annual_charge_offset)}
+            </span>
+          )}
         </div>
         <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
           request.status === "approved" ? "bg-brand/10 text-brand"

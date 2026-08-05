@@ -48,12 +48,12 @@ export default async function EmployeeLeavePage() {
     employeeId
       ? supabase
           .from("leave_requests")
-          .select("id, leave_type, start_date, end_date, days, reason, status, created_at")
+          .select("id, leave_type, start_date, end_date, days, reason, status, created_at, annual_charge_offset")
           .eq("employee_id", employeeId)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     employeeId && startDate
-      ? getLeaveHistory(supabase, employeeId, startDate, 3)
+      ? getLeaveHistory(supabase, employeeId, startDate, 4)
       : Promise.resolve([]),
   ]);
 

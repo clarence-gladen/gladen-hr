@@ -53,6 +53,7 @@ export function LeaveHistoryTable({ history }: { history: LeaveYearHistory[] }) 
               <p className={`text-xs font-bold ${yr.isCurrent ? "text-white" : "text-foreground/60"}`}>
                 Employment Year {yr.employmentYear}
                 {yr.isCurrent && " (Current)"}
+                {yr.isUpcoming && " (Upcoming)"}
               </p>
               <p className={`text-[10px] mt-0.5 ${yr.isCurrent ? "text-white/70" : "text-foreground/40"}`}>
                 {formatDate(yr.yearStart)} – {formatDate(yr.yearEnd)}

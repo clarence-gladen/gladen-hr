@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 import { fmtDate } from "@/lib/utils/date";
 import { submitLeaveRequestAction, editLeaveRequestAction, cancelLeaveRequestAction } from "./actions";
 import { LeaveHistoryTable } from "@/components/leave-history-table";
+import { chargePeriodTag } from "@/components/charge-period-field";
 import type { LeaveYearHistory } from "@/lib/leave/balances";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 
@@ -28,6 +29,7 @@ export interface LeaveRequestRow {
   reason: string | null;
   status: ApprovalStatus;
   created_at: string;
+  annual_charge_offset?: number | null;
 }
 
 const inputClass =
@@ -188,6 +190,11 @@ export function LeaveRequestCard({ req, leaveTypeLabel, statusLabel, statusClass
             {fmtDate(req.start_date)} – {fmtDate(req.end_date)} · {req.days} {t("leave.days")}
           </p>
           {req.reason && <p className="mt-1 text-sm text-foreground/60">{req.reason}</p>}
+          {chargePeriodTag(req.annual_charge_offset) && (
+            <span className="mt-1 inline-block rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
+              {chargePeriodTag(req.annual_charge_offset)}
+            </span>
+          )}
         </div>
         <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusClass[req.status]}`}>
           {statusLabel[req.status]}
@@ -356,6 +363,9 @@ export function LeaveClient({
             <textarea id="reason" name="reason" rows={2} className={inputClass} />
           </div>
           {submitState.error && <p className="text-sm text-red-600">{submitState.error}</p>}
+          {submitState.warning && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">{submitState.warning}</p>
+          )}
           <button type="submit" disabled={pending}
             className="w-full rounded-lg bg-brand py-3 text-base font-semibold text-white transition disabled:opacity-60">
             {pending ? t("common.loading") : t("leave.submitRequest")}

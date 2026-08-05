@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 import { Header } from "@/components/header";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
 import { fmtDate } from "@/lib/utils/date";
+import { chargePeriodTag } from "@/components/charge-period-field";
 
 export interface BalanceByYear {
   year: number;      // employment year number (1, 2, ...)
@@ -23,6 +24,7 @@ export interface LeaveHistoryRow {
   days: number;
   reason: string | null;
   status: ApprovalStatus;
+  annual_charge_offset?: number | null;
 }
 
 function formatDateShort(dateStr: string): string {
@@ -44,17 +46,23 @@ export function LeaveHistoryClient({
   allRequests,
   onProbation,
   confirmDateLabel,
+  currentYear,
 }: {
   leaveType: LeaveType;
   balancesByYear: BalanceByYear[];
   allRequests: LeaveHistoryRow[];
   onProbation: boolean;
   confirmDateLabel: string | null;
+  currentYear: number;
 }) {
   const { t } = useLanguage();
 
-  const latestYear = balancesByYear.length > 0 ? balancesByYear[0].year : 1;
-  const [selectedYear, setSelectedYear] = useState(latestYear);
+  const defaultYear = balancesByYear.some((b) => b.year === currentYear)
+    ? currentYear
+    : balancesByYear.length > 0
+      ? balancesByYear[0].year
+      : 1;
+  const [selectedYear, setSelectedYear] = useState(defaultYear);
 
   const statusLabel: Record<ApprovalStatus, string> = {
     pending: t("leave.pending"),
@@ -74,7 +82,7 @@ export function LeaveHistoryClient({
   const title = leaveTypeLabel[leaveType];
 
   const balance = balancesByYear.find((b) => b.year === selectedYear);
-  const isCurrentYear = balance?.year === latestYear;
+  const isCurrentYear = balance?.year === currentYear;
   const available = onProbation && isCurrentYear
     ? 0
     : balance
@@ -133,6 +141,7 @@ export function LeaveHistoryClient({
               }`}
             >
               Year {b.year}
+              {b.year === currentYear ? " (Current)" : b.year > currentYear ? " (Upcoming)" : ""}
             </button>
           ))}
         </div>
@@ -161,6 +170,11 @@ export function LeaveHistoryClient({
                       {req.days} {t("leave.days")}
                       {req.reason ? ` · ${req.reason}` : ""}
                     </p>
+                    {chargePeriodTag(req.annual_charge_offset) && (
+                      <span className="mt-1 inline-block rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
+                        {chargePeriodTag(req.annual_charge_offset)}
+                      </span>
+                    )}
                   </div>
                   <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusClass[req.status]}`}>
                     {statusLabel[req.status]}

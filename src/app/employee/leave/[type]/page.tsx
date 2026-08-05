@@ -4,6 +4,7 @@ import {
   isOnProbation,
   getConfirmationDate,
   getAnnualLeaveForYear,
+  getEmploymentYearNumber,
   SICK_LEAVE_PER_YEAR,
   HOSPITALIZATION_PER_YEAR,
 } from "@/lib/leave/entitlement";
@@ -55,13 +56,14 @@ export default async function LeaveTypePage({
       .order("year_start", { ascending: false }),
     supabase
       .from("leave_requests")
-      .select("id, leave_type, start_date, end_date, days, reason, status")
+      .select("id, leave_type, start_date, end_date, days, reason, status, annual_charge_offset")
       .eq("employee_id", employeeId)
       .eq("leave_type", leaveType)
       .order("start_date", { ascending: false }),
   ]);
 
   const onProbation = startDate ? isOnProbation(startDate, todayStr) : false;
+  const currentEmploymentYear = startDate ? getEmploymentYearNumber(startDate, todayStr) : 1;
   const confirmationDate = startDate ? getConfirmationDate(startDate) : null;
   const confirmDateLabel = confirmationDate
     ? confirmationDate.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
@@ -91,6 +93,7 @@ export default async function LeaveTypePage({
       allRequests={requestsRes.data ?? []}
       onProbation={onProbation}
       confirmDateLabel={confirmDateLabel}
+      currentYear={currentEmploymentYear}
     />
   );
 }
