@@ -324,7 +324,7 @@ export async function regeneratePdfsAction(runId: string): Promise<{ error?: str
     const nricLast4 = (emp as { nric_last4?: string } | null)?.nric_last4 ?? "";
 
     const isCpfEligible = residency === "citizen" || residency === "pr";
-    const age = dob ? calculateAge(dob, payDate) : null;
+    const age = dob ? calculateAge(dob, payDate.slice(0, 8) + "01") : null;
     const bracket = isCpfEligible && age !== null ? getCpfBracket(age, cpfRates) : null;
 
     const lb = leaveBalanceMap.get(payslip.employee_id);
@@ -434,7 +434,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
     const nricLast4 = (emp as { nric_last4?: string } | null)?.nric_last4 ?? "";
 
     const isCpfEligible = residency === "citizen" || residency === "pr";
-    const age = dob ? calculateAge(dob, payDate) : null;
+    const age = dob ? calculateAge(dob, payDate.slice(0, 8) + "01") : null;
     const bracket = isCpfEligible && age !== null ? getCpfBracket(age, cpfRates) : null;
 
     const lb = leaveBalanceMap.get(payslip.employee_id);

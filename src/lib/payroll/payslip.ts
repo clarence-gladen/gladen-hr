@@ -78,7 +78,10 @@ export function calculatePayslip(
   let cpfEmployee = 0;
   let cpfEmployer = 0;
   if (isCpfEligible) {
-    const age = calculateAge(inputs.dateOfBirth, payDate);
+    // CPF age band uses age as at the FIRST day of the salary month — CPF rates
+    // change from the first day of the month AFTER the employee's birthday month.
+    const ageAsOf = payDate.slice(0, 8) + "01";
+    const age = calculateAge(inputs.dateOfBirth, ageAsOf);
     const cpfOw = calculateCpf(ordinaryWage, age, rates.cpfRates);
     const cpfAw = calculateCpfOnAw(inputs.bonus, age, rates.cpfRates);
     cpfEmployee = cpfOw.employeeContribution + cpfAw.employeeContribution;
