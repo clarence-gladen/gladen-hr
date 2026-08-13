@@ -12,6 +12,7 @@ interface EmployeeFormValues {
   dateOfBirth: string;
   mobileNumber: string;
   residencyStatus: ResidencyStatus;
+  sprEffectiveDate: string;
   designation: string;
   employmentStartDate: string;
   baseSalary: string;
@@ -28,6 +29,7 @@ function readForm(formData: FormData): EmployeeFormValues {
     dateOfBirth: String(formData.get("dateOfBirth") ?? ""),
     mobileNumber: String(formData.get("mobileNumber") ?? "").replace(/\D/g, ""),
     residencyStatus: String(formData.get("residencyStatus") ?? "citizen") as ResidencyStatus,
+    sprEffectiveDate: String(formData.get("sprEffectiveDate") ?? ""),
     designation: String(formData.get("designation") ?? "").trim(),
     employmentStartDate: String(formData.get("employmentStartDate") ?? ""),
     baseSalary: String(formData.get("baseSalary") ?? "0"),
@@ -67,6 +69,10 @@ export async function createEmployeeAction(
       date_of_birth: values.dateOfBirth,
       mobile_number: `65${values.mobileNumber}`,
       residency_status: values.residencyStatus,
+      spr_effective_date:
+        values.residencyStatus === "pr" && values.sprEffectiveDate
+          ? values.sprEffectiveDate
+          : null,
       designation: values.designation || null,
       employment_start_date: values.employmentStartDate,
       base_salary: Number(values.baseSalary) || 0,
@@ -105,6 +111,10 @@ export async function updateEmployeeAction(
     date_of_birth: values.dateOfBirth,
     mobile_number: `65${values.mobileNumber}`,
     residency_status: values.residencyStatus,
+    spr_effective_date:
+      values.residencyStatus === "pr" && values.sprEffectiveDate
+        ? values.sprEffectiveDate
+        : null,
     designation: values.designation || null,
     employment_start_date: values.employmentStartDate,
     base_salary: Number(values.baseSalary) || 0,

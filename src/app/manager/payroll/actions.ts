@@ -97,7 +97,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
     getSdlConfig(supabase, payDate),
     supabase
       .from("employees")
-      .select("id, base_salary, date_of_birth, residency_status, skill_level")
+      .select("id, base_salary, date_of_birth, residency_status, skill_level, spr_effective_date")
       .eq("status", "active"),
     supabase
       .from("overtime_records")
@@ -166,6 +166,7 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
         dateOfBirth: employee.date_of_birth,
         residencyStatus: employee.residency_status,
         skillLevel: employee.skill_level,
+        sprEffectiveDate: employee.spr_effective_date,
       },
       { cpfRates, fwlRates, sdlConfig },
       payDate
@@ -211,7 +212,7 @@ export async function updatePayslipAction(
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "payroll_run_id, employees(date_of_birth, residency_status, skill_level), payroll_runs(month, year)"
+      "payroll_run_id, employees(date_of_birth, residency_status, skill_level, spr_effective_date), payroll_runs(month, year)"
     )
     .eq("id", payslipId)
     .single();
@@ -248,6 +249,7 @@ export async function updatePayslipAction(
       dateOfBirth: employee.date_of_birth,
       residencyStatus: employee.residency_status,
       skillLevel: employee.skill_level,
+      sprEffectiveDate: employee.spr_effective_date,
     },
     { cpfRates, fwlRates, sdlConfig },
     payDate

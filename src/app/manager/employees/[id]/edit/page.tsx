@@ -13,7 +13,7 @@ export default async function EditEmployeePage({
   const { data: employee } = await supabase
     .from("employees")
     .select(
-      "full_name, date_of_birth, mobile_number, residency_status, designation, employment_start_date, base_salary, skill_level, bank_name, bank_account_number, work_days_per_week"
+      "full_name, date_of_birth, mobile_number, residency_status, spr_effective_date, designation, employment_start_date, base_salary, skill_level, bank_name, bank_account_number, work_days_per_week"
     )
     .eq("id", id)
     .maybeSingle();
@@ -26,6 +26,7 @@ export default async function EditEmployeePage({
     dateOfBirth: employee.date_of_birth,
     mobileNumber: employee.mobile_number.replace(/^65/, ""),
     residencyStatus: employee.residency_status,
+    sprEffectiveDate: employee.spr_effective_date ?? "",
     designation: employee.designation ?? "",
     employmentStartDate: employee.employment_start_date,
     baseSalary: String(employee.base_salary),

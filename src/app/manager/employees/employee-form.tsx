@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import type { ResidencyStatus, SkillLevel } from "@/lib/types/database";
@@ -15,6 +15,7 @@ export interface EmployeeFormDefaults {
   dateOfBirth: string;
   mobileNumber: string;
   residencyStatus: ResidencyStatus;
+  sprEffectiveDate: string;
   designation: string;
   employmentStartDate: string;
   baseSalary: string;
@@ -30,6 +31,7 @@ const EMPTY_DEFAULTS: EmployeeFormDefaults = {
   dateOfBirth: "",
   mobileNumber: "",
   residencyStatus: "citizen",
+  sprEffectiveDate: "",
   designation: "",
   employmentStartDate: "",
   baseSalary: "",
@@ -59,6 +61,9 @@ export function EmployeeForm({
 }) {
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(action, {});
+  const [residency, setResidency] = useState<ResidencyStatus>(
+    defaultValues.residencyStatus
+  );
 
   return (
     <>
@@ -139,6 +144,7 @@ export function EmployeeForm({
               id="residencyStatus"
               name="residencyStatus"
               defaultValue={defaultValues.residencyStatus}
+              onChange={(e) => setResidency(e.target.value as ResidencyStatus)}
               className={inputClass}
             >
               <option value="citizen">{t("employees.citizen")}</option>
@@ -147,6 +153,25 @@ export function EmployeeForm({
               <option value="s_pass">{t("employees.sPass")}</option>
             </select>
           </div>
+
+          {residency === "pr" && (
+            <div>
+              <label className={labelClass} htmlFor="sprEffectiveDate">
+                Date PR status obtained
+              </label>
+              <input
+                type="date"
+                id="sprEffectiveDate"
+                name="sprEffectiveDate"
+                defaultValue={defaultValues.sprEffectiveDate}
+                className={inputClass}
+              />
+              <p className="mt-1 text-sm text-foreground/60">
+                Used for CPF: 1st- and 2nd-year PRs contribute at lower graduated
+                rates. Leave blank if the employee is a 3rd-year+ PR.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className={labelClass} htmlFor="skillLevel">

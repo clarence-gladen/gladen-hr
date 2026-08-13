@@ -5,6 +5,9 @@ import {
   calculateCpfOnAw,
   calculateFwl,
   calculateSdl,
+  getSprYearIndex,
+  resolveCpfCategory,
+  selectCpfRatesByCategory,
   type CpfRate,
   type FwlRate,
   type SdlConfig,
@@ -24,6 +27,9 @@ export interface PayslipInputs {
   dateOfBirth: string;
   residencyStatus: ResidencyStatus;
   skillLevel?: SkillLevel;
+  // Date the employee obtained PR status (YYYY-MM-DD). Drives graduated CPF for
+  // 1st/2nd-year PRs; null/undefined falls back to full rates.
+  sprEffectiveDate?: string | null;
 }
 
 export interface PayslipRateTables {
@@ -82,8 +88,12 @@ export function calculatePayslip(
     // change from the first day of the month AFTER the employee's birthday month.
     const ageAsOf = payDate.slice(0, 8) + "01";
     const age = calculateAge(inputs.dateOfBirth, ageAsOf);
-    const cpfOw = calculateCpf(ordinaryWage, age, rates.cpfRates);
-    const cpfAw = calculateCpfOnAw(inputs.bonus, age, rates.cpfRates);
+    // PRs pay lower graduated rates in their first two years of PR status.
+    const sprYear = getSprYearIndex(inputs.sprEffectiveDate, ageAsOf);
+    const category = resolveCpfCategory(inputs.residencyStatus, sprYear);
+    const applicableRates = selectCpfRatesByCategory(rates.cpfRates, category);
+    const cpfOw = calculateCpf(ordinaryWage, age, applicableRates);
+    const cpfAw = calculateCpfOnAw(inputs.bonus, age, applicableRates);
     cpfEmployee = cpfOw.employeeContribution + cpfAw.employeeContribution;
     cpfEmployer = cpfOw.employerContribution + cpfAw.employerContribution;
   }

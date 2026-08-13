@@ -1,5 +1,13 @@
 import type { ResidencyStatus, SkillLevel } from "@/lib/types/database";
 
+/**
+ * Which contribution-rate set applies:
+ *  - "full"     : Singapore Citizens and 3rd-year-onwards PRs (CPF Board Table 1)
+ *  - "pr_year1" : 1st-year PRs, Graduated/Graduated rates (Table 2)
+ *  - "pr_year2" : 2nd-year PRs, Graduated/Graduated rates (Table 3)
+ */
+export type CpfRateCategory = "full" | "pr_year1" | "pr_year2";
+
 export interface CpfRate {
   age_from: number;
   age_to: number;
@@ -7,6 +15,8 @@ export interface CpfRate {
   employer_rate: number; // percent of ordinary wage
   ow_ceiling: number;
   effective_date: string;
+  // Rows loaded before migration 0037 have no category; treat those as "full".
+  rate_category?: CpfRateCategory;
 }
 
 export interface FwlRate {
@@ -51,6 +61,66 @@ export function calculateAge(
 /** Returns the CPF rate bracket for a given age, or null if none matches. */
 export function getCpfBracket(age: number, rates: CpfRate[]): CpfRate | null {
   return rates.find((r) => age >= r.age_from && age <= r.age_to) ?? null;
+}
+
+/**
+ * Determines a Singapore PR employee's "year of SPR status" for a given salary
+ * month. Per CPF Board, graduated (lower) rates apply for the first two years:
+ * the 2nd-year rate begins on the first day of the month AFTER the 1st
+ * anniversary of obtaining PR, and full (3rd-year) rates from the month after
+ * the 2nd anniversary. Counting whole months from the PR grant month:
+ *   months 0–12  → year 1
+ *   months 13–24 → year 2
+ *   months 25+   → year 3 (full)
+ * Returns 3 (full) when the date is missing/malformed or precedes the salary
+ * month, so a missing date safely falls back to full rates.
+ *
+ * @param sprEffectiveDate "YYYY-MM-DD" date PR status was obtained, or null.
+ * @param salaryMonthFirstDay "YYYY-MM-DD" first day of the salary month.
+ */
+export function getSprYearIndex(
+  sprEffectiveDate: string | null | undefined,
+  salaryMonthFirstDay: string
+): 1 | 2 | 3 {
+  if (!sprEffectiveDate) return 3;
+  const [gy, gm] = sprEffectiveDate.split("-").map(Number);
+  const [sy, sm] = salaryMonthFirstDay.split("-").map(Number);
+  if (!gy || !gm || !sy || !sm) return 3;
+
+  const monthsElapsed = (sy - gy) * 12 + (sm - gm);
+  if (monthsElapsed < 0) return 3; // salary month precedes PR grant
+  if (monthsElapsed <= 12) return 1;
+  if (monthsElapsed <= 24) return 2;
+  return 3;
+}
+
+/** Maps residency status + PR year to the applicable CPF rate category. */
+export function resolveCpfCategory(
+  residencyStatus: ResidencyStatus,
+  sprYearIndex: 1 | 2 | 3
+): CpfRateCategory {
+  if (residencyStatus === "pr") {
+    if (sprYearIndex === 1) return "pr_year1";
+    if (sprYearIndex === 2) return "pr_year2";
+  }
+  return "full";
+}
+
+/**
+ * Narrows a mixed CPF rate table (all categories for one effective date) to the
+ * rows for one category. Falls back to the "full" rows if the requested PR
+ * category is missing (e.g. graduated rates not seeded yet), so payroll never
+ * silently produces zero CPF.
+ */
+export function selectCpfRatesByCategory(
+  rates: CpfRate[],
+  category: CpfRateCategory
+): CpfRate[] {
+  const matching = rates.filter((r) => (r.rate_category ?? "full") === category);
+  if (matching.length === 0 && category !== "full") {
+    return rates.filter((r) => (r.rate_category ?? "full") === "full");
+  }
+  return matching;
 }
 
 /**

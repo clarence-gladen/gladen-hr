@@ -10,7 +10,7 @@ export async function getCpfRates(
   supabase: SupabaseClient,
   asOf: string
 ): Promise<CpfRate[]> {
-  const fields = "age_from, age_to, employee_rate, employer_rate, ow_ceiling, effective_date";
+  const fields = "age_from, age_to, employee_rate, employer_rate, ow_ceiling, effective_date, rate_category";
 
   // Try exact date range first
   const { data, error } = await supabase
