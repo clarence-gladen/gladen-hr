@@ -23,6 +23,8 @@ export interface EmployeeFormDefaults {
   bankName: string;
   bankAccountNumber: string;
   workDaysPerWeek: 5 | 6;
+  featureCheckin: boolean;
+  featureChecklist: boolean;
 }
 
 const EMPTY_DEFAULTS: EmployeeFormDefaults = {
@@ -39,6 +41,8 @@ const EMPTY_DEFAULTS: EmployeeFormDefaults = {
   bankName: "",
   bankAccountNumber: "",
   workDaysPerWeek: 5,
+  featureCheckin: false,
+  featureChecklist: false,
 };
 
 const inputClass =
@@ -269,6 +273,33 @@ export function EmployeeForm({
               defaultValue={defaultValues.bankAccountNumber}
               className={inputClass}
             />
+          </div>
+
+          <div className="rounded-xl border border-black/10 bg-black/[.02] p-4">
+            <p className="mb-1 text-sm font-semibold text-foreground">
+              Site features <span className="font-normal text-foreground/50">(trial rollout)</span>
+            </p>
+            <p className="mb-3 text-sm text-foreground/60">
+              Turn these on only for employees in the trial. Others see no change.
+            </p>
+            <label className="flex items-center gap-3 py-2">
+              <input
+                type="checkbox"
+                name="featureCheckin"
+                defaultChecked={defaultValues.featureCheckin}
+                className="h-5 w-5 rounded border-black/20 text-brand focus:ring-brand/30"
+              />
+              <span className="text-base">Location check-in / check-out</span>
+            </label>
+            <label className="flex items-center gap-3 py-2">
+              <input
+                type="checkbox"
+                name="featureChecklist"
+                defaultChecked={defaultValues.featureChecklist}
+                className="h-5 w-5 rounded border-black/20 text-brand focus:ring-brand/30"
+              />
+              <span className="text-base">Cleaning checklist</span>
+            </label>
           </div>
 
           {state.error && <p className="text-sm text-red-600">{state.error}</p>}

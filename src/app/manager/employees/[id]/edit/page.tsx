@@ -13,7 +13,7 @@ export default async function EditEmployeePage({
   const { data: employee } = await supabase
     .from("employees")
     .select(
-      "full_name, date_of_birth, mobile_number, residency_status, spr_effective_date, designation, employment_start_date, base_salary, skill_level, bank_name, bank_account_number, work_days_per_week"
+      "full_name, date_of_birth, mobile_number, residency_status, spr_effective_date, designation, employment_start_date, base_salary, skill_level, bank_name, bank_account_number, work_days_per_week, feature_checkin, feature_checklist"
     )
     .eq("id", id)
     .maybeSingle();
@@ -34,6 +34,8 @@ export default async function EditEmployeePage({
     bankName: employee.bank_name ?? "",
     bankAccountNumber: employee.bank_account_number ?? "",
     workDaysPerWeek: (employee.work_days_per_week === 6 ? 6 : 5) as 5 | 6,
+    featureCheckin: employee.feature_checkin ?? false,
+    featureChecklist: employee.feature_checklist ?? false,
   };
 
   return (

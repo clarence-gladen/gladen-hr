@@ -13,7 +13,9 @@ export default async function EditContractPage({
 
   const { data: contract } = await supabase
     .from("contracts")
-    .select("client_name, site_name, start_date, end_date, monthly_value, status")
+    .select(
+      "client_name, site_name, start_date, end_date, monthly_value, status, address, latitude, longitude, geofence_radius_m"
+    )
     .eq("id", id)
     .single();
 
@@ -28,6 +30,10 @@ export default async function EditContractPage({
     endDate: contract.end_date ?? "",
     monthlyValue: String(contract.monthly_value),
     status: contract.status,
+    address: contract.address ?? "",
+    latitude: contract.latitude != null ? String(contract.latitude) : "",
+    longitude: contract.longitude != null ? String(contract.longitude) : "",
+    geofenceRadiusM: contract.geofence_radius_m != null ? String(contract.geofence_radius_m) : "75",
   };
 
   return (

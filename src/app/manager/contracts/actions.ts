@@ -10,6 +10,8 @@ interface ContractFormState {
 }
 
 function readContractForm(formData: FormData) {
+  const latRaw = String(formData.get("latitude") ?? "").trim();
+  const lngRaw = String(formData.get("longitude") ?? "").trim();
   return {
     client_name: String(formData.get("clientName") ?? "").trim(),
     site_name: String(formData.get("siteName") ?? "").trim(),
@@ -17,6 +19,10 @@ function readContractForm(formData: FormData) {
     end_date: String(formData.get("endDate") ?? "") || null,
     monthly_value: Number(formData.get("monthlyValue")) || 0,
     status: String(formData.get("status") ?? "active") as ContractStatus,
+    address: String(formData.get("address") ?? "").trim() || null,
+    latitude: latRaw ? Number(latRaw) : null,
+    longitude: lngRaw ? Number(lngRaw) : null,
+    geofence_radius_m: Number(formData.get("geofenceRadiusM")) || 75,
   };
 }
 

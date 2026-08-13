@@ -20,6 +20,8 @@ interface EmployeeFormValues {
   bankName: string;
   bankAccountNumber: string;
   workDaysPerWeek: 5 | 6;
+  featureCheckin: boolean;
+  featureChecklist: boolean;
 }
 
 function readForm(formData: FormData): EmployeeFormValues {
@@ -37,6 +39,8 @@ function readForm(formData: FormData): EmployeeFormValues {
     bankName: String(formData.get("bankName") ?? "").trim(),
     bankAccountNumber: String(formData.get("bankAccountNumber") ?? "").trim(),
     workDaysPerWeek: Number(formData.get("workDaysPerWeek") ?? 5) === 6 ? 6 : 5,
+    featureCheckin: formData.get("featureCheckin") === "on",
+    featureChecklist: formData.get("featureChecklist") === "on",
   };
 }
 
@@ -80,6 +84,8 @@ export async function createEmployeeAction(
       bank_name: values.bankName || null,
       bank_account_number: values.bankAccountNumber || null,
       work_days_per_week: values.workDaysPerWeek,
+      feature_checkin: values.featureCheckin,
+      feature_checklist: values.featureChecklist,
     })
     .select("id")
     .single();
@@ -122,6 +128,8 @@ export async function updateEmployeeAction(
     bank_name: values.bankName || null,
     bank_account_number: values.bankAccountNumber || null,
     work_days_per_week: values.workDaysPerWeek,
+    feature_checkin: values.featureCheckin,
+    feature_checklist: values.featureChecklist,
   };
 
   if (values.nric) {
