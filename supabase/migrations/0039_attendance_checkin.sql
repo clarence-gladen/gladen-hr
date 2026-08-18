@@ -186,11 +186,13 @@ language sql security definer set search_path = public as $$
 $$;
 
 -- Hardening: pin the math helper's search_path; keep record_attendance internal
--- (only the owner-executed check_in/check_out reach it); never expose to anon.
+-- (only the owner-executed check_in/check_out reach it); lock the public RPCs to
+-- authenticated only (revoke PUBLIC then re-grant, since revoking anon alone
+-- leaves the default PUBLIC grant intact).
 alter function haversine_m(double precision, double precision, double precision, double precision)
   set search_path = public;
 revoke execute on function record_attendance(text, uuid, double precision, double precision, double precision, text) from public;
-revoke execute on function record_attendance(text, uuid, double precision, double precision, double precision, text) from anon;
-revoke execute on function record_attendance(text, uuid, double precision, double precision, double precision, text) from authenticated;
-revoke execute on function check_in(uuid, double precision, double precision, double precision, text) from anon;
-revoke execute on function check_out(uuid, double precision, double precision, double precision, text) from anon;
+revoke execute on function check_in(uuid, double precision, double precision, double precision, text) from public;
+grant execute on function check_in(uuid, double precision, double precision, double precision, text) to authenticated;
+revoke execute on function check_out(uuid, double precision, double precision, double precision, text) from public;
+grant execute on function check_out(uuid, double precision, double precision, double precision, text) to authenticated;
