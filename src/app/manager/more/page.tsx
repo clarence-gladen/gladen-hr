@@ -8,6 +8,7 @@ const links = [
   { href: "/manager/contracts", labelKey: "more.contracts", icon: "📑" },
   { href: "/manager/attendance", label: "Attendance", icon: "📍" },
   { href: "/manager/checklists", label: "Cleaning checklists", icon: "✅" },
+  { href: "/manager/reports", label: "Service reports", icon: "📄" },
   { href: "/manager/announcements", labelKey: "more.announcements", icon: "🔔" },
   { href: "/manager/salary-advances", labelKey: "more.salaryAdvances", icon: "💵" },
   { href: "/manager/overtime", labelKey: "more.overtime", icon: "⏰" },
