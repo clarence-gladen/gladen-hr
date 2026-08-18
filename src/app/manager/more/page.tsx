@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/i18n/language-provider";
 
 const links = [
   { href: "/manager/contracts", labelKey: "more.contracts", icon: "📑" },
+  { href: "/manager/attendance", label: "Attendance", icon: "📍" },
   { href: "/manager/announcements", labelKey: "more.announcements", icon: "🔔" },
   { href: "/manager/salary-advances", labelKey: "more.salaryAdvances", icon: "💵" },
   { href: "/manager/overtime", labelKey: "more.overtime", icon: "⏰" },
@@ -33,7 +34,7 @@ export default function ManagerMorePage() {
                 <span className="text-xl" aria-hidden="true">
                   {link.icon}
                 </span>
-                <span className="text-base">{t(link.labelKey)}</span>
+                <span className="text-base">{link.label ?? t(link.labelKey!)}</span>
               </Link>
             </li>
           ))}

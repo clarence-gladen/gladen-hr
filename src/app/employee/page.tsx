@@ -31,7 +31,11 @@ export default async function EmployeeDashboardPage() {
 
   const [employeeRes, payslipRes, announcementsRes, readsRes, upcomingLeavesRes] = await Promise.all([
     employeeId
-      ? supabase.from("employees").select("employment_start_date").eq("id", employeeId).maybeSingle()
+      ? supabase
+          .from("employees")
+          .select("employment_start_date, feature_checkin, feature_checklist")
+          .eq("id", employeeId)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
     employeeId
       ? supabase
@@ -127,6 +131,8 @@ export default async function EmployeeDashboardPage() {
       confirmDateLabel={confirmDateLabel}
       announcements={announcementsRes.data ?? []}
       upcomingLeaves={upcomingLeaves}
+      featureCheckin={employeeRes.data?.feature_checkin ?? false}
+      featureChecklist={employeeRes.data?.feature_checklist ?? false}
     />
   );
 }

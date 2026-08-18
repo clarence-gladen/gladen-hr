@@ -55,6 +55,8 @@ export interface DashboardProps {
   confirmDateLabel: string | null;
   announcements: Announcement[];
   upcomingLeaves: UpcomingLeave[];
+  featureCheckin: boolean;
+  featureChecklist: boolean;
 }
 
 export function EmployeeDashboardClient({
@@ -69,6 +71,8 @@ export function EmployeeDashboardClient({
   confirmDateLabel,
   announcements,
   upcomingLeaves,
+  featureCheckin,
+  featureChecklist,
 }: DashboardProps) {
   const { t } = useLanguage();
   const router = useRouter();
@@ -122,6 +126,30 @@ export function EmployeeDashboardClient({
           </p>
           <p className="mt-0.5 text-sm text-foreground/50">{todayLabel}</p>
         </div>
+
+        {/* Site features (trial-gated) */}
+        {(featureCheckin || featureChecklist) && (
+          <div className="grid grid-cols-1 gap-3">
+            {featureCheckin && (
+              <Link
+                href="/employee/checkin"
+                className="flex items-center justify-between rounded-xl bg-brand px-4 py-4 text-white shadow-sm"
+              >
+                <span className="text-base font-semibold">📍 Check in / out</span>
+                <span aria-hidden>→</span>
+              </Link>
+            )}
+            {featureChecklist && (
+              <Link
+                href="/employee/checklist"
+                className="flex items-center justify-between rounded-xl bg-white px-4 py-4 shadow-sm"
+              >
+                <span className="text-base font-semibold text-foreground">✅ Cleaning checklist</span>
+                <span aria-hidden className="text-brand">→</span>
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* Probation notice */}
         {onProbation && confirmDateLabel && (
