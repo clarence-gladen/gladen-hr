@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 import {
   isOnProbation,
   getConfirmationDate,
@@ -42,7 +43,7 @@ export default async function LeaveTypePage({
     .maybeSingle();
 
   const startDate = emp?.employment_start_date ?? null;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todaySG();
 
   if (startDate) {
     await ensureLeaveBalances(supabase, employeeId, startDate);

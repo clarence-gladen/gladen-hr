@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 import {
   getConfirmationDate,
   getAvailableAnnualLeave,
@@ -34,7 +35,7 @@ export default async function EmployeeLeavePage() {
     : { data: null };
 
   const startDate = emp?.employment_start_date ?? null;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todaySG();
 
   // Ensure balance rows exist for all employment years up to today
   if (employeeId && startDate) {

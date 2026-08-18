@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 import type { ContractStatus, ExpenseType } from "@/lib/types/database";
 
 interface ContractFormState {
@@ -107,7 +108,7 @@ export async function removeAssignmentAction(
   const supabase = await createClient();
   await supabase
     .from("contract_assignments")
-    .update({ assigned_to: new Date().toISOString().slice(0, 10) })
+    .update({ assigned_to: todaySG() })
     .eq("id", assignmentId);
 
   revalidatePath(`/manager/contracts/${contractId}`);

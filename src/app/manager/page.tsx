@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 import { DashboardClient } from "./dashboard-client";
 
 export default async function ManagerDashboardPage() {
   const supabase = await createClient();
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const currentYear = today.getFullYear();
-  const currentMonth = String(today.getMonth() + 1).padStart(2, "0");
+  const todayStr = todaySG(); // Singapore business date, not UTC
+  const currentYear = Number(todayStr.slice(0, 4));
+  const currentMonth = todayStr.slice(5, 7);
   const { data: auth } = await supabase.auth.getUser();
 
   const [employeesRes, onLeaveTodayRes, pendingRes, profileRes, announcementsRes, allEmpsRes] =

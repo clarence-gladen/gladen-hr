@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { todaySG } from "@/lib/utils/date";
 import {
   getEmploymentYearNumber,
   getEmploymentYearBounds,
@@ -37,7 +38,7 @@ export async function ensureLeaveBalances(
   employeeId: string,
   employmentStartDate: string
 ): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todaySG();
   const currentYear = getEmploymentYearNumber(employmentStartDate, today);
 
   // Include the upcoming (next) employment year so its pool exists for charging.
@@ -104,7 +105,7 @@ export async function getLeaveHistory(
   employmentStartDate: string,
   count = 3
 ): Promise<LeaveYearHistory[]> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todaySG();
   const currentEmpYear = getEmploymentYearNumber(employmentStartDate, today);
 
   const { data: rows } = await supabase

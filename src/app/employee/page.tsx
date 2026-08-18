@@ -5,6 +5,7 @@ import {
   getAvailableAnnualLeave,
   getAvailableSickLeave,
 } from "@/lib/leave/entitlement";
+import { todaySG, todaySGPlusDays } from "@/lib/utils/date";
 import { EmployeeDashboardClient } from "./dashboard-client";
 
 export default async function EmployeeDashboardPage() {
@@ -18,16 +19,14 @@ export default async function EmployeeDashboardPage() {
     .maybeSingle();
 
   const employeeId = profile?.employee_id;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todaySG();
   const todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
 
-  const in30Days = new Date();
-  in30Days.setDate(in30Days.getDate() + 30);
-  const in30DaysStr = in30Days.toISOString().slice(0, 10);
+  const in30DaysStr = todaySGPlusDays(30);
 
   const [employeeRes, payslipRes, announcementsRes, readsRes, upcomingLeavesRes] = await Promise.all([
     employeeId

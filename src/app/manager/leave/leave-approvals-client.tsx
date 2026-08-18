@@ -9,7 +9,7 @@ import { approveLeaveRequestAction, rejectLeaveRequestAction, cancelLeaveRequest
 import { LeaveCalendar, type LeaveCalendarEntry } from "@/components/leave-calendar";
 import { useToast } from "@/components/toast";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
-import { fmtDate } from "@/lib/utils/date";
+import { fmtDate, todaySG, todaySGPlusDays } from "@/lib/utils/date";
 import { ChargePeriodField, chargePeriodTag } from "@/components/charge-period-field";
 
 export interface LeaveRequestRow {
@@ -346,7 +346,7 @@ export function LeaveApprovalsClient({
   const [employeeFilter, setEmployeeFilter] = useState<string>("");
   const [showMore, setShowMore] = useState(false);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todaySG();
 
   // Pending always shows in Upcoming regardless of date (needs action)
   const pendingRequests = requests.filter((r) => r.status === "pending");
@@ -380,8 +380,8 @@ export function LeaveApprovalsClient({
     : allPastSorted;
 
   // Past tab windowing: default 6 months, expandable to 2 years
-  const sixMonthsCutoff = (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString().slice(0, 10); })();
-  const twoYearsCutoff = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 2); return d.toISOString().slice(0, 10); })();
+  const sixMonthsCutoff = todaySGPlusDays(-182);
+  const twoYearsCutoff = todaySGPlusDays(-730);
   const pastWithinTwoYears = filteredPast.filter((r) => r.start_date >= twoYearsCutoff);
   const pastWithinSixMonths = pastWithinTwoYears.filter((r) => r.start_date >= sixMonthsCutoff);
   const hasMore = pastWithinTwoYears.length > pastWithinSixMonths.length;

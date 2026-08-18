@@ -1,5 +1,6 @@
 import { Header } from "@/components/header";
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 
 interface EventRow {
   id: string;
@@ -31,6 +32,7 @@ const FLAG_LABEL: Record<string, string> = {
   outside_fence: "outside fence",
   low_accuracy: "weak GPS",
   shared_device: "shared device",
+  no_site_pin: "no site pin",
 };
 
 export default async function ManagerAttendancePage() {
@@ -39,7 +41,7 @@ export default async function ManagerAttendancePage() {
   const since = new Date();
   since.setDate(since.getDate() - 7);
   const sinceStr = since.toISOString();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todaySG();
 
   const { data } = await supabase
     .from("attendance_events")

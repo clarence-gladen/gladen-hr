@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 import { CheckinClient, type AssignedSite, type TodayEvent } from "./checkin-client";
 
 export default async function CheckinPage() {
@@ -22,7 +23,7 @@ export default async function CheckinPage() {
     redirect("/employee");
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todaySG();
 
   // Sites the employee is actively assigned to today.
   const { data: assignments } = await supabase

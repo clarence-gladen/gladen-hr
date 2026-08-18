@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 import {
   isOnProbation,
   getAvailableAnnualLeave,
@@ -60,7 +61,7 @@ export async function submitLeaveRequestAction(
     if (!empStartDate) return { error: "Employment start date not found." };
 
     // Probation check remains a hard block: based on today (not leave start date)
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todaySG();
     if (isOnProbation(empStartDate, today)) {
       return { error: "You are on probation. Only no-pay leave is available during probation." };
     }

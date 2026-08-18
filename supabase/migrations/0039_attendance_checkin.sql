@@ -1,14 +1,17 @@
 -- 0039_attendance_checkin.sql
 -- Location check-in / check-out (Site Ops feature 2 of the phased rollout).
 --
--- Design for abuse resistance:
---  * ALL check-in/out attempts are logged (audit trail for abuse review).
---  * An attempt only "counts" (status='accepted') if the phone is inside the
---    site geofence with usable GPS accuracy; otherwise it's logged as rejected.
+-- Design (abuse resistance, "allow but flag"):
+--  * A check-in always COUNTS (status='accepted') once the employee is enabled,
+--    assigned to the site, and not already checked in — nobody is blocked from
+--    clocking in by a poor GPS fix.
+--  * Location problems become REVIEW FLAGS instead of rejections:
+--    'outside_fence' (beyond the geofence), 'low_accuracy' (weak GPS),
+--    'no_site_pin' (site has no location set).
 --  * Geofence distance is computed SERVER-SIDE (Haversine) — the client's claim
 --    of being on-site is never trusted.
 --  * Inserts happen ONLY through the SECURITY DEFINER RPCs below. There is no
---    INSERT policy, so a client cannot forge an 'accepted' event directly.
+--    INSERT policy, so a client cannot forge an event directly.
 --  * Device-binding: if the same device_hash is used by a DIFFERENT employee on
 --    the same day, the event is flagged 'shared_device' for supervisor review.
 
@@ -85,8 +88,7 @@ declare
   v_enabled boolean;
   v_site record;
   v_dist double precision;
-  v_within boolean := false;
-  v_status text;
+  v_within boolean;
   v_flags text[] := '{}';
   v_today date := (now() at time zone 'Asia/Singapore')::date;
   v_open record;
@@ -130,18 +132,14 @@ begin
   from contracts where id = p_contract_id;
 
   if v_site.latitude is null or v_site.longitude is null then
-    v_status := 'rejected_no_site_pin';
+    v_within := null;
+    v_flags := array_append(v_flags, 'no_site_pin');
   else
     v_dist := haversine_m(p_lat, p_lng, v_site.latitude, v_site.longitude);
-    -- Tolerance: allow the geofence radius plus part of the GPS error margin.
+    -- Tolerance: geofence radius plus part of the GPS error margin.
     v_within := v_dist <= (v_site.geofence_radius_m + least(coalesce(p_accuracy, 0), 30));
-    if coalesce(p_accuracy, 999) > 100 then
-      v_status := 'rejected_low_accuracy';
-    elsif not v_within then
-      v_status := 'rejected_out_of_fence';
+    if not v_within then
       v_flags := array_append(v_flags, 'outside_fence');
-    else
-      v_status := 'accepted';
     end if;
     if coalesce(p_accuracy, 0) > 50 then
       v_flags := array_append(v_flags, 'low_accuracy');
@@ -158,11 +156,12 @@ begin
     v_flags := array_append(v_flags, 'shared_device');
   end if;
 
+  -- Allow-but-flag: the event always counts once past the guards above.
   insert into attendance_events (
     employee_id, contract_id, event_type, status, latitude, longitude,
     accuracy_m, distance_m, within_fence, device_hash, flags
   ) values (
-    v_emp, p_contract_id, p_event_type, v_status, p_lat, p_lng,
+    v_emp, p_contract_id, p_event_type, 'accepted', p_lat, p_lng,
     p_accuracy, v_dist, v_within, p_device_hash, v_flags
   ) returning * into v_row;
 

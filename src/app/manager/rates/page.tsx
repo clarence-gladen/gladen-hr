@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
 import { Header } from "@/components/header";
 import { getCpfRates, getSdlConfig } from "@/lib/payroll/rates";
 
@@ -26,7 +27,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default async function ManagerRatesPage() {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todaySG();
 
   const [cpfRates, sdlConfig] = await Promise.all([
     getCpfRates(supabase, today),
