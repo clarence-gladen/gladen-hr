@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todaySG } from "@/lib/utils/date";
-import { ChecklistClient, type ChecklistTask } from "./checklist-client";
+import { ChecklistClient, type AreaGroup } from "./checklist-client";
 
 export default async function EmployeeChecklistPage() {
   const supabase = await createClient();
@@ -18,70 +18,82 @@ export default async function EmployeeChecklistPage() {
     : profile?.employees;
   const employeeId = profile?.employee_id;
 
-  // Feature gate.
   if (!employeeId || !employee?.feature_checklist) {
     redirect("/employee");
   }
 
   const today = todaySG();
 
-  // The employee's active site(s) today. Trial cleaners have one site.
-  const { data: assignments } = await supabase
-    .from("contract_assignments")
-    .select("contract_id, contracts(site_name, client_name)")
-    .eq("employee_id", employeeId)
-    .lte("assigned_from", today)
-    .or(`assigned_to.is.null,assigned_to.gte.${today}`);
+  // Areas assigned to this employee.
+  const { data: areasData } = await supabase
+    .from("checklist_areas")
+    .select("id, name, contract_id, contracts(site_name)")
+    .eq("assigned_employee_id", employeeId)
+    .eq("active", true)
+    .order("sort_order");
 
-  const assignment = (assignments ?? [])[0];
-  if (!assignment) {
-    return <ChecklistClient siteName={null} tasks={[]} checkedIn={false} />;
+  const areas = areasData ?? [];
+  if (areas.length === 0) {
+    return <ChecklistClient groups={[]} />;
   }
-  const contract = Array.isArray(assignment.contracts)
-    ? assignment.contracts[0]
-    : assignment.contracts;
-  const contractId = assignment.contract_id;
 
-  const [itemsRes, completionsRes, checkinRes] = await Promise.all([
+  const areaIds = areas.map((a) => a.id);
+  const contractIds = [...new Set(areas.map((a) => a.contract_id))];
+
+  const [itemsRes, completionsRes, checkinsRes] = await Promise.all([
     supabase
       .from("checklist_items")
-      .select("id, description, frequency, area, requires_photo, sort_order")
-      .eq("contract_id", contractId)
+      .select("id, area_id, description, frequency")
+      .in("area_id", areaIds)
       .eq("active", true)
       .order("sort_order"),
     supabase
       .from("checklist_completions")
       .select("item_id")
-      .eq("contract_id", contractId)
+      .in("contract_id", contractIds)
       .eq("done_date", today),
     supabase
       .from("attendance_events")
-      .select("event_type")
+      .select("contract_id, event_type, occurred_at")
       .eq("employee_id", employeeId)
-      .eq("contract_id", contractId)
+      .in("contract_id", contractIds)
       .eq("status", "accepted")
       .gte("occurred_at", `${today}T00:00:00`)
-      .order("occurred_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .order("occurred_at", { ascending: false }),
   ]);
 
   const doneIds = new Set((completionsRes.data ?? []).map((c) => c.item_id));
-  const tasks: ChecklistTask[] = (itemsRes.data ?? []).map((i) => ({
-    id: i.id,
-    description: i.description,
-    frequency: i.frequency,
-    area: i.area,
-    done: doneIds.has(i.id),
-  }));
 
-  const checkedIn = checkinRes.data?.event_type === "check_in";
+  // Latest accepted event per contract → checked-in if it's a check_in.
+  const checkedInContracts = new Set<string>();
+  const seenContract = new Set<string>();
+  for (const e of checkinsRes.data ?? []) {
+    if (seenContract.has(e.contract_id)) continue; // first seen = latest (desc)
+    seenContract.add(e.contract_id);
+    if (e.event_type === "check_in") checkedInContracts.add(e.contract_id);
+  }
 
-  return (
-    <ChecklistClient
-      siteName={contract?.site_name ?? null}
-      tasks={tasks}
-      checkedIn={checkedIn}
-    />
-  );
+  const itemsByArea = new Map<string, { id: string; description: string; frequency: string }[]>();
+  for (const i of itemsRes.data ?? []) {
+    if (!itemsByArea.has(i.area_id)) itemsByArea.set(i.area_id, []);
+    itemsByArea.get(i.area_id)!.push({ id: i.id, description: i.description, frequency: i.frequency });
+  }
+
+  const groups: AreaGroup[] = areas.map((a) => {
+    const contract = Array.isArray(a.contracts) ? a.contracts[0] : a.contracts;
+    return {
+      areaId: a.id,
+      areaName: a.name,
+      siteName: contract?.site_name ?? "",
+      checkedIn: checkedInContracts.has(a.contract_id),
+      tasks: (itemsByArea.get(a.id) ?? []).map((t) => ({
+        id: t.id,
+        description: t.description,
+        frequency: t.frequency,
+        done: doneIds.has(t.id),
+      })),
+    };
+  });
+
+  return <ChecklistClient groups={groups} />;
 }

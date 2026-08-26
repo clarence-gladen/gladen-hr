@@ -4,8 +4,13 @@ export interface ServiceReportTask {
   id: string;
   description: string;
   frequency: string;
-  area: string | null;
   daysDone: number[]; // day-of-month numbers this task was completed
+}
+
+export interface ServiceReportArea {
+  id: string;
+  name: string;
+  tasks: ServiceReportTask[];
 }
 
 export interface ServiceReportOverrides {
@@ -22,7 +27,8 @@ export interface ServiceReportData {
   month: number; // 1-12
   monthLabel: string; // e.g. "August 2026"
   daysInMonth: number;
-  tasks: ServiceReportTask[];
+  areas: ServiceReportArea[];
+  taskCount: number;
   totalCompletions: number;
   attendanceDays: number[]; // days with at least one accepted check-in
   remarks: string;
@@ -58,10 +64,16 @@ export async function buildServiceReportData(
 
   const excluded = new Set(overrides.excludedItemIds ?? []);
 
-  const [itemsRes, completionsRes] = await Promise.all([
+  const [areasRes, itemsRes, completionsRes] = await Promise.all([
+    supabase
+      .from("checklist_areas")
+      .select("id, name, sort_order")
+      .eq("contract_id", contractId)
+      .eq("active", true)
+      .order("sort_order"),
     supabase
       .from("checklist_items")
-      .select("id, description, frequency, area, sort_order")
+      .select("id, area_id, description, frequency, sort_order")
       .eq("contract_id", contractId)
       .eq("active", true)
       .order("sort_order"),
@@ -81,17 +93,28 @@ export async function buildServiceReportData(
     doneByItem.get(c.item_id)!.add(day);
   }
 
-  const tasks: ServiceReportTask[] = (itemsRes.data ?? [])
-    .filter((i) => !excluded.has(i.id))
-    .map((i) => ({
+  // Group tasks under their area (excluded tasks dropped; empty areas omitted).
+  const tasksByArea = new Map<string, ServiceReportTask[]>();
+  for (const i of itemsRes.data ?? []) {
+    if (excluded.has(i.id)) continue;
+    if (!tasksByArea.has(i.area_id)) tasksByArea.set(i.area_id, []);
+    tasksByArea.get(i.area_id)!.push({
       id: i.id,
       description: i.description,
       frequency: i.frequency,
-      area: i.area,
       daysDone: [...(doneByItem.get(i.id) ?? [])].sort((a, b) => a - b),
-    }));
+    });
+  }
 
-  const totalCompletions = tasks.reduce((sum, t) => sum + t.daysDone.length, 0);
+  const areas: ServiceReportArea[] = (areasRes.data ?? [])
+    .map((a) => ({ id: a.id, name: a.name, tasks: tasksByArea.get(a.id) ?? [] }))
+    .filter((a) => a.tasks.length > 0);
+
+  const taskCount = areas.reduce((n, a) => n + a.tasks.length, 0);
+  const totalCompletions = areas.reduce(
+    (sum, a) => sum + a.tasks.reduce((s, t) => s + t.daysDone.length, 0),
+    0
+  );
 
   // Attendance: days with at least one accepted check-in (SGT month window).
   const startInstant = new Date(`${monthStart}T00:00:00+08:00`).toISOString();
@@ -129,7 +152,8 @@ export async function buildServiceReportData(
     month,
     monthLabel,
     daysInMonth,
-    tasks,
+    areas,
+    taskCount,
     totalCompletions,
     attendanceDays: [...attendanceDaySet].sort((a, b) => a - b),
     remarks: overrides.remarks ?? "",

@@ -70,8 +70,16 @@ const styles = StyleSheet.create({
   dayHeadText: { fontSize: 6, color: MUTED },
   rateColHead: { width: 30, alignItems: "flex-end", paddingVertical: 3 },
 
+  areaRow: {
+    flexDirection: "row",
+    backgroundColor: BRAND_LIGHT,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    marginTop: 2,
+  },
+  areaName: { fontSize: 8, fontFamily: "Helvetica-Bold", color: BRAND },
   row: { flexDirection: "row", borderBottom: `0.5px solid ${DIVIDER}`, alignItems: "center" },
-  taskCol: { width: 168, paddingVertical: 3, paddingRight: 4 },
+  taskCol: { width: 168, paddingVertical: 3, paddingRight: 4, paddingLeft: 6 },
   taskText: { fontSize: 7.5 },
   taskSub: { fontSize: 6, color: MUTED },
   tick: { fontSize: 7, color: DONE, fontFamily: "Helvetica-Bold" },
@@ -150,7 +158,7 @@ function ServiceReportDocument({ data }: { data: ServiceReportData }) {
 
         <View style={styles.summaryRow}>
           <View style={styles.stat}>
-            <Text style={styles.statValue}>{data.tasks.length}</Text>
+            <Text style={styles.statValue}>{data.taskCount}</Text>
             <Text style={styles.statLabel}>Tasks tracked</Text>
           </View>
           <View style={styles.stat}>
@@ -174,31 +182,35 @@ function ServiceReportDocument({ data }: { data: ServiceReportData }) {
           </View>
         </View>
 
-        {/* Grid rows */}
-        {data.tasks.map((task) => {
-          const doneSet = new Set(task.daysDone);
-          return (
-            <View key={task.id} style={styles.row}>
-              <View style={styles.taskCol}>
-                <Text style={styles.taskText}>{task.description}</Text>
-                <Text style={styles.taskSub}>
-                  {task.frequency}
-                  {task.area ? ` · ${task.area}` : ""}
-                </Text>
-              </View>
-              {dayNums.map((d) => (
-                <View key={d} style={styles.dayCell}>
-                  <Text style={styles.tick}>{doneSet.has(d) ? "✓" : ""}</Text>
-                </View>
-              ))}
-              <View style={styles.rateCol}>
-                <Text style={styles.rateText}>{task.daysDone.length}</Text>
-              </View>
+        {/* Grid rows grouped by area */}
+        {data.areas.map((area) => (
+          <View key={area.id} wrap={false}>
+            <View style={styles.areaRow}>
+              <Text style={styles.areaName}>{area.name}</Text>
             </View>
-          );
-        })}
+            {area.tasks.map((task) => {
+              const doneSet = new Set(task.daysDone);
+              return (
+                <View key={task.id} style={styles.row}>
+                  <View style={styles.taskCol}>
+                    <Text style={styles.taskText}>{task.description}</Text>
+                    <Text style={styles.taskSub}>{task.frequency}</Text>
+                  </View>
+                  {dayNums.map((d) => (
+                    <View key={d} style={styles.dayCell}>
+                      <Text style={styles.tick}>{doneSet.has(d) ? "✓" : ""}</Text>
+                    </View>
+                  ))}
+                  <View style={styles.rateCol}>
+                    <Text style={styles.rateText}>{task.daysDone.length}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ))}
 
-        {data.tasks.length === 0 ? (
+        {data.areas.length === 0 ? (
           <Text style={{ fontSize: 8, color: MUTED, marginTop: 8 }}>
             No tasks recorded for this period.
           </Text>

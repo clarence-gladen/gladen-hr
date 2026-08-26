@@ -3,40 +3,91 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export async function addChecklistItemAction(
+// ── Areas ────────────────────────────────────────────────────────────────
+export async function addAreaAction(
   contractId: string,
-  _prev: { error?: string },
-  formData: FormData
+  name: string,
+  assignedEmployeeId: string | null
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Please enter an area name." };
 
-  const description = String(formData.get("description") ?? "").trim();
-  const frequency = String(formData.get("frequency") ?? "daily");
-  const area = String(formData.get("area") ?? "").trim() || null;
-  const requiresPhoto = formData.get("requiresPhoto") === "on";
-
-  if (!description) return { error: "Please enter a task description." };
-  if (!["daily", "weekly", "monthly"].includes(frequency)) return { error: "Invalid frequency." };
-
-  // Append after the current last item.
   const { data: last } = await supabase
-    .from("checklist_items")
+    .from("checklist_areas")
     .select("sort_order")
     .eq("contract_id", contractId)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const sortOrder = (last?.sort_order ?? 0) + 1;
+
+  const { error } = await supabase.from("checklist_areas").insert({
+    contract_id: contractId,
+    name: trimmed,
+    assigned_employee_id: assignedEmployeeId || null,
+    sort_order: (last?.sort_order ?? 0) + 1,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/manager/checklists/${contractId}`);
+  return {};
+}
+
+export async function assignAreaAction(
+  contractId: string,
+  areaId: string,
+  assignedEmployeeId: string | null
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("checklist_areas")
+    .update({ assigned_employee_id: assignedEmployeeId || null })
+    .eq("id", areaId);
+  if (error) return { error: error.message };
+  revalidatePath(`/manager/checklists/${contractId}`);
+  return {};
+}
+
+export async function deleteAreaAction(
+  contractId: string,
+  areaId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("checklist_areas").delete().eq("id", areaId);
+  if (error) return { error: error.message };
+  revalidatePath(`/manager/checklists/${contractId}`);
+  return {};
+}
+
+// ── Tasks ────────────────────────────────────────────────────────────────
+export async function addChecklistItemAction(
+  contractId: string,
+  areaId: string,
+  description: string,
+  frequency: string,
+  requiresPhoto: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const trimmed = description.trim();
+  if (!trimmed) return { error: "Please enter a task description." };
+  if (!["daily", "weekly", "monthly"].includes(frequency)) return { error: "Invalid frequency." };
+
+  const { data: last } = await supabase
+    .from("checklist_items")
+    .select("sort_order")
+    .eq("area_id", areaId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { error } = await supabase.from("checklist_items").insert({
     contract_id: contractId,
-    description,
+    area_id: areaId,
+    description: trimmed,
     frequency,
-    area,
     requires_photo: requiresPhoto,
-    sort_order: sortOrder,
+    sort_order: (last?.sort_order ?? 0) + 1,
   });
-
   if (error) return { error: error.message };
 
   revalidatePath(`/manager/checklists/${contractId}`);
@@ -49,18 +100,6 @@ export async function deleteChecklistItemAction(
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { error } = await supabase.from("checklist_items").delete().eq("id", itemId);
-  if (error) return { error: error.message };
-  revalidatePath(`/manager/checklists/${contractId}`);
-  return {};
-}
-
-export async function toggleChecklistItemActiveAction(
-  contractId: string,
-  itemId: string,
-  active: boolean
-): Promise<{ error?: string }> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("checklist_items").update({ active }).eq("id", itemId);
   if (error) return { error: error.message };
   revalidatePath(`/manager/checklists/${contractId}`);
   return {};

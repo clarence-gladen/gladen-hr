@@ -84,7 +84,7 @@ export default async function ManagerReportsPage({
       month={month}
       monthLabel={data?.monthLabel ?? ""}
       items={items}
-      tasksInReport={data?.tasks.length ?? 0}
+      tasksInReport={data?.taskCount ?? 0}
       totalCompletions={data?.totalCompletions ?? 0}
       attendanceDays={data?.attendanceDays.length ?? 0}
       saved={{
