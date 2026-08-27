@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { todaySG } from "@/lib/utils/date";
+import { anniversaryMonths, hasAnniversaryIn } from "@/lib/hr/anniversaries";
 import { DashboardClient } from "./dashboard-client";
 
 const SG = "Asia/Singapore";
@@ -14,8 +15,6 @@ function sgHour(now: Date = new Date()): number {
 export default async function ManagerDashboardPage() {
   const supabase = await createClient();
   const todayStr = todaySG(); // Singapore business date, not UTC
-  const currentYear = Number(todayStr.slice(0, 4));
-  const currentMonth = todayStr.slice(5, 7);
   const { data: auth } = await supabase.auth.getUser();
 
   // Pinned to Singapore: the server runs in UTC, so an unpinned format shows
@@ -58,12 +57,12 @@ export default async function ManagerDashboardPage() {
 
   const firstName = profileRes.data?.full_name?.split(" ")[0] ?? null;
 
-  const anniversaryCount = (allEmpsRes.data ?? []).filter((emp) => {
-    if (!emp.employment_start_date) return false;
-    const month = emp.employment_start_date.slice(5, 7);
-    const year = parseInt(emp.employment_start_date.slice(0, 4), 10);
-    return month === currentMonth && year < currentYear;
-  }).length;
+  // This month and last month — the same two the anniversaries page lists, so
+  // the tile's number always matches what is behind it.
+  const months = anniversaryMonths(todayStr);
+  const anniversaryCount = (allEmpsRes.data ?? []).filter((emp) =>
+    months.some((m) => hasAnniversaryIn(emp.employment_start_date, m))
+  ).length;
 
   return (
     <DashboardClient

@@ -1,6 +1,6 @@
 "use client";
 
-import { fmtDate } from "@/lib/utils/date";
+import { fmtDateShort, fmtDateRange } from "@/lib/utils/date";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -8,7 +8,7 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
-type AnniversaryEmployee = {
+export type AnniversaryEmployee = {
   id: string;
   full_name: string;
   designation: string | null;
@@ -23,105 +23,129 @@ type AnniversaryEmployee = {
   yearEnd: string;
 };
 
-export function AnniversariesClient({
-  employees,
-  monthLabel,
-}: {
-  employees: AnniversaryEmployee[];
+export type AnniversaryGroup = {
+  key: string;
+  heading: string;
   monthLabel: string;
-}) {
-  if (employees.length === 0) {
+  note: string;
+  employees: AnniversaryEmployee[];
+};
+
+function Card({ emp }: { emp: AnniversaryEmployee }) {
+  return (
+    <div className="g-card space-y-3 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold">{emp.full_name}</p>
+          <p className="text-[12.5px] text-muted">{emp.designation ?? "—"}</p>
+        </div>
+        <span className="g-pill g-pill-attention">{ordinal(emp.yearsCompleting)} year</span>
+      </div>
+
+      <div className="flex items-center rounded-lg border border-attention-line bg-attention-surface px-3 py-2">
+        <span className="text-[12.5px] font-medium text-attention">Anniversary</span>
+        <span className="g-num ml-auto text-[13px] font-semibold text-attention">
+          {fmtDateShort(emp.anniversaryDate)}
+        </span>
+      </div>
+
+      <p className="text-center text-[11.5px] text-muted">
+        Year completed · {fmtDateRange(emp.yearStart, emp.yearEnd)}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-line-soft bg-[#fbfcfd] px-3 py-2">
+          <p className="text-[11.5px] text-muted">Basic salary</p>
+          <p className="g-num mt-0.5 text-sm font-semibold">
+            S$
+            {emp.baseSalary.toLocaleString("en-SG", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
+        </div>
+        <div className="rounded-lg border border-attention-line bg-attention-surface px-3 py-2">
+          <p className="text-[11.5px] text-attention">Bonus</p>
+          <p className="mt-0.5 text-sm font-semibold text-attention">2 weeks</p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="g-label">Leave taken that year</p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg border border-line-soft bg-[#fbfcfd] px-2 py-2">
+            <p className="g-num text-lg font-semibold text-brand">{emp.alEntitlement}</p>
+            <p className="text-[11px] text-muted">AL entitlement</p>
+          </div>
+          <div className="rounded-lg border border-line-soft bg-[#fbfcfd] px-2 py-2">
+            <p className="g-num text-lg font-semibold">{emp.alUsed}</p>
+            <p className="text-[11px] text-muted">AL used</p>
+          </div>
+          <div
+            className={`rounded-lg px-2 py-2 ${
+              emp.alUnused > 0
+                ? "border border-attention-line bg-attention-surface"
+                : "border border-line-soft bg-[#fbfcfd]"
+            }`}
+          >
+            <p className={`g-num text-lg font-semibold ${emp.alUnused > 0 ? "text-attention" : ""}`}>
+              {emp.alUnused}
+            </p>
+            <p className={`text-[11px] ${emp.alUnused > 0 ? "text-attention" : "text-muted"}`}>
+              AL unused
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-line-soft bg-[#fbfcfd] px-3 py-2">
+          <p className="text-[12.5px] text-muted">Sick leave used</p>
+          <p className="g-num text-sm font-semibold">{emp.sickUsed} days</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AnniversariesClient({ groups }: { groups: AnniversaryGroup[] }) {
+  const total = groups.reduce((sum, g) => sum + g.employees.length, 0);
+
+  if (total === 0) {
     return (
-      <main className="flex-1 px-4 py-6">
-        <p className="text-sm text-foreground/50">No employment anniversaries this month.</p>
+      <main className="flex-1 px-4 py-5">
+        <p className="text-sm text-muted">
+          No employment anniversaries in {groups.map((g) => g.monthLabel).join(" or ")}.
+        </p>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 px-4 py-6 space-y-4">
-      <p className="text-xs text-foreground/50">
-        {employees.length} employee{employees.length !== 1 ? "s" : ""} with anniversaries in {monthLabel}.
-        Bonus and unused leave to be processed by the 5th of next month.
-      </p>
-
-      {employees.map((emp) => (
-        <div key={emp.id} className="rounded-xl bg-white p-4 shadow-sm space-y-3">
-          {/* Name + year badge */}
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold text-foreground">{emp.full_name}</p>
-              <p className="text-xs text-foreground/50">{emp.designation ?? "—"}</p>
-            </div>
-            <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
-              {ordinal(emp.yearsCompleting)} year
-            </span>
+    <main className="flex-1 space-y-6 px-4 py-5">
+      {groups.map((group) => (
+        <section key={group.key}>
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <h2 className="g-label">
+              {group.heading} · {group.monthLabel}
+            </h2>
+            {group.employees.length > 0 && (
+              <span className="g-num text-[12.5px] font-medium text-muted">
+                {group.employees.length}
+              </span>
+            )}
           </div>
 
-          {/* Anniversary date */}
-          <div className="flex items-center rounded-lg bg-amber-50 px-3 py-2">
-            <span className="text-xs font-medium text-amber-700">Anniversary</span>
-            <span className="ml-auto text-xs font-semibold text-amber-800">{fmtDate(emp.anniversaryDate)}</span>
-          </div>
-
-          {/* Employment year period */}
-          <p className="text-[11px] text-center text-foreground/40">
-            {fmtDate(emp.yearStart)} – {fmtDate(emp.yearEnd)}
-          </p>
-
-          {/* Salary + bonus */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-black/[0.03] px-3 py-2">
-              <p className="text-[11px] text-foreground/50">Basic Salary</p>
-              <p className="mt-0.5 text-sm font-semibold text-foreground">
-                S${" "}
-                {emp.baseSalary.toLocaleString("en-SG", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
-            </div>
-            <div className="rounded-lg bg-amber-50 px-3 py-2">
-              <p className="text-[11px] text-amber-600">Bonus</p>
-              <p className="mt-0.5 text-sm font-semibold text-amber-700">2 weeks</p>
-            </div>
-          </div>
-
-          {/* Leave summary */}
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
-              Leave This Year
+          {group.employees.length === 0 ? (
+            <p className="g-card px-4 py-3.5 text-[13px] text-muted">
+              No anniversaries in {group.monthLabel}.
             </p>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-black/[0.03] px-2 py-2">
-                <p className="text-base font-bold text-brand">{emp.alEntitlement}</p>
-                <p className="text-[10px] text-foreground/50">AL entitlement</p>
-              </div>
-              <div className="rounded-lg bg-black/[0.03] px-2 py-2">
-                <p className="text-base font-bold text-foreground">{emp.alUsed}</p>
-                <p className="text-[10px] text-foreground/50">AL used</p>
-              </div>
-              <div
-                className={`rounded-lg px-2 py-2 ${
-                  emp.alUnused > 0 ? "bg-brand/10" : "bg-black/[0.03]"
-                }`}
-              >
-                <p
-                  className={`text-base font-bold ${
-                    emp.alUnused > 0 ? "text-brand" : "text-foreground"
-                  }`}
-                >
-                  {emp.alUnused}
-                </p>
-                <p className="text-[10px] text-foreground/50">AL unused</p>
-              </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-[12.5px] leading-snug text-muted">{group.note}</p>
+              {group.employees.map((emp) => (
+                <Card key={`${group.key}-${emp.id}`} emp={emp} />
+              ))}
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-black/[0.03] px-3 py-2">
-              <p className="text-xs text-foreground/60">Sick leave used</p>
-              <p className="text-sm font-semibold text-foreground">{emp.sickUsed} days</p>
-            </div>
-          </div>
-        </div>
+          )}
+        </section>
       ))}
     </main>
   );
