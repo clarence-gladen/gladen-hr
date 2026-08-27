@@ -1,47 +1,43 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
+import { todaySG } from "@/lib/utils/date";
+import { ManagerMoreClient, type MoreCounts } from "./more-client";
 
-import Link from "next/link";
-import { Header } from "@/components/header";
-import { useLanguage } from "@/lib/i18n/language-provider";
+/**
+ * The More menu carries badge counts so a manager can see what is waiting
+ * before tapping into a screen. Both counts are cheap and scoped to today /
+ * pending only — this page must stay fast, it is the app's index.
+ */
+export default async function ManagerMorePage() {
+  const supabase = await createClient();
+  const todayStr = todaySG();
 
-const links = [
-  { href: "/manager/contracts", labelKey: "more.contracts", icon: "📑" },
-  { href: "/manager/attendance", label: "Attendance", icon: "📍" },
-  { href: "/manager/checklists", label: "Cleaning checklists", icon: "✅" },
-  { href: "/manager/reports", label: "Service reports", icon: "📄" },
-  { href: "/manager/announcements", labelKey: "more.announcements", icon: "🔔" },
-  { href: "/manager/salary-advances", labelKey: "more.salaryAdvances", icon: "💵" },
-  { href: "/manager/overtime", labelKey: "more.overtime", icon: "⏰" },
-  { href: "/manager/supervisors", labelKey: "more.supervisors", icon: "🦺" },
-  { href: "/manager/rates", labelKey: "more.rates", icon: "⚙️" },
-  { href: "/manager/more/access", labelKey: "more.manageAccess", icon: "🔑" },
-];
+  const [eventsRes, advancesRes] = await Promise.all([
+    supabase
+      .from("attendance_events")
+      .select("employee_id, contract_id, event_type, occurred_at")
+      .eq("status", "accepted")
+      // +08:00 pins the bound to SGT midnight; a naive timestamp is read as
+      // UTC and would hide every event made before 8am local time.
+      .gte("occurred_at", `${todayStr}T00:00:00+08:00`)
+      .order("occurred_at", { ascending: false }),
+    supabase
+      .from("salary_advances")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
+  ]);
 
-export default function ManagerMorePage() {
-  const { t } = useLanguage();
+  // On site now = the latest accepted event today for an employee+site pair
+  // is a check-in. Rows arrive newest-first, so the first one seen wins.
+  const latest = new Map<string, string>();
+  for (const e of eventsRes.data ?? []) {
+    const key = `${e.employee_id}:${e.contract_id}`;
+    if (!latest.has(key)) latest.set(key, e.event_type);
+  }
 
-  return (
-    <>
-      <Header titleKey="more.managerTitle" />
-      <main className="flex-1 px-4 py-6">
-        <ul className="overflow-hidden rounded-xl bg-white shadow-sm">
-          {links.map((link, i) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className={`flex items-center gap-3 px-4 py-4 ${
-                  i !== links.length - 1 ? "border-b border-black/5" : ""
-                }`}
-              >
-                <span className="text-xl" aria-hidden="true">
-                  {link.icon}
-                </span>
-                <span className="text-base">{link.label ?? t(link.labelKey!)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </main>
-    </>
-  );
+  const counts: MoreCounts = {
+    onSite: [...latest.values()].filter((type) => type === "check_in").length,
+    pendingAdvances: advancesRes.count ?? 0,
+  };
+
+  return <ManagerMoreClient counts={counts} />;
 }

@@ -18,7 +18,7 @@ const STORAGE_KEY = "gladen-hr-locale";
 type LanguageContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (path: string) => string;
+  t: (path: string, vars?: Record<string, string | number>) => string;
 };
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -47,11 +47,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, next);
   };
 
-  const t = (path: string): string => {
+  // `vars` fills {name} placeholders, so a string whose word order differs
+  // between languages ("{n} on site now" / "{n} 人在场") stays one translatable
+  // unit instead of being concatenated in the component.
+  const t = (path: string, vars?: Record<string, string | number>): string => {
     const translated = getByPath(dictionaries[locale], path);
-    if (translated !== undefined) return translated;
-    const fallback = getByPath(dictionaries.en, path);
-    return fallback ?? path;
+    const value = translated ?? getByPath(dictionaries.en, path) ?? path;
+    if (!vars) return value;
+    return value.replace(/\{(\w+)\}/g, (match, key) =>
+      key in vars ? String(vars[key]) : match
+    );
   };
 
   return (

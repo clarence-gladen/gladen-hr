@@ -9,7 +9,7 @@ import { approveLeaveRequestAction, rejectLeaveRequestAction, cancelLeaveRequest
 import { LeaveCalendar, type LeaveCalendarEntry } from "@/components/leave-calendar";
 import { useToast } from "@/components/toast";
 import type { ApprovalStatus, LeaveType } from "@/lib/types/database";
-import { fmtDate, todaySG, todaySGPlusDays } from "@/lib/utils/date";
+import { fmtDateRange, todaySG, todaySGPlusDays } from "@/lib/utils/date";
 import { ChargePeriodField, chargePeriodTag } from "@/components/charge-period-field";
 
 export interface LeaveRequestRow {
@@ -31,11 +31,34 @@ function employeeName(row: LeaveRequestRow): string {
   return employee?.full_name ?? "—";
 }
 
-const inputClass = "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
-const dateInputClass = "w-full rounded-lg border border-black/10 bg-white px-1 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
-const labelClass = "mb-1 block text-xs font-medium text-foreground/60";
+/** Which pill a status gets. Navy is reserved for the brand, never for state. */
+const STATUS_PILL: Record<ApprovalStatus, string> = {
+  pending: "g-pill-attention",
+  approved: "g-pill-positive",
+  rejected: "g-pill-critical",
+  cancelled: "g-pill-neutral",
+};
 
-function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; leaveTypeLabel: Record<LeaveType, string> }) {
+const inputClass = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const dateInputClass = "w-full rounded-lg border border-line bg-white px-1 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const labelClass = "mb-1 block text-xs font-medium text-muted";
+
+// 44px tall — the minimum comfortable touch target.
+const primaryButton = "flex-1 rounded-lg bg-brand py-2.5 text-sm font-semibold text-white disabled:opacity-60";
+const quietButton = "flex-1 rounded-lg border border-line bg-white py-2.5 text-sm font-semibold text-foreground disabled:opacity-60";
+/** Rejecting is the rarer choice, so it is outlined rather than filled — it
+    should be findable, not louder than approving. */
+const rejectButton = "flex-1 rounded-lg border border-line bg-white py-2.5 text-sm font-semibold text-critical disabled:opacity-60";
+
+function PendingCard({
+  request,
+  leaveTypeLabel,
+  annualAvailable,
+}: {
+  request: LeaveRequestRow;
+  leaveTypeLabel: Record<LeaveType, string>;
+  annualAvailable?: number;
+}) {
   const { t } = useLanguage();
   const router = useRouter();
   const { addToast } = useToast();
@@ -75,9 +98,9 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
 
   if (mode === "edit") {
     return (
-      <li className="rounded-xl bg-white p-4 shadow-sm">
-        <p className="mb-1 font-semibold text-foreground">{employeeName(request)}</p>
-        <p className="mb-3 text-xs text-foreground/50">{t("leave.editRequest")}</p>
+      <li className="g-card p-4">
+        <p className="mb-1 font-semibold">{employeeName(request)}</p>
+        <p className="mb-3 text-xs text-muted">{t("leave.editRequest")}</p>
         <form action={editAction} className="space-y-3">
           <div>
             <label className={labelClass}>{t("leave.leaveType")}</label>
@@ -103,12 +126,10 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
             <label className={labelClass}>{t("leave.reason")}</label>
             <textarea name="reason" rows={2} defaultValue={request.reason ?? ""} className={inputClass} />
           </div>
-          {editState?.error && <p className="text-sm text-red-600">{editState.error}</p>}
+          {editState?.error && <p className="text-sm text-critical">{editState.error}</p>}
           <div className="flex gap-2">
-            <button type="submit" className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white">
-              {t("leave.saveChanges")}
-            </button>
-            <button type="button" onClick={() => setMode("view")} className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground">
+            <button type="submit" className={primaryButton}>{t("leave.saveChanges")}</button>
+            <button type="button" onClick={() => setMode("view")} className={quietButton}>
               {t("leave.cancelEdit")}
             </button>
           </div>
@@ -117,26 +138,43 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
     );
   }
 
+  // Only meaningful for the default charge period — charging a different
+  // period draws down a different balance than the one shown here.
+  const showBalanceAfter =
+    request.leave_type === "annual" && annualAvailable !== undefined && chargeOffset === 0;
+  const balanceAfter = Math.max(0, (annualAvailable ?? 0) - request.days);
+
   return (
-    <li className="rounded-xl bg-white p-4 shadow-sm">
-      <p className="font-semibold text-foreground">{employeeName(request)}</p>
-      <p className="mt-1 text-sm text-foreground/60">
-        {leaveTypeLabel[request.leave_type]} · {request.days} {t("leave.days")}
-      </p>
-      <p className="mt-1 text-sm text-foreground/60">{fmtDate(request.start_date)} – {fmtDate(request.end_date)}</p>
-      {request.reason && (
-        <p className="mt-1 text-sm text-foreground/60">{t("leave.reason")}: {request.reason}</p>
-      )}
+    <li className="g-card border-attention-line p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold">{employeeName(request)}</p>
+          <p className="mt-0.5 text-[12.5px] text-muted">
+            {leaveTypeLabel[request.leave_type]} · {fmtDateRange(request.start_date, request.end_date)} ·{" "}
+            {request.days} {t(request.days === 1 ? "leave.day" : "leave.days")}
+          </p>
+          {showBalanceAfter && (
+            <p className="mt-0.5 text-[12.5px] text-muted">
+              {t("leave.balanceAfter")}: {balanceAfter} {t(balanceAfter === 1 ? "leave.day" : "leave.days")}
+            </p>
+          )}
+          {request.reason && (
+            <p className="mt-0.5 text-[12.5px] text-muted">{t("leave.reasonLabel")}: {request.reason}</p>
+          )}
+        </div>
+        <span className={`g-pill ${STATUS_PILL.pending}`}>{t("leave.pending")}</span>
+      </div>
+
       {request.leave_type === "annual" && (
-        <div className="mt-3 rounded-lg bg-black/[0.03] p-3">
-          <p className="mb-1.5 text-xs font-medium text-foreground/60">Charge annual leave to</p>
+        <div className="mt-3 rounded-lg border border-line-soft bg-[#fbfcfd] p-3">
+          <p className="mb-1.5 text-xs font-medium text-muted">Charge annual leave to</p>
           <div className="flex flex-col gap-1">
             {[
               { v: 0, label: "Current period (default)" },
               { v: -1, label: "Previous period" },
               { v: 1, label: "Upcoming period" },
             ].map((o) => (
-              <label key={o.v} className="flex items-center gap-2 text-sm text-foreground/80">
+              <label key={o.v} className="flex items-center gap-2 text-sm">
                 <input
                   type="radio"
                   name={`charge-${request.id}`}
@@ -150,21 +188,20 @@ function PendingCard({ request, leaveTypeLabel }: { request: LeaveRequestRow; le
           </div>
         </div>
       )}
-      <div className="mt-3 flex gap-2">
-        <button type="button" disabled={isPending} onClick={handleApprove}
-          className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white disabled:opacity-60">
+
+      <div className="mt-3.5 flex gap-2">
+        <button type="button" disabled={isPending} onClick={handleApprove} className={primaryButton}>
           {isPending ? t("common.loading") : t("leave.approve")}
         </button>
-        <button type="button" disabled={isPending} onClick={handleReject}
-          className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground disabled:opacity-60">
+        <button type="button" disabled={isPending} onClick={handleReject} className={rejectButton}>
           {t("leave.reject")}
         </button>
         <button type="button" disabled={isPending} onClick={() => setMode("edit")}
-          className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-foreground/60 disabled:opacity-60">
+          className="rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium text-muted disabled:opacity-60">
           {t("leave.editRequest")}
         </button>
       </div>
-      {actionError && <p className="mt-2 text-sm text-red-600">{actionError}</p>}
+      {actionError && <p className="mt-2 text-sm text-critical">{actionError}</p>}
     </li>
   );
 }
@@ -207,9 +244,9 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
 
   if (mode === "edit") {
     return (
-      <li className="rounded-xl bg-white p-4 shadow-sm">
-        <p className="mb-1 font-semibold text-foreground">{employeeName(request)}</p>
-        <p className="mb-3 text-xs text-foreground/50">{t("leave.editRequest")}</p>
+      <li className="g-card p-4">
+        <p className="mb-1 font-semibold">{employeeName(request)}</p>
+        <p className="mb-3 text-xs text-muted">{t("leave.editRequest")}</p>
         <form action={editAction} className="space-y-3">
           <div>
             <label className={labelClass}>{t("leave.leaveType")}</label>
@@ -238,14 +275,12 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
             <label className={labelClass}>{t("leave.reason")}</label>
             <textarea name="reason" rows={2} defaultValue={request.reason ?? ""} className={inputClass} />
           </div>
-          {editState?.error && <p className="text-sm text-red-600">{editState.error}</p>}
+          {editState?.error && <p className="text-sm text-critical">{editState.error}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={isEditing}
-              className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white disabled:opacity-60">
+            <button type="submit" disabled={isEditing} className={primaryButton}>
               {isEditing ? t("common.loading") : t("leave.saveChanges")}
             </button>
-            <button type="button" onClick={() => setMode("view")}
-              className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground">
+            <button type="button" onClick={() => setMode("view")} className={quietButton}>
               {t("leave.cancelEdit")}
             </button>
           </div>
@@ -256,58 +291,51 @@ function HistoryCard({ request, leaveTypeLabel, statusLabel }: {
 
   if (mode === "cancelConfirm") {
     return (
-      <li className="rounded-xl border border-red-200 bg-red-50 p-4">
-        <p className="mb-1 font-semibold text-foreground">{employeeName(request)}</p>
-        <p className="mb-3 text-sm text-red-700">{t("leave.cancelApprovedConfirm")}</p>
+      <li className="rounded-[0.625rem] border border-critical/30 bg-critical-soft p-4">
+        <p className="mb-1 font-semibold">{employeeName(request)}</p>
+        <p className="mb-3 text-sm text-critical">{t("leave.cancelApprovedConfirm")}</p>
         <div className="flex gap-2">
           <button type="button" disabled={isPending} onClick={handleCancel}
-            className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            className="flex-1 rounded-lg bg-critical py-2.5 text-sm font-semibold text-white disabled:opacity-60">
             {isPending ? t("common.loading") : t("leave.cancelApprovedYes")}
           </button>
-          <button type="button" onClick={() => setMode("view")}
-            className="flex-1 rounded-lg bg-black/5 py-2 text-sm font-semibold text-foreground">
+          <button type="button" onClick={() => setMode("view")} className={quietButton}>
             {t("common.back")}
           </button>
         </div>
-        {cancelError && <p className="mt-2 text-sm text-red-700">{cancelError}</p>}
+        {cancelError && <p className="mt-2 text-sm text-critical">{cancelError}</p>}
       </li>
     );
   }
 
   return (
-    <li className="rounded-xl bg-white p-4 shadow-sm">
+    <li className="g-card p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-foreground">{employeeName(request)}</p>
-          <p className="mt-1 text-sm text-foreground/60">
-            {leaveTypeLabel[request.leave_type]} · {request.days} {t("leave.days")}
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold">{employeeName(request)}</p>
+          <p className="mt-0.5 text-[12.5px] text-muted">
+            {leaveTypeLabel[request.leave_type]} · {fmtDateRange(request.start_date, request.end_date)} ·{" "}
+            {request.days} {t(request.days === 1 ? "leave.day" : "leave.days")}
           </p>
-          <p className="mt-1 text-sm text-foreground/60">{fmtDate(request.start_date)} – {fmtDate(request.end_date)}</p>
           {request.reason && (
-            <p className="mt-1 text-sm text-foreground/60">{t("leave.reason")}: {request.reason}</p>
+            <p className="mt-0.5 text-[12.5px] text-muted">{t("leave.reasonLabel")}: {request.reason}</p>
           )}
           {chargePeriodTag(request.annual_charge_offset) && (
-            <span className="mt-1 inline-block rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
+            <span className="g-pill g-pill-brand mt-1.5">
               {chargePeriodTag(request.annual_charge_offset)}
             </span>
           )}
         </div>
-        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
-          request.status === "approved" ? "bg-brand/10 text-brand"
-          : request.status === "cancelled" ? "bg-orange-100 text-orange-600"
-          : "bg-black/5 text-foreground/60"
-        }`}>
-          {statusLabel[request.status]}
-        </span>
+        <span className={`g-pill ${STATUS_PILL[request.status]}`}>{statusLabel[request.status]}</span>
       </div>
       {request.status === "approved" && (
         <div className="mt-3 flex gap-2">
           <button type="button" onClick={() => setMode("edit")}
-            className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
+            className="rounded-full bg-brand-surface px-3 py-1.5 text-xs font-semibold text-brand">
             {t("leave.editRequest")}
           </button>
           <button type="button" onClick={() => setMode("cancelConfirm")}
-            className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
+            className="rounded-full bg-critical-soft px-3 py-1.5 text-xs font-semibold text-critical">
             {t("leave.cancelApproved")}
           </button>
         </div>
@@ -320,10 +348,12 @@ export function LeaveApprovalsClient({
   requests,
   calendarEntries,
   publicHolidays,
+  annualAvailable = {},
 }: {
   requests: LeaveRequestRow[];
   calendarEntries: LeaveCalendarEntry[];
   publicHolidays: { date: string; name: string }[];
+  annualAvailable?: Record<string, number>;
 }) {
   const { t } = useLanguage();
 
@@ -356,10 +386,8 @@ export function LeaveApprovalsClient({
   const upcomingNonPending = nonPending.filter((r) => r.end_date >= today);
   const allPastRequests = nonPending.filter((r) => r.end_date < today);
 
-  // Upcoming: pending first (sorted by start_date ASC), then non-pending upcoming (sorted ASC)
   const sortedPending = [...pendingRequests].sort((a, b) => a.start_date.localeCompare(b.start_date));
   const sortedUpcomingNonPending = [...upcomingNonPending].sort((a, b) => a.start_date.localeCompare(b.start_date));
-  const allUpcoming = [...sortedPending, ...sortedUpcomingNonPending];
 
   // Past: most recently started first (DESC)
   const allPastSorted = [...allPastRequests].sort((a, b) => b.start_date.localeCompare(a.start_date));
@@ -370,10 +398,10 @@ export function LeaveApprovalsClient({
     new Map(allNonPendingEmployees.map((r) => [r.employee_id, employeeName(r)])).entries()
   ).sort((a, b) => a[1].localeCompare(b[1]));
 
-  // Apply employee filter
-  const filteredUpcoming = employeeFilter
-    ? allUpcoming.filter((r) => r.status === "pending" || r.employee_id === employeeFilter)
-    : allUpcoming;
+  // The employee filter never hides pending requests — they still need a decision.
+  const filteredSettled = employeeFilter
+    ? sortedUpcomingNonPending.filter((r) => r.employee_id === employeeFilter)
+    : sortedUpcomingNonPending;
 
   const filteredPast = employeeFilter
     ? allPastSorted.filter((r) => r.employee_id === employeeFilter)
@@ -387,7 +415,7 @@ export function LeaveApprovalsClient({
   const hasMore = pastWithinTwoYears.length > pastWithinSixMonths.length;
   const visiblePast = showMore ? pastWithinTwoYears : pastWithinSixMonths;
 
-  const pendingCount = pendingRequests.length;
+  const pendingCount = sortedPending.length;
 
   function switchTab(next: "upcoming" | "past") {
     setTab(next);
@@ -397,29 +425,29 @@ export function LeaveApprovalsClient({
   return (
     <>
       <Header titleKey="leave.managerTitle" />
-      <main className="flex-1 px-4 py-6">
+      <main className="flex-1 px-4 py-5">
         <Link href="/manager/leave/record"
-          className="mb-4 block rounded-lg bg-brand py-3 text-center text-base font-semibold text-white">
+          className="mb-4 block rounded-[0.625rem] bg-brand py-3 text-center text-base font-semibold text-white">
           {t("leave.recordLeaveTitle")}
         </Link>
 
-        <h2 className="mb-2 text-sm font-semibold text-foreground/60">{t("leave.peopleOnLeave")}</h2>
+        <h2 className="g-label mb-2">{t("leave.peopleOnLeave")}</h2>
         <div className="mb-5">
           <LeaveCalendar entries={calendarEntries} publicHolidays={publicHolidays} />
         </div>
 
         {/* Tab switcher */}
-        <div className="mb-4 flex rounded-xl bg-black/5 p-1">
+        <div className="mb-4 flex rounded-[0.625rem] bg-line-soft p-0.5">
           <button
             type="button"
             onClick={() => switchTab("upcoming")}
-            className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
-              tab === "upcoming" ? "bg-white text-brand shadow-sm" : "text-foreground/50"
+            className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[13.5px] font-semibold transition-colors ${
+              tab === "upcoming" ? "border border-line bg-white text-brand" : "text-muted"
             }`}
           >
             Upcoming
             {pendingCount > 0 && (
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              <span className="g-num flex h-4 min-w-4 items-center justify-center rounded-full bg-attention px-1 text-[10px] font-bold text-white">
                 {pendingCount}
               </span>
             )}
@@ -427,8 +455,8 @@ export function LeaveApprovalsClient({
           <button
             type="button"
             onClick={() => switchTab("past")}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
-              tab === "past" ? "bg-white text-brand shadow-sm" : "text-foreground/50"
+            className={`flex-1 rounded-lg py-2 text-[13.5px] font-semibold transition-colors ${
+              tab === "past" ? "border border-line bg-white text-brand" : "text-muted"
             }`}
           >
             Past
@@ -437,11 +465,11 @@ export function LeaveApprovalsClient({
 
         {/* Employee filter */}
         {employeeList.length > 1 && (
-          <div className="mb-3">
+          <div className="mb-4">
             <select
               value={employeeFilter}
               onChange={(e) => { setEmployeeFilter(e.target.value); setShowMore(false); }}
-              className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-foreground"
+              className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm"
             >
               <option value="">All employees</option>
               {employeeList.map(([id, name]) => (
@@ -451,30 +479,49 @@ export function LeaveApprovalsClient({
           </div>
         )}
 
-        {/* Upcoming tab */}
+        {/* Upcoming tab — requests awaiting a decision are lifted out of the
+            list and counted, so the work to do is not mixed in with the
+            requests that are already settled. */}
         {tab === "upcoming" && (
-          <>
-            {filteredUpcoming.length === 0 ? (
-              <p className="py-6 text-center text-sm text-foreground/50">No upcoming leave.</p>
-            ) : (
-              <ul className="space-y-3">
-                {filteredUpcoming.map((request) =>
-                  request.status === "pending" ? (
-                    <PendingCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} />
-                  ) : (
-                    <HistoryCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
-                  )
-                )}
-              </ul>
+          <div className="flex flex-col gap-5">
+            {pendingCount > 0 && (
+              <section>
+                <h3 className="g-label mb-2">{t("leave.needsDecision")} · {pendingCount}</h3>
+                <ul className="space-y-3">
+                  {sortedPending.map((request) => (
+                    <PendingCard
+                      key={request.id}
+                      request={request}
+                      leaveTypeLabel={leaveTypeLabel}
+                      annualAvailable={annualAvailable[request.employee_id]}
+                    />
+                  ))}
+                </ul>
+              </section>
             )}
-          </>
+
+            {filteredSettled.length > 0 && (
+              <section>
+                <h3 className="g-label mb-2">{t("leave.approved")}</h3>
+                <ul className="space-y-3">
+                  {filteredSettled.map((request) => (
+                    <HistoryCard key={request.id} request={request} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {pendingCount === 0 && filteredSettled.length === 0 && (
+              <p className="py-6 text-center text-sm text-muted">No upcoming leave.</p>
+            )}
+          </div>
         )}
 
         {/* Past tab */}
         {tab === "past" && (
           <>
             {visiblePast.length === 0 ? (
-              <p className="py-6 text-center text-sm text-foreground/50">{t("leave.noHistory")}</p>
+              <p className="py-6 text-center text-sm text-muted">{t("leave.noHistory")}</p>
             ) : (
               <ul className="space-y-3">
                 {visiblePast.map((request) => (
@@ -482,16 +529,10 @@ export function LeaveApprovalsClient({
                 ))}
               </ul>
             )}
-            {hasMore && !showMore && (
-              <button type="button" onClick={() => setShowMore(true)}
-                className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60">
-                See more (up to 2 years)
-              </button>
-            )}
-            {showMore && hasMore && (
-              <button type="button" onClick={() => setShowMore(false)}
-                className="mt-4 w-full rounded-lg border border-black/10 bg-white py-2.5 text-sm font-medium text-foreground/60">
-                See less
+            {hasMore && (
+              <button type="button" onClick={() => setShowMore(!showMore)}
+                className="mt-4 w-full rounded-lg border border-line bg-white py-2.5 text-sm font-medium text-muted">
+                {showMore ? "See less" : "See more (up to 2 years)"}
               </button>
             )}
           </>

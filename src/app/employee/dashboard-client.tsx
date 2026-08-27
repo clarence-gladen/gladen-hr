@@ -8,7 +8,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { LanguageToggle } from "@/components/language-toggle";
 import { createClient } from "@/lib/supabase/client";
 import type { LeaveType } from "@/lib/types/database";
-import { fmtDate } from "@/lib/utils/date";
+import { fmtDateRange } from "@/lib/utils/date";
 
 const QUOTES = [
   "The strength of the team is each individual member. The strength of each member is the team.",
@@ -33,6 +33,7 @@ interface Announcement {
   title: string;
   body: string;
   created_at: string;
+  unread?: boolean;
 }
 
 interface UpcomingLeave {
@@ -45,6 +46,7 @@ interface UpcomingLeave {
 
 export interface DashboardProps {
   firstName: string | null;
+  greetingKey: string;
   todayLabel: string;
   annualAvail: number;
   sickAvail: number;
@@ -57,10 +59,46 @@ export interface DashboardProps {
   upcomingLeaves: UpcomingLeave[];
   featureCheckin: boolean;
   featureChecklist: boolean;
+  checkinSiteLabel: string | null;
+  checkedIn: boolean;
+}
+
+/** One figure and its label. Turns amber when it is something to act on. */
+function Stat({
+  href,
+  value,
+  label,
+  attention = false,
+  small = false,
+}: {
+  href: string;
+  value: string;
+  label: string;
+  attention?: boolean;
+  small?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`g-card px-3.5 py-3 ${attention ? "border-attention-line bg-attention-surface" : ""}`}
+    >
+      <p
+        className={`g-num font-semibold leading-none ${small ? "text-[22px]" : "text-[27px]"} ${
+          attention ? "text-attention" : "text-brand"
+        }`}
+      >
+        {value}
+      </p>
+      <p className={`mt-1.5 text-[12.5px] font-medium ${attention ? "text-attention" : "text-muted"}`}>
+        {label}
+      </p>
+    </Link>
+  );
 }
 
 export function EmployeeDashboardClient({
   firstName,
+  greetingKey,
   todayLabel,
   annualAvail,
   sickAvail,
@@ -73,6 +111,8 @@ export function EmployeeDashboardClient({
   upcomingLeaves,
   featureCheckin,
   featureChecklist,
+  checkinSiteLabel,
+  checkedIn,
 }: DashboardProps) {
   const { t } = useLanguage();
   const router = useRouter();
@@ -93,6 +133,8 @@ export function EmployeeDashboardClient({
     router.refresh();
   }
 
+  const greeting = firstName ? `${t(greetingKey)}, ${firstName}` : t(greetingKey);
+
   return (
     <div className="flex flex-col">
       {/* Header — identical structure to inner <Header>: sticky top-0 z-10 bg-brand */}
@@ -109,7 +151,7 @@ export function EmployeeDashboardClient({
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-sm font-medium text-white/80"
+            className="text-sm font-medium text-white/90"
           >
             {t("common.signOut")}
           </button>
@@ -117,99 +159,99 @@ export function EmployeeDashboardClient({
       </div>
 
       {/* Page content */}
-      <div className="flex flex-col gap-3 px-4 py-3">
+      <div className="flex flex-col gap-4 px-4 py-4">
 
-        {/* Welcome card */}
-        <div className="rounded-xl bg-white px-4 py-4 shadow-sm">
-          <p className="text-lg font-semibold text-foreground">
-            {firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋"}
-          </p>
-          <p className="mt-0.5 text-sm text-foreground/50">{todayLabel}</p>
+        {/* Greeting — a plain heading, not a card. Nothing here is tappable, so
+            it should not look like the surfaces that are. */}
+        <div>
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">{greeting}</h1>
+          <p className="mt-0.5 text-sm text-muted">{todayLabel}</p>
         </div>
 
-        {/* Site features (trial-gated) */}
-        {(featureCheckin || featureChecklist) && (
-          <div className="grid grid-cols-1 gap-3">
-            {featureCheckin && (
-              <Link
-                href="/employee/checkin"
-                className="flex items-center justify-between rounded-xl bg-brand px-4 py-4 text-white shadow-sm"
-              >
-                <span className="text-base font-semibold">📍 Check in / out</span>
-                <span aria-hidden>→</span>
-              </Link>
-            )}
-            {featureChecklist && (
-              <Link
-                href="/employee/checklist"
-                className="flex items-center justify-between rounded-xl bg-white px-4 py-4 shadow-sm"
-              >
-                <span className="text-base font-semibold text-foreground">✅ Cleaning checklist</span>
-                <span aria-hidden className="text-brand">→</span>
-              </Link>
-            )}
-          </div>
+        {/* Site features (trial-gated).
+            Check-in is the reason a cleaner opens this app, so it is the one
+            filled, full-width action; the checklist follows it as a step. */}
+        {featureCheckin && (
+          <Link
+            href="/employee/checkin"
+            className="flex items-center justify-between gap-3 rounded-[0.625rem] bg-brand px-4 py-4 text-white"
+          >
+            <span className="min-w-0">
+              {checkinSiteLabel && (
+                <span className="block truncate text-[11px] font-semibold uppercase tracking-[0.09em] text-white/75">
+                  {checkinSiteLabel}
+                </span>
+              )}
+              <span className="mt-0.5 block text-[17px] font-semibold tracking-[-0.01em]">
+                {checkedIn ? t("dashboard.checkOutToEnd") : t("dashboard.checkInToStart")}
+              </span>
+            </span>
+            <span aria-hidden className="text-lg">→</span>
+          </Link>
+        )}
+        {featureChecklist && (
+          <Link
+            href="/employee/checklist"
+            className="g-card flex items-center justify-between px-4 py-3.5 text-[14.5px] font-medium"
+          >
+            <span>✅ &nbsp;{t("dashboard.cleaningChecklist")}</span>
+            <span aria-hidden className="text-brand">→</span>
+          </Link>
         )}
 
         {/* Probation notice */}
         {onProbation && confirmDateLabel && (
-          <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
-            <p className="text-xs text-amber-700">
-              {t("leave.probationUntil")} <span className="font-semibold">{confirmDateLabel}</span>. {t("leave.leaveAvailableAfter")}
+          <div className="rounded-[0.625rem] border border-attention-line bg-attention-surface px-3.5 py-3">
+            <p className="text-[13px] leading-relaxed text-attention">
+              {t("leave.probationUntil")} <span className="font-semibold">{confirmDateLabel}</span>.{" "}
+              {t("leave.leaveAvailableAfter")}
             </p>
           </div>
         )}
 
-        {/* Quote */}
-        <div className="rounded-xl bg-brand/10 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand/60">Quote of the Day</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-brand/90">"{quote}"</p>
+        {/* Balances */}
+        <div>
+          <p className="g-label mb-2">{t("dashboard.yourBalances")}</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Stat href="/employee/leave" value={String(annualAvail)} label={t("summary.annualLeft")} />
+            <Stat href="/employee/leave" value={String(sickAvail)} label={t("summary.sickLeft")} />
+            <Stat
+              href="/employee/payslips"
+              small
+              value={netPay !== null ? `S$${Math.round(netPay).toLocaleString("en-SG")}` : "—"}
+              label={payslipLabel ? `${t("nav.payslips")} · ${payslipLabel}` : t("summary.latestPayslip")}
+            />
+            <Stat
+              href="/employee/announcements"
+              value={String(unreadCount)}
+              label={t("summary.unreadAnnouncements")}
+              attention={unreadCount > 0}
+            />
+          </div>
         </div>
 
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <Link href="/employee/leave" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className="text-2xl font-bold text-brand">{annualAvail}</p>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.annualLeft")}</p>
-          </Link>
-          <Link href="/employee/leave" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className="text-2xl font-bold text-brand">{sickAvail}</p>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.sickLeft")}</p>
-          </Link>
-          <Link href="/employee/payslips" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className="text-xl font-bold text-brand">
-              {netPay !== null ? `S$${netPay.toFixed(0)}` : "—"}
-            </p>
-            <p className="mt-0.5 text-xs text-foreground/50">
-              {payslipLabel ? `Pay (${payslipLabel})` : t("summary.latestPayslip")}
-            </p>
-          </Link>
-          <Link href="/employee/announcements" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className="text-2xl font-bold text-brand">{unreadCount}</p>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.unreadAnnouncements")}</p>
-          </Link>
-        </div>
-
-        {/* Upcoming Approved Leaves */}
+        {/* Upcoming approved leave */}
         {upcomingLeaves.length > 0 && (
-          <div className="rounded-xl bg-white p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold text-foreground">Upcoming Leave</p>
-              <Link href="/employee/leave" className="text-xs font-medium text-brand">View all</Link>
+          <div className="g-panel">
+            <div className="g-panel-head">
+              <p className="text-[13.5px] font-semibold">{t("dashboard.upcomingLeave")}</p>
+              <Link href="/employee/leave" className="text-[13px] font-semibold text-brand">
+                {t("dashboard.viewAll")}
+              </Link>
             </div>
-            <ul className="space-y-2">
+            <ul>
               {upcomingLeaves.map((l) => (
-                <li key={l.id} className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">
+                <li key={l.id} className="g-row">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
                       {leaveTypeLabel[l.leave_type as LeaveType] ?? l.leave_type}
                     </p>
-                    <p className="text-xs text-foreground/50">
-                      {fmtDate(l.start_date)} – {fmtDate(l.end_date)}
+                    <p className="mt-0.5 text-[12.5px] text-muted">
+                      {fmtDateRange(l.start_date, l.end_date)}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
-                    {l.days}d
+                  <span className="g-pill g-pill-brand">
+                    {l.days} {t(l.days === 1 ? "leave.day" : "leave.days")}
                   </span>
                 </li>
               ))}
@@ -217,23 +259,34 @@ export function EmployeeDashboardClient({
           </div>
         )}
 
-        {/* Latest Announcements */}
+        {/* Latest announcements */}
         {announcements.length > 0 && (
-          <div className="rounded-xl bg-white p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold text-foreground">Latest Announcements</p>
-              <Link href="/employee/announcements" className="text-xs font-medium text-brand">View all</Link>
+          <div className="g-panel">
+            <div className="g-panel-head">
+              <p className="text-[13.5px] font-semibold">{t("dashboard.announcements")}</p>
+              <Link href="/employee/announcements" className="text-[13px] font-semibold text-brand">
+                {t("dashboard.viewAll")}
+              </Link>
             </div>
-            <ul className="space-y-2">
+            <ul>
               {announcements.map((a) => (
-                <li key={a.id} className="border-l-2 border-brand/30 pl-2">
-                  <p className="text-xs font-semibold text-foreground">{a.title}</p>
-                  <p className="text-xs text-foreground/50 line-clamp-1">{a.body}</p>
+                <li key={a.id} className="g-row">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{a.title}</p>
+                    <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted">{a.body}</p>
+                  </div>
+                  {a.unread && <span className="g-pill g-pill-attention">{t("dashboard.newBadge")}</span>}
                 </li>
               ))}
             </ul>
           </div>
         )}
+
+        {/* Quote — deliberately the quietest thing on the page. */}
+        <div className="border-l-2 border-line pl-3">
+          <p className="g-label">{t("dashboard.quoteOfTheDay")}</p>
+          <p className="mt-1 text-[13px] italic leading-relaxed text-muted">{quote}</p>
+        </div>
 
       </div>
     </div>

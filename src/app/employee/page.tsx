@@ -8,6 +8,15 @@ import {
 import { todaySG, todaySGPlusDays } from "@/lib/utils/date";
 import { EmployeeDashboardClient } from "./dashboard-client";
 
+const SG = "Asia/Singapore";
+
+/** Hour of the day in Singapore, 0–23. */
+function sgHour(now: Date = new Date()): number {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: SG, hour: "2-digit", hour12: false }).format(now)
+  );
+}
+
 export default async function EmployeeDashboardPage() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
@@ -20,11 +29,20 @@ export default async function EmployeeDashboardPage() {
 
   const employeeId = profile?.employee_id;
   const todayStr = todaySG();
-  const todayLabel = new Date().toLocaleDateString(undefined, {
+
+  // Pinned to Singapore: the server runs in UTC, so an unpinned format shows
+  // the previous day between SGT midnight and 8am.
+  const todayLabel = new Date().toLocaleDateString("en-GB", {
+    timeZone: SG,
     weekday: "long",
     day: "numeric",
     month: "long",
+    year: "numeric",
   });
+
+  const hour = sgHour();
+  const greetingKey =
+    hour < 12 ? "dashboard.goodMorning" : hour < 18 ? "dashboard.goodAfternoon" : "dashboard.goodEvening";
 
   const in30DaysStr = todaySGPlusDays(30);
 
@@ -70,8 +88,11 @@ export default async function EmployeeDashboardPage() {
   const onProbation = startDate ? isOnProbation(startDate, todayStr) : false;
   const confirmationDate = startDate ? getConfirmationDate(startDate) : null;
   const confirmDateLabel = confirmationDate
-    ? confirmationDate.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    ? confirmationDate.toLocaleDateString("en-GB", { timeZone: SG, day: "numeric", month: "short", year: "numeric" })
     : null;
+
+  const featureCheckin = employeeRes.data?.feature_checkin ?? false;
+  const featureChecklist = employeeRes.data?.feature_checklist ?? false;
 
   // Fetch current employment year's leave used amounts
   const balanceRes = employeeId && startDate
@@ -86,6 +107,43 @@ export default async function EmployeeDashboardPage() {
 
   const balance = balanceRes.data;
 
+  // Where the employee is working today, and whether they are currently on
+  // site — so the dashboard can name the site and offer the right action
+  // rather than a generic "Check in / out". Only queried when the feature is on.
+  let checkinSiteLabel: string | null = null;
+  let checkedIn = false;
+
+  if (employeeId && featureCheckin) {
+    const [assignmentsRes, eventsRes] = await Promise.all([
+      supabase
+        .from("contract_assignments")
+        .select("contract_id, contracts(client_name, site_name)")
+        .eq("employee_id", employeeId)
+        .lte("assigned_from", todayStr)
+        .or(`assigned_to.is.null,assigned_to.gte.${todayStr}`),
+      supabase
+        .from("attendance_events")
+        .select("event_type, occurred_at")
+        .eq("employee_id", employeeId)
+        .eq("status", "accepted")
+        // +08:00 pins the bound to SGT midnight; a naive timestamp is read as
+        // UTC and would hide every event made before 8am local time.
+        .gte("occurred_at", `${todayStr}T00:00:00+08:00`)
+        .order("occurred_at", { ascending: false })
+        .limit(1),
+    ]);
+
+    const assignments = assignmentsRes.data ?? [];
+    if (assignments.length === 1) {
+      const c = Array.isArray(assignments[0].contracts)
+        ? assignments[0].contracts[0]
+        : assignments[0].contracts;
+      checkinSiteLabel = c?.site_name || c?.client_name || null;
+    }
+
+    checkedIn = (eventsRes.data ?? [])[0]?.event_type === "check_in";
+  }
+
   const annualEntitlement = startDate ? getAvailableAnnualLeave(startDate, todayStr) : 0;
   const sickEntitlement = startDate ? getAvailableSickLeave(startDate, todayStr) : 0;
 
@@ -98,14 +156,18 @@ export default async function EmployeeDashboardPage() {
 
   const payslip = payslipRes.data;
   const readIds = new Set((readsRes.data ?? []).map((r) => r.announcement_id));
-  const unreadCount = (announcementsRes.data ?? []).filter((a) => !readIds.has(a.id)).length;
+  const announcements = (announcementsRes.data ?? []).map((a) => ({
+    ...a,
+    unread: !readIds.has(a.id),
+  }));
+  const unreadCount = announcements.filter((a) => a.unread).length;
 
   const payslipRun = payslip?.payroll_runs;
   const runData = payslipRun
     ? (Array.isArray(payslipRun) ? payslipRun[0] : payslipRun) as { month: number; year: number } | null
     : null;
   const payslipLabel = runData
-    ? new Date(runData.year, runData.month - 1).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+    ? new Date(runData.year, runData.month - 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
     : null;
 
   const firstName = profile?.full_name?.split(" ")[0] ?? null;
@@ -120,6 +182,7 @@ export default async function EmployeeDashboardPage() {
   return (
     <EmployeeDashboardClient
       firstName={firstName}
+      greetingKey={greetingKey}
       todayLabel={todayLabel}
       annualAvail={annualAvail}
       sickAvail={sickAvail}
@@ -128,10 +191,12 @@ export default async function EmployeeDashboardPage() {
       payslipLabel={payslipLabel}
       onProbation={onProbation}
       confirmDateLabel={confirmDateLabel}
-      announcements={announcementsRes.data ?? []}
+      announcements={announcements}
       upcomingLeaves={upcomingLeaves}
-      featureCheckin={employeeRes.data?.feature_checkin ?? false}
-      featureChecklist={employeeRes.data?.feature_checklist ?? false}
+      featureCheckin={featureCheckin}
+      featureChecklist={featureChecklist}
+      checkinSiteLabel={checkinSiteLabel}
+      checkedIn={checkedIn}
     />
   );
 }

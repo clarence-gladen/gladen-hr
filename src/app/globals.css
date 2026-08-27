@@ -1,14 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f8fb;
-  --foreground: #1c2333;
+  /* Surfaces and text.
+     Neutrals carry a slight blue bias so they sit with the brand navy rather
+     than reading as an unrelated grey. */
+  --background: #f4f6f9;
+  --foreground: #151b26;
 
   /* Gladen brand blue and supporting shades */
   --color-brand: #2b3d6b;
   --color-brand-light: #4a5d96;
   --color-brand-dark: #1c2a4d;
   --color-brand-surface: #eef1f8;
+
+  /* Solid muted text.
+     Replaces text-foreground/40 (2.4:1) and /50 (3.0:1), both of which fail
+     WCAG AA. #5b6577 on --background is 5.6:1. Always prefer this token over
+     an opacity modifier for text that must be read. */
+  --color-muted: #5b6577;
+
+  /* Hairline borders. These replace shadow-sm as the way surfaces are
+     separated — a 1px line is crisper on a phone than a soft shadow. */
+  --color-line: #dfe4ec;
+  --color-line-soft: #eaeef4;
+
+  /* Semantic status colours. Independent of the brand accent: navy means
+     "Gladen", these mean "state of this thing". Used for pills, stat cards
+     and card edges wherever something is pending, done or wrong. */
+  --color-attention: #8a5806;
+  --color-attention-line: #e5c98d;
+  --color-attention-surface: #fffdf7;
+  --color-attention-soft: #f9efd9;
+
+  --color-positive: #1a6547;
+  --color-positive-soft: #dcefe6;
+
+  --color-critical: #9b3529;
+  --color-critical-soft: #f8e4e1;
 }
 
 @theme inline {
@@ -18,6 +46,17 @@
   --color-brand-light: var(--color-brand-light);
   --color-brand-dark: var(--color-brand-dark);
   --color-brand-surface: var(--color-brand-surface);
+  --color-muted: var(--color-muted);
+  --color-line: var(--color-line);
+  --color-line-soft: var(--color-line-soft);
+  --color-attention: var(--color-attention);
+  --color-attention-line: var(--color-attention-line);
+  --color-attention-surface: var(--color-attention-surface);
+  --color-attention-soft: var(--color-attention-soft);
+  --color-positive: var(--color-positive);
+  --color-positive-soft: var(--color-positive-soft);
+  --color-critical: var(--color-critical);
+  --color-critical-soft: var(--color-critical-soft);
   --font-sans: var(--font-inter);
 }
 
@@ -25,4 +64,97 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Shared surface primitives.
+   The app is otherwise plain utility classes; these six exist because they are
+   composites repeated on every screen, and keeping them in one place is what
+   lets the rest of the app be converted without the styling drifting apart.
+   They live in the components layer, so any utility class still overrides them.
+   --------------------------------------------------------------------------- */
+@layer components {
+  /* Small uppercase heading above a group of cards. */
+  .g-label {
+    font-size: 0.6875rem;      /* 11px */
+    font-weight: 600;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--color-muted);
+  }
+
+  /* A single white surface. */
+  .g-card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 0.625rem;   /* 10px */
+  }
+
+  /* A white surface holding a header and a list of rows. */
+  .g-panel {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 0.625rem;
+    overflow: hidden;
+  }
+
+  .g-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.625rem;
+    padding: 0.6875rem 0.875rem;
+    border-bottom: 1px solid var(--color-line-soft);
+  }
+
+  /* One row inside a .g-panel. */
+  .g-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.625rem;
+    padding: 0.6875rem 0.875rem;
+    border-bottom: 1px solid #f1f4f8;
+  }
+  .g-row:last-child {
+    border-bottom: none;
+  }
+
+  /* Status pill. Pair with one of the modifiers below. */
+  .g-pill {
+    display: inline-block;
+    flex-shrink: 0;
+    white-space: nowrap;
+    border-radius: 9999px;
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .g-pill-brand     { background: var(--color-brand-surface);      color: var(--color-brand); }
+  .g-pill-attention { background: var(--color-attention-soft);     color: var(--color-attention); }
+  .g-pill-positive  { background: var(--color-positive-soft);      color: var(--color-positive); }
+  .g-pill-critical  { background: var(--color-critical-soft);      color: var(--color-critical); }
+  .g-pill-neutral   { background: var(--color-line-soft);          color: var(--color-muted); }
+
+  /* Grid tile used by the More menu. Taller than a list row so it is an easy
+     target with gloves on. */
+  .g-tile {
+    position: relative;
+    display: flex;
+    min-height: 5.5rem;        /* 88px */
+    flex-direction: column;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 0.625rem;
+    padding: 0.875rem;
+  }
+
+  /* Any figure the eye compares down a column. */
+  .g-num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
 }
