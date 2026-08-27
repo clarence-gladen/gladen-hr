@@ -40,8 +40,41 @@ interface Announcement {
   created_at: string;
 }
 
+/** One figure and its label. Turns amber when it is something to act on. */
+function Stat({
+  href,
+  value,
+  label,
+  attention = false,
+}: {
+  href: string;
+  value: number;
+  label: string;
+  attention?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`g-card px-3.5 py-3 ${attention ? "border-attention-line bg-attention-surface" : ""}`}
+    >
+      <p
+        className={`g-num text-[27px] font-semibold leading-none ${
+          attention ? "text-attention" : "text-brand"
+        }`}
+      >
+        {value}
+      </p>
+      <p className={`mt-1.5 text-[12.5px] font-medium ${attention ? "text-attention" : "text-muted"}`}>
+        {label}
+      </p>
+    </Link>
+  );
+}
+
 export function DashboardClient({
   firstName,
+  greetingKey,
+  todayLabel,
   totalEmployees,
   onLeaveToday,
   pendingApprovals,
@@ -49,6 +82,8 @@ export function DashboardClient({
   anniversaryCount,
 }: {
   firstName: string | null;
+  greetingKey: string;
+  todayLabel: string;
   totalEmployees: number;
   onLeaveToday: OnLeaveEntry[];
   pendingApprovals: number;
@@ -58,9 +93,7 @@ export function DashboardClient({
   const { t } = useLanguage();
   const router = useRouter();
   const supabase = createClient();
-  const today = new Date();
-  const todayLabel = today.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  const quote = QUOTES[today.getDate() % QUOTES.length];
+  const quote = QUOTES[new Date().getDate() % QUOTES.length];
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -75,13 +108,17 @@ export function DashboardClient({
     no_pay: t("leave.noPay"),
     off_day: t("leave.offDay"),
   };
+  // Restricted to the app's own palette — a stray purple and grey were the only
+  // place those hues appeared anywhere in the product.
   const leaveTypeDot: Record<LeaveType, string> = {
     annual: "bg-brand",
-    sick: "bg-amber-400",
-    hospitalization: "bg-amber-400",
-    no_pay: "bg-gray-300",
-    off_day: "bg-purple-300",
+    sick: "bg-attention",
+    hospitalization: "bg-attention",
+    no_pay: "bg-muted",
+    off_day: "bg-brand-light",
   };
+
+  const greeting = firstName ? `${t(greetingKey)}, ${firstName}` : t(greetingKey);
 
   return (
     <div className="flex flex-col">
@@ -99,7 +136,7 @@ export function DashboardClient({
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-sm font-medium text-white/80"
+            className="text-sm font-medium text-white/90"
           >
             {t("common.signOut")}
           </button>
@@ -107,87 +144,113 @@ export function DashboardClient({
       </div>
 
       {/* Page content */}
-      <div className="flex flex-col gap-3 px-4 py-3">
+      <div className="flex flex-col gap-4 px-4 py-4">
 
-        {/* Welcome card */}
-        <div className="rounded-xl bg-white px-4 py-4 shadow-sm">
-          <p className="text-lg font-semibold text-foreground">
-            {firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋"}
-          </p>
-          <p className="mt-0.5 text-sm text-foreground/50">{todayLabel}</p>
+        {/* Greeting — a plain heading, not a card. */}
+        <div>
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">{greeting}</h1>
+          <p className="mt-0.5 text-sm text-muted">{todayLabel}</p>
         </div>
 
-        {/* Quote */}
-        <div className="rounded-xl bg-brand/10 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand/60">Quote of the Day</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-brand/90">"{quote}"</p>
+        {/* The one thing a manager opens this app to do. Only shown when there
+            is actually something waiting. */}
+        {pendingApprovals > 0 && (
+          <Link
+            href="/manager/leave"
+            className="flex items-center justify-between gap-3 rounded-[0.625rem] bg-brand px-4 py-4 text-white"
+          >
+            <span className="min-w-0">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.09em] text-white/75">
+                {t("leave.needsDecision")}
+              </span>
+              <span className="mt-0.5 block text-[17px] font-semibold tracking-[-0.01em]">
+                {pendingApprovals === 1
+                  ? t("dashboard.pendingHeroOne")
+                  : t("dashboard.pendingHeroMany", { n: pendingApprovals })}
+              </span>
+            </span>
+            <span aria-hidden className="text-lg">→</span>
+          </Link>
+        )}
+
+        {/* Today at a glance */}
+        <div>
+          <p className="g-label mb-2">{t("dashboard.today")}</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Stat href="/manager/employees" value={totalEmployees} label={t("summary.totalEmployees")} />
+            <Stat href="/manager/leave" value={onLeaveToday.length} label={t("summary.onLeaveToday")} />
+            <Stat
+              href="/manager/leave"
+              value={pendingApprovals}
+              label={t("summary.pendingApprovals")}
+              attention={pendingApprovals > 0}
+            />
+            <Stat
+              href="/manager/anniversaries"
+              value={anniversaryCount}
+              label={t("dashboard.anniversaries")}
+              attention={anniversaryCount > 0}
+            />
+          </div>
         </div>
 
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <Link href="/manager/employees" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className="text-2xl font-bold text-brand">{totalEmployees}</p>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.totalEmployees")}</p>
-          </Link>
-          <Link href="/manager/leave" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className="text-2xl font-bold text-brand">{onLeaveToday.length}</p>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.onLeaveToday")}</p>
-          </Link>
-          <Link href="/manager/leave" className="rounded-xl bg-white p-3 shadow-sm">
-            <p className={`text-2xl font-bold ${pendingApprovals > 0 ? "text-amber-500" : "text-brand"}`}>
-              {pendingApprovals}
-            </p>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("summary.pendingApprovals")}</p>
-          </Link>
-          <Link href="/manager/anniversaries" className="rounded-xl bg-amber-50 p-3 shadow-sm">
-            <p className={`text-2xl font-bold ${anniversaryCount > 0 ? "text-amber-600" : "text-amber-300"}`}>
-              {anniversaryCount}
-            </p>
-            <p className="mt-0.5 text-xs text-amber-600/70">Employment Anniversaries</p>
-          </Link>
-        </div>
-
-        {/* On Leave Today */}
-        <div className="rounded-xl bg-white p-3 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold text-foreground">{t("dashboard.onLeaveToday")}</p>
-            <Link href="/manager/leave" className="text-xs font-medium text-brand">View all</Link>
+        {/* On leave today */}
+        <div className="g-panel">
+          <div className="g-panel-head">
+            <p className="text-[13.5px] font-semibold">{t("dashboard.onLeaveToday")}</p>
+            <Link href="/manager/leave" className="text-[13px] font-semibold text-brand">
+              {t("dashboard.viewAll")}
+            </Link>
           </div>
           {onLeaveToday.length === 0 ? (
-            <p className="text-xs text-foreground/40">{t("dashboard.noOneOnLeaveToday")}</p>
+            <p className="px-3.5 py-3.5 text-[13px] text-muted">{t("dashboard.noOneOnLeaveToday")}</p>
           ) : (
-            <ul className="space-y-1.5">
+            <ul>
               {onLeaveToday.slice(0, 3).map((entry) => (
-                <li key={entry.id} className="flex items-center gap-2 text-xs">
-                  <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${leaveTypeDot[entry.leave_type]}`} />
-                  <span className="flex-1 text-foreground">{entry.full_name}</span>
-                  <span className="text-foreground/50">{leaveTypeLabel[entry.leave_type]}</span>
+                <li key={entry.id} className="g-row">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${leaveTypeDot[entry.leave_type]}`} />
+                    <span className="truncate text-sm font-medium">{entry.full_name}</span>
+                  </span>
+                  <span className="text-[12.5px] text-muted">{leaveTypeLabel[entry.leave_type]}</span>
                 </li>
               ))}
               {onLeaveToday.length > 3 && (
-                <li className="text-xs text-foreground/40">+{onLeaveToday.length - 3} more</li>
+                <li className="g-row text-[12.5px] text-muted">
+                  {t("dashboard.moreCount", { n: onLeaveToday.length - 3 })}
+                </li>
               )}
             </ul>
           )}
         </div>
 
-        {/* Latest Announcements */}
+        {/* Latest announcements */}
         {announcements.length > 0 && (
-          <div className="rounded-xl bg-white p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold text-foreground">Latest Announcements</p>
-              <Link href="/manager/announcements" className="text-xs font-medium text-brand">View all</Link>
+          <div className="g-panel">
+            <div className="g-panel-head">
+              <p className="text-[13.5px] font-semibold">{t("dashboard.announcements")}</p>
+              <Link href="/manager/announcements" className="text-[13px] font-semibold text-brand">
+                {t("dashboard.viewAll")}
+              </Link>
             </div>
-            <ul className="space-y-2">
+            <ul>
               {announcements.map((a) => (
-                <li key={a.id} className="border-l-2 border-brand/30 pl-2">
-                  <p className="text-xs font-semibold text-foreground">{a.title}</p>
-                  <p className="text-xs text-foreground/50 line-clamp-1">{a.body}</p>
+                <li key={a.id} className="g-row">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{a.title}</p>
+                    <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted">{a.body}</p>
+                  </div>
                 </li>
               ))}
             </ul>
           </div>
         )}
+
+        {/* Quote — deliberately the quietest thing on the page. */}
+        <div className="border-l-2 border-line pl-3">
+          <p className="g-label">{t("dashboard.quoteOfTheDay")}</p>
+          <p className="mt-1 text-[13px] italic leading-relaxed text-muted">{quote}</p>
+        </div>
 
       </div>
     </div>
