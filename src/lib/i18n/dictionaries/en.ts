@@ -78,8 +78,6 @@ const en = {
     goodEvening: "Good evening",
     yourBalances: "Your balances",
     today: "Today",
-    pendingHeroOne: "1 leave request needs your decision",
-    pendingHeroMany: "{n} leave requests need your decision",
     anniversaries: "Employment anniversaries",
     moreCount: "+{n} more",
     checkInToStart: "Check in to start your shift",

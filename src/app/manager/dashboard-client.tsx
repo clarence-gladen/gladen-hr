@@ -152,27 +152,6 @@ export function DashboardClient({
           <p className="mt-0.5 text-sm text-muted">{todayLabel}</p>
         </div>
 
-        {/* The one thing a manager opens this app to do. Only shown when there
-            is actually something waiting. */}
-        {pendingApprovals > 0 && (
-          <Link
-            href="/manager/leave"
-            className="flex items-center justify-between gap-3 rounded-[0.625rem] bg-brand px-4 py-4 text-white"
-          >
-            <span className="min-w-0">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.09em] text-white/75">
-                {t("leave.needsDecision")}
-              </span>
-              <span className="mt-0.5 block text-[17px] font-semibold tracking-[-0.01em]">
-                {pendingApprovals === 1
-                  ? t("dashboard.pendingHeroOne")
-                  : t("dashboard.pendingHeroMany", { n: pendingApprovals })}
-              </span>
-            </span>
-            <span aria-hidden className="text-lg">→</span>
-          </Link>
-        )}
-
         {/* Today at a glance */}
         <div>
           <p className="g-label mb-2">{t("dashboard.today")}</p>

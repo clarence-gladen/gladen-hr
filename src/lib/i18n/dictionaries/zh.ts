@@ -80,8 +80,6 @@ const zh: Partial<Dictionary> = {
     goodEvening: "晚上好",
     yourBalances: "假期余额",
     today: "今日",
-    pendingHeroOne: "1 项请假待您处理",
-    pendingHeroMany: "{n} 项请假待您处理",
     anniversaries: "入职周年",
     moreCount: "另有 {n} 人",
     checkInToStart: "签到开始工作",
