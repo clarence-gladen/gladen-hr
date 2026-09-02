@@ -269,6 +269,7 @@ const en = {
     sdl: "SDL",
     netPay: "Net Pay",
     save: "Save",
+    payslipSaved: "Payslip saved",
     back: "Back to Payroll Runs",
     finalise: "Finalise Payroll & Generate PDFs",
     completedBanner: "This payroll run is completed.",

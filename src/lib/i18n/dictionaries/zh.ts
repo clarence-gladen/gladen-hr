@@ -271,6 +271,7 @@ const zh: Partial<Dictionary> = {
     sdl: "技能发展税",
     netPay: "实发工资",
     save: "保存",
+    payslipSaved: "工资单已保存",
     back: "返回薪资周期",
     finalise: "完成薪资并生成PDF",
     completedBanner: "此薪资周期已完成。",

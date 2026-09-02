@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
+import { useToast } from "@/components/toast";
 import {
   deletePayrollRunAction,
   downloadAllPdfsAction,
@@ -100,9 +101,22 @@ function PayrollSummaryBar({ payslips }: { payslips: PayslipRow[] }) {
 function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; downloadUrl?: string; locked: boolean }) {
   const { t } = useLanguage();
   const router = useRouter();
+  const { addToast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, startSaveTransition] = useTransition();
+  const cardRef = useRef<HTMLLIElement>(null);
+  const collapsedBySave = useRef(false);
+
+  // The Save button sits at the bottom of a long form, so the viewport is deep
+  // inside the card when it collapses. Without this the manager is left
+  // stranded further down the list. Runs after the DOM has actually collapsed,
+  // and `nearest` means no scrolling at all when the card is already in view.
+  useEffect(() => {
+    if (expanded || !collapsedBySave.current) return;
+    collapsedBySave.current = false;
+    cardRef.current?.scrollIntoView({ block: "nearest" });
+  }, [expanded]);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -110,8 +124,17 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
     const formData = new FormData(e.currentTarget);
     startSaveTransition(async () => {
       const result = await updatePayslipAction(payslip.id, {}, formData);
-      if (result?.error) setSaveError(result.error);
-      else router.refresh();
+      if (result?.error) {
+        // Keep the card open so the entered figures are still there to correct.
+        setSaveError(result.error);
+        return;
+      }
+      // Collapse back to the summary row — the edit is done, and leaving the
+      // form open makes the manager scroll past it to reach the next employee.
+      collapsedBySave.current = true;
+      setExpanded(false);
+      addToast(t("payroll.payslipSaved"));
+      router.refresh();
     });
   }
 
@@ -124,7 +147,7 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
     Number(payslip.reimbursement);
 
   return (
-    <li className="rounded-xl bg-white p-4 shadow-sm">
+    <li ref={cardRef} className="rounded-xl bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
