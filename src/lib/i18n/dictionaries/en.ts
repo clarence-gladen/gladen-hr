@@ -276,6 +276,8 @@ const en = {
     step1: "Generate",
     step2: "Review & Edit",
     step3: "Finalise",
+    draftReport: "Download Draft Report (Excel)",
+    draftReportHint: "For review and approval before you finalise. Employees cannot see any payslip until this run is finalised.",
     deleteRun: "Delete Payroll Run",
     deleteConfirm: "This will permanently delete the payroll run and all payslips. Are you sure?",
     confirmDelete: "Yes, Delete",

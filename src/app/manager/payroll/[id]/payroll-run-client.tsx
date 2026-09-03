@@ -491,16 +491,35 @@ export function PayrollRunClient({
               </div>
             )}
 
-            {/* Step 3: Finalise (only if payslips exist) */}
             {hasPayslips && (
-              <div>
-                <button type="button" disabled={isPending} onClick={handleFinalise}
-                  className="w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white disabled:opacity-60">
-                  {isPending ? t("common.loading") : t("payroll.finalise")}
-                </button>
-                {finaliseMsg?.error && (
-                  <p className="mt-2 text-center text-sm text-red-600">{finaliseMsg.error}</p>
-                )}
+              <div className="space-y-4">
+                {/* Step 2: the approval copy. Available before finalising so the
+                    figures can be signed off without issuing payslips — nothing
+                    here is visible to employees until the run is finalised. */}
+                <div>
+                  <button type="button" disabled={excelPending} onClick={handleDownloadExcel}
+                    className="w-full rounded-lg border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60">
+                    {excelPending ? t("common.loading") : `📊 ${t("payroll.draftReport")}`}
+                  </button>
+                  <p className="mt-1.5 text-xs leading-snug text-muted">
+                    {t("payroll.draftReportHint")}
+                  </p>
+                  {excelError && (
+                    <p className="mt-2 text-center text-sm text-red-600">{excelError}</p>
+                  )}
+                </div>
+
+                {/* Step 3: Finalise — the irreversible one, so it stays the
+                    only filled button on this screen. */}
+                <div>
+                  <button type="button" disabled={isPending} onClick={handleFinalise}
+                    className="w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white disabled:opacity-60">
+                    {isPending ? t("common.loading") : t("payroll.finalise")}
+                  </button>
+                  {finaliseMsg?.error && (
+                    <p className="mt-2 text-center text-sm text-red-600">{finaliseMsg.error}</p>
+                  )}
+                </div>
               </div>
             )}
           </div>

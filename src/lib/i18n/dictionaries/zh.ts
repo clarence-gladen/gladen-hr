@@ -278,6 +278,8 @@ const zh: Partial<Dictionary> = {
     step1: "生成",
     step2: "审核与编辑",
     step3: "完成",
+    draftReport: "下载草稿报表 (Excel)",
+    draftReportHint: "供完成前审核与批准。在此薪资周期完成之前，员工无法查看任何工资单。",
     deleteRun: "删除薪资周期",
     deleteConfirm: "此操作将永久删除该薪资周期及所有工资单，确定吗？",
     confirmDelete: "确认删除",

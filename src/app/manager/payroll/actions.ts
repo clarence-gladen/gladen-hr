@@ -629,11 +629,17 @@ export async function downloadPayrollExcelAction(
 
   const { data: run } = await supabase
     .from("payroll_runs")
-    .select("month, year")
+    .select("month, year, status")
     .eq("id", runId)
     .single();
 
   if (!run) return { error: "Payroll run not found." };
+
+  // A run that has not been finalised still exports, so the figures can be
+  // reviewed and approved before payslips are issued. It is marked DRAFT in
+  // both the filename and the sheet tab — an approval copy that looked
+  // identical to the final report is how the wrong version gets signed off.
+  const isDraft = run.status !== "completed";
 
   const { data: payslips } = await supabase
     .from("payslips")
@@ -700,11 +706,15 @@ export async function downloadPayrollExcelAction(
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, monthName);
+  // Excel caps sheet names at 31 chars; the longest here is
+  // "September 2026 (DRAFT)" at 22, so this is always safe.
+  XLSX.utils.book_append_sheet(wb, ws, isDraft ? `${monthName} (DRAFT)` : monthName);
 
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
   const base64 = buffer.toString("base64");
-  const filename = `Payroll_${run.year}_${String(run.month).padStart(2, "0")}.xlsx`;
+  const filename =
+    `Payroll_${run.year}_${String(run.month).padStart(2, "0")}` +
+    `${isDraft ? "_DRAFT" : ""}.xlsx`;
 
   return { base64, filename };
 }
