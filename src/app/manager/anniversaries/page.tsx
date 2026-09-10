@@ -4,8 +4,8 @@ import { Header } from "@/components/header";
 import { todaySG } from "@/lib/utils/date";
 import {
   anniversaryMonths,
-  hasAnniversaryIn,
-  yearsCompletingIn,
+  employeesWithAnniversaryIn,
+  enrichAnniversaries,
   type AnniversaryMonth,
 } from "@/lib/hr/anniversaries";
 import { AnniversariesClient, type AnniversaryGroup } from "./anniversaries-client";
@@ -29,7 +29,7 @@ export default async function AnniversariesPage() {
     .eq("status", "active");
 
   const matching = (target: AnniversaryMonth) =>
-    (employees ?? []).filter((emp) => hasAnniversaryIn(emp.employment_start_date, target));
+    employeesWithAnniversaryIn(employees ?? [], target);
 
   const thisMonthEmps = matching(thisMonth);
   const lastMonthEmps = matching(lastMonth);
@@ -44,40 +44,13 @@ export default async function AnniversariesPage() {
     : { data: [] };
 
   function enrich(emps: NonNullable<typeof employees>, target: AnniversaryMonth) {
-    return emps
-      .map((emp) => {
-        const startDate = emp.employment_start_date!;
-        // Counted against the anniversary's own year, not today's — a December
-        // anniversary viewed in January is still that December's milestone.
-        const yearsCompleting = yearsCompletingIn(startDate, target);
-        const { yearStart, yearEnd } = getEmploymentYearBounds(startDate, yearsCompleting);
-        const alEntitlement = getAnnualLeaveForYear(yearsCompleting);
-
-        let alUsed = 0;
-        let sickUsed = 0;
-        for (const row of leaveRows ?? []) {
-          if (row.employee_id !== emp.id) continue;
-          if (row.start_date < yearStart || row.start_date > yearEnd) continue;
-          if (row.leave_type === "annual") alUsed += row.days;
-          if (row.leave_type === "sick") sickUsed += row.days;
-        }
-
-        return {
-          id: emp.id,
-          full_name: emp.full_name,
-          designation: emp.designation as string | null,
-          yearsCompleting,
-          anniversaryDate: `${target.year}-${target.mm}-${startDate.slice(8, 10)}`,
-          baseSalary: (emp.base_salary ?? 0) as number,
-          alEntitlement,
-          alUsed,
-          alUnused: Math.max(0, alEntitlement - alUsed),
-          sickUsed,
-          yearStart,
-          yearEnd,
-        };
-      })
-      .sort((a, b) => a.anniversaryDate.localeCompare(b.anniversaryDate));
+    return enrichAnniversaries(
+      emps,
+      leaveRows ?? [],
+      target,
+      getEmploymentYearBounds,
+      getAnnualLeaveForYear
+    );
   }
 
   const groups: AnniversaryGroup[] = [

@@ -18,7 +18,15 @@ import {
   getAvailableAnnualLeave,
   getAvailableSickLeave,
   getAvailableHospitalizationLeave,
+  getEmploymentYearBounds,
+  getAnnualLeaveForYear,
 } from "@/lib/leave/entitlement";
+import { countWorkingDays } from "@/lib/leave/counting";
+import {
+  anniversaryMonthsFor,
+  employeesWithAnniversaryIn,
+  enrichAnniversaries,
+} from "@/lib/hr/anniversaries";
 
 function payDateForRun(month: number, year: number): string {
   return new Date(year, month, 0).toISOString().slice(0, 10);
@@ -619,6 +627,315 @@ export async function downloadAllPdfsAction(
   return {
     base64: zipBuffer.toString("base64"),
     filename: `Payslips_${run.year}_${month}.zip`,
+  };
+}
+
+/**
+ * Monthly-rated daily rate, per MOM's formula for an incomplete month:
+ *   (12 x monthly gross rate of pay) / (52 x days required to work in a week)
+ * Used only to SUGGEST a no-pay-leave deduction — the figure still has to be
+ * keyed in and signed off, so it is labelled as a suggestion in the sheet.
+ */
+function dailyRate(baseSalary: number, workDaysPerWeek: number): number {
+  if (!baseSalary || !workDaysPerWeek) return 0;
+  return (12 * baseSalary) / (52 * workDaysPerWeek);
+}
+
+function money(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * The pre-run worksheet: everything that has to be keyed into a payslip by hand
+ * because it cannot be derived from the employee record.
+ *
+ * Generation fills in basic salary, allowances and overtime automatically, but
+ * leaves no-pay leave, salary advance repayments and anniversary bonuses at
+ * zero. This report is what tells the manager which employees need those three
+ * touched, before the run is finalised and the payslips go out.
+ */
+export async function downloadPayrollPrepAction(
+  runId: string
+): Promise<{ base64?: string; filename?: string; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("month, year")
+    .eq("id", runId)
+    .single();
+
+  if (!run) return { error: "Payroll run not found." };
+
+  const mm = String(run.month).padStart(2, "0");
+  const monthStart = `${run.year}-${mm}-01`;
+  const lastDay = new Date(run.year, run.month, 0).getDate();
+  const monthEnd = `${run.year}-${mm}-${String(lastDay).padStart(2, "0")}`;
+
+  const monthName = new Date(run.year, run.month - 1).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  });
+
+  // Anniversaries are keyed off the RUN month, not today: the September run is
+  // made in October and must settle both September's and August's.
+  const [runMonth, priorMonth] = anniversaryMonthsFor(run.year, run.month);
+
+  const [employeesRes, noPayRes, otRes, otLogRes] = await Promise.all([
+    supabase
+      .from("employees")
+      .select("id, full_name, designation, employment_start_date, base_salary, work_days_per_week")
+      .eq("status", "active"),
+    // Overlap, not containment: leave that straddles a month boundary still has
+    // days falling inside this run.
+    supabase
+      .from("leave_requests")
+      .select("employee_id, start_date, end_date, days, reason")
+      .eq("leave_type", "no_pay")
+      .eq("status", "approved")
+      .lte("start_date", monthEnd)
+      .gte("end_date", monthStart),
+    supabase
+      .from("overtime_records")
+      .select("employee_id, work_date, amount, remarks")
+      .gte("work_date", monthStart)
+      .lte("work_date", monthEnd)
+      .order("work_date"),
+    // The supervisor log is a SEPARATE table that does not feed payroll. It is
+    // in this report precisely because of that: hours logged here never reach a
+    // payslip unless someone converts them to a dollar amount by hand.
+    supabase
+      .from("ot_entries")
+      .select("employee_id, work_date, period, hours, comment")
+      .gte("work_date", monthStart)
+      .lte("work_date", monthEnd)
+      .order("work_date"),
+  ]);
+
+  const employees = employeesRes.data ?? [];
+  const byId = new Map(employees.map((e) => [e.id, e]));
+  const name = (id: string) => byId.get(id)?.full_name ?? "(inactive employee)";
+
+  /* ---------- No-pay leave ---------- */
+  const noPayRows = (noPayRes.data ?? []).map((r) => {
+    const emp = byId.get(r.employee_id);
+    const workDays = (emp?.work_days_per_week ?? 5) as 5 | 6;
+    // Clip the request to this month before counting.
+    const from = r.start_date < monthStart ? monthStart : r.start_date;
+    const to = r.end_date > monthEnd ? monthEnd : r.end_date;
+    const daysInMonth = countWorkingDays(from, to, workDays);
+    const rate = dailyRate(Number(emp?.base_salary ?? 0), workDays);
+    return {
+      "Employee": name(r.employee_id),
+      "From": r.start_date,
+      "To": r.end_date,
+      "Days in this month": daysInMonth,
+      "Days (whole request)": Number(r.days),
+      "Basic Salary": money(Number(emp?.base_salary ?? 0)),
+      "Work Days/Week": workDays,
+      "Suggested Deduction": money(rate * daysInMonth),
+      "Reason": r.reason ?? "",
+    };
+  });
+
+  /* ---------- Salary advances ---------- */
+  const advances = await getOutstandingAdvances(supabase);
+  const advanceIds = advances.map((a) => a.id);
+  const { data: advanceMeta } = advanceIds.length
+    ? await supabase.from("salary_advances").select("id, request_date").in("id", advanceIds)
+    : { data: [] };
+  const requestDate = new Map((advanceMeta ?? []).map((a) => [a.id, a.request_date]));
+
+  const advanceRows = advances.map((a) => ({
+    "Employee": name(a.employee_id),
+    "Advance Date": requestDate.get(a.id) ?? "",
+    "Advance Amount": money(a.amount),
+    "Repaid To Date": money(a.amount - a.outstanding),
+    "Outstanding": money(a.outstanding),
+    "Monthly Repayment": a.repayment_amount_per_month != null ? money(a.repayment_amount_per_month) : "",
+    "Deduct This Run": money(suggestedDeduction(a)),
+  }));
+
+  /* ---------- Anniversary bonuses ---------- */
+  const anniversaryEmps = [
+    ...employeesWithAnniversaryIn(employees, runMonth),
+    ...employeesWithAnniversaryIn(employees, priorMonth),
+  ];
+  const { data: annivLeave } = anniversaryEmps.length
+    ? await supabase
+        .from("leave_requests")
+        .select("employee_id, leave_type, days, start_date")
+        .in("employee_id", anniversaryEmps.map((e) => e.id))
+        .eq("status", "approved")
+    : { data: [] };
+
+  const anniversaryRows = [runMonth, priorMonth].flatMap((target) =>
+    enrichAnniversaries(
+      employeesWithAnniversaryIn(employees, target),
+      annivLeave ?? [],
+      target,
+      getEmploymentYearBounds,
+      getAnnualLeaveForYear
+    ).map((a) => ({
+      "Anniversary Month": new Date(target.year, target.month - 1).toLocaleDateString("en-SG", {
+        month: "long",
+        year: "numeric",
+      }),
+      "Employee": a.full_name,
+      "Designation": a.designation ?? "",
+      "Anniversary Date": a.anniversaryDate,
+      "Years Completed": a.yearsCompleting,
+      "Basic Salary": money(a.baseSalary),
+      "Employment Year": `${a.yearStart} to ${a.yearEnd}`,
+      "AL Entitlement": a.alEntitlement,
+      "AL Taken": a.alUsed,
+      "AL Unused": a.alUnused,
+      "Sick Leave Taken": a.sickUsed,
+    }))
+  );
+
+  /* ---------- Overtime ---------- */
+  const otRows = (otRes.data ?? [])
+    .map((o) => ({
+      "Employee": name(o.employee_id),
+      "Date": o.work_date,
+      "Amount": money(Number(o.amount)),
+      "Remarks": o.remarks ?? "",
+    }))
+    .sort((a, b) =>
+      a["Employee"].localeCompare(b["Employee"]) || a["Date"].localeCompare(b["Date"])
+    );
+
+  const otTotals = new Map<string, number>();
+  for (const o of otRes.data ?? []) {
+    otTotals.set(o.employee_id, (otTotals.get(o.employee_id) ?? 0) + Number(o.amount));
+  }
+
+  const otLogRows = (otLogRes.data ?? [])
+    .map((o) => ({
+      "Employee": name(o.employee_id),
+      "Date": o.work_date,
+      "Period": o.period ?? "",
+      "Hours": o.hours != null ? Number(o.hours) : "",
+      "Comment": o.comment ?? "",
+    }))
+    .sort((a, b) =>
+      a["Employee"].localeCompare(b["Employee"]) || String(a["Date"]).localeCompare(String(b["Date"]))
+    );
+
+  const otLogHours = new Map<string, number>();
+  for (const o of otLogRes.data ?? []) {
+    otLogHours.set(o.employee_id, (otLogHours.get(o.employee_id) ?? 0) + Number(o.hours ?? 0));
+  }
+
+  /* ---------- Summary: one row per employee needing something keyed in ---------- */
+  const noPayTotals = new Map<string, { days: number; amount: number }>();
+  for (const r of noPayRes.data ?? []) {
+    const emp = byId.get(r.employee_id);
+    const workDays = (emp?.work_days_per_week ?? 5) as 5 | 6;
+    const from = r.start_date < monthStart ? monthStart : r.start_date;
+    const to = r.end_date > monthEnd ? monthEnd : r.end_date;
+    const days = countWorkingDays(from, to, workDays);
+    const prev = noPayTotals.get(r.employee_id) ?? { days: 0, amount: 0 };
+    noPayTotals.set(r.employee_id, {
+      days: prev.days + days,
+      amount: prev.amount + dailyRate(Number(emp?.base_salary ?? 0), workDays) * days,
+    });
+  }
+
+  const advanceTotals = new Map<string, number>();
+  for (const a of advances) {
+    advanceTotals.set(a.employee_id, (advanceTotals.get(a.employee_id) ?? 0) + suggestedDeduction(a));
+  }
+
+  const bonusNote = new Map<string, string>();
+  for (const row of anniversaryRows) {
+    const emp = employees.find((e) => e.full_name === row["Employee"]);
+    if (!emp) continue;
+    const note = `${row["Years Completed"]} yr (${row["Anniversary Month"]}), ${row["AL Unused"]} AL unused`;
+    bonusNote.set(emp.id, bonusNote.has(emp.id) ? `${bonusNote.get(emp.id)}; ${note}` : note);
+  }
+
+  const needsAttention = employees
+    .filter(
+      (e) =>
+        noPayTotals.has(e.id) ||
+        advanceTotals.has(e.id) ||
+        bonusNote.has(e.id) ||
+        otTotals.has(e.id) ||
+        otLogHours.has(e.id)
+    )
+    .map((e) => ({
+      "Employee": e.full_name,
+      "No-Pay Days": noPayTotals.get(e.id)?.days ?? "",
+      "No-Pay Deduction": noPayTotals.has(e.id) ? money(noPayTotals.get(e.id)!.amount) : "",
+      "Salary Advance Deduction": advanceTotals.has(e.id) ? money(advanceTotals.get(e.id)!) : "",
+      "Anniversary Bonus Due": bonusNote.get(e.id) ?? "",
+      "Overtime $ (auto-filled)": otTotals.has(e.id) ? money(otTotals.get(e.id)!) : "",
+      "OT Hours Logged (NOT auto-filled)": otLogHours.has(e.id)
+        ? Math.round(otLogHours.get(e.id)! * 10) / 10
+        : "",
+    }))
+    .sort((a, b) => a["Employee"].localeCompare(b["Employee"]));
+
+  /* ---------- Build the workbook ---------- */
+  const wb = XLSX.utils.book_new();
+
+  const addSheet = (
+    rows: Record<string, string | number>[],
+    sheetName: string,
+    widths: number[],
+    emptyMessage: string
+  ) => {
+    const ws = rows.length
+      ? XLSX.utils.json_to_sheet(rows)
+      : XLSX.utils.aoa_to_sheet([[emptyMessage]]);
+    if (rows.length) ws["!cols"] = widths.map((wch) => ({ wch }));
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  };
+
+  addSheet(
+    needsAttention,
+    "Summary",
+    [28, 12, 18, 24, 42, 20, 30],
+    `Nothing to key in for ${monthName}.`
+  );
+  addSheet(
+    noPayRows,
+    "No-Pay Leave",
+    [28, 12, 12, 18, 20, 14, 14, 20, 30],
+    `No approved no-pay leave in ${monthName}.`
+  );
+  addSheet(
+    advanceRows,
+    "Salary Advances",
+    [28, 14, 16, 16, 14, 18, 16],
+    "No salary advances outstanding."
+  );
+  addSheet(
+    anniversaryRows,
+    "Anniversaries",
+    [20, 28, 22, 16, 16, 14, 26, 14, 12, 12, 16],
+    `No anniversaries in ${monthName} or the month before.`
+  );
+  addSheet(
+    otRows,
+    "Overtime $",
+    [28, 12, 12, 40],
+    `No dollar-value overtime recorded in ${monthName}. ` +
+      `These are the only OT figures payroll fills in automatically.`
+  );
+  addSheet(
+    otLogRows,
+    "OT Log (hours)",
+    [28, 12, 16, 10, 40],
+    `No supervisor OT logged in ${monthName}.`
+  );
+
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return {
+    base64: buffer.toString("base64"),
+    filename: `Payroll_Prep_${run.year}_${mm}.xlsx`,
   };
 }
 

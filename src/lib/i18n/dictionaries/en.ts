@@ -276,6 +276,8 @@ const en = {
     step1: "Generate",
     step2: "Review & Edit",
     step3: "Finalise",
+    prepReport: "Payroll Prep (Excel)",
+    prepReportHint: "What still needs keying in by hand: no-pay leave, salary advance repayments, and anniversary bonuses for this month and last.",
     draftReport: "Download Draft Report (Excel)",
     draftReportHint: "For review and approval before you finalise. Employees cannot see any payslip until this run is finalised.",
     deleteRun: "Delete Payroll Run",

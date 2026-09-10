@@ -12,6 +12,7 @@ import {
   downloadCpfSubmissionAction,
   downloadGiroAction,
   downloadPayrollExcelAction,
+  downloadPayrollPrepAction,
   finalisePayrollAction,
   generatePayslipsAction,
   updatePayslipAction,
@@ -312,7 +313,9 @@ export function PayrollRunClient({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
   const [excelError, setExcelError] = useState<string | null>(null);
+  const [prepError, setPrepError] = useState<string | null>(null);
   const [excelPending, startExcelTransition] = useTransition();
+  const [prepPending, startPrepTransition] = useTransition();
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [cpfPending, startCpfTransition] = useTransition();
   const [giroError, setGiroError] = useState<string | null>(null);
@@ -366,6 +369,15 @@ export function PayrollRunClient({
     startExcelTransition(async () => {
       const result = await downloadPayrollExcelAction(run.id);
       if (result.error) { setExcelError(result.error); return; }
+      triggerXlsxDownload(result.base64!, result.filename!);
+    });
+  }
+
+  function handleDownloadPrep() {
+    setPrepError(null);
+    startPrepTransition(async () => {
+      const result = await downloadPayrollPrepAction(run.id);
+      if (result.error) { setPrepError(result.error); return; }
       triggerXlsxDownload(result.base64!, result.filename!);
     });
   }
@@ -497,15 +509,24 @@ export function PayrollRunClient({
                     figures can be signed off without issuing payslips — nothing
                     here is visible to employees until the run is finalised. */}
                 <div>
-                  <button type="button" disabled={excelPending} onClick={handleDownloadExcel}
-                    className="w-full rounded-lg border border-brand/30 bg-brand/5 py-3 text-sm font-semibold text-brand disabled:opacity-60">
-                    {excelPending ? t("common.loading") : `📊 ${t("payroll.draftReport")}`}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" disabled={prepPending} onClick={handleDownloadPrep}
+                      className="rounded-lg border border-brand/30 bg-brand/5 px-2 py-3 text-sm font-semibold text-brand disabled:opacity-60">
+                      {prepPending ? t("common.loading") : `📋 ${t("payroll.prepReport")}`}
+                    </button>
+                    <button type="button" disabled={excelPending} onClick={handleDownloadExcel}
+                      className="rounded-lg border border-brand/30 bg-brand/5 px-2 py-3 text-sm font-semibold text-brand disabled:opacity-60">
+                      {excelPending ? t("common.loading") : `📊 ${t("payroll.draftReport")}`}
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-xs leading-snug text-muted">
+                    {t("payroll.prepReportHint")}
+                  </p>
                   <p className="mt-1.5 text-xs leading-snug text-muted">
                     {t("payroll.draftReportHint")}
                   </p>
-                  {excelError && (
-                    <p className="mt-2 text-center text-sm text-red-600">{excelError}</p>
+                  {(prepError || excelError) && (
+                    <p className="mt-2 text-center text-sm text-red-600">{prepError ?? excelError}</p>
                   )}
                 </div>
 

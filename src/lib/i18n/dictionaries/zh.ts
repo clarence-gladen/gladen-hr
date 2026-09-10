@@ -278,6 +278,8 @@ const zh: Partial<Dictionary> = {
     step1: "生成",
     step2: "审核与编辑",
     step3: "完成",
+    prepReport: "薪资准备表 (Excel)",
+    prepReportHint: "仍需手动输入的项目：无薪假、薪资预支还款，以及本月与上月的周年奖金。",
     draftReport: "下载草稿报表 (Excel)",
     draftReportHint: "供完成前审核与批准。在此薪资周期完成之前，员工无法查看任何工资单。",
     deleteRun: "删除薪资周期",
