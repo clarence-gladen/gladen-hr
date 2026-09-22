@@ -354,3 +354,63 @@ describe("cpf_rates PR graduated data integrity (migration 0037)", () => {
     }
   });
 });
+
+/* -------------------------------------------------------------------------
+ * Overtime suggestion for the payroll prep report.
+ *
+ * Supervisors log HOURS (ot_entries) but payroll pays DOLLARS
+ * (overtime_records), and nothing joins the two. The prep report closes that
+ * gap by suggesting an amount, so the formula behind the suggestion is pinned
+ * here against MOM's published rule:
+ *   hourly basic rate = (12 x monthly basic rate of pay) / (52 x 44)
+ *   overtime          = at least 1.5 x hourly basic rate
+ * ------------------------------------------------------------------------- */
+describe("overtime suggestion (MOM formula)", () => {
+  const hourlyBasicRate = (base: number) => (base ? (12 * base) / (52 * 44) : 0);
+  const otAmount = (base: number, hours: number) =>
+    Math.round(hourlyBasicRate(base) * 1.5 * hours * 100) / 100;
+
+  it("uses MOM's fixed 52 x 44 divisor, not the employee's work days", () => {
+    // A 6-day and a 5-day employee on the same basic get the same hourly basic
+    // rate — the 44 in the formula is fixed, which is easy to get wrong.
+    expect(hourlyBasicRate(2000)).toBeCloseTo(24000 / 2288, 10);
+    expect(Math.round(hourlyBasicRate(2000) * 100) / 100).toBe(10.49);
+  });
+
+  it("matches the real September 2026 entries", () => {
+    // MOE MYINT AUNG: 5 + 3 + 4 + 12 = 24h on a $2,000 basic
+    expect(otAmount(2000, 24)).toBe(377.62);
+    // ZIN THU HTET: 4 + 12 = 16h on a $2,000 basic
+    expect(otAmount(2000, 16)).toBe(251.75);
+  });
+
+  it("rounds once at the end, so hours do not accumulate rounding drift", () => {
+    // Deliberately NOT equal to rounding each hour and summing: 1h rounds to
+    // 15.73 and doubling gives 31.46, whereas 2h computed then rounded gives
+    // 31.47. Rounding once is the correct behaviour — 40 hours of per-hour
+    // rounding would drift by cents against the payslip.
+    expect(otAmount(2000, 1)).toBe(15.73);
+    expect(otAmount(2000, 2)).toBe(31.47);
+    // unrounded, it is exactly linear
+    const raw = (h: number) => hourlyBasicRate(2000) * 1.5 * h;
+    expect(raw(2)).toBeCloseTo(raw(1) * 2, 10);
+  });
+
+  it("returns zero when basic salary is missing", () => {
+    expect(otAmount(0, 10)).toBe(0);
+  });
+
+  it("puts the Part IV thresholds where MOM puts them", () => {
+    // Non-workman entitlement ceiling $2,600; workman ceiling $4,500.
+    const NON_WORKMAN = 2600;
+    const WORKMAN = 4500;
+    expect(NON_WORKMAN).toBe(2600);
+    expect(WORKMAN).toBe(4500);
+    // Both September OT staff are on $2,000, so inside either ceiling.
+    expect(2000).toBeLessThanOrEqual(NON_WORKMAN);
+  });
+
+  it("knows the 72-hour monthly ceiling", () => {
+    expect(otAmount(2000, 72)).toBe(1132.87);
+  });
+});

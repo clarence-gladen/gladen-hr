@@ -646,6 +646,29 @@ function money(n: number): number {
 }
 
 /**
+ * MOM's hourly basic rate of pay for a monthly-rated employee:
+ *   (12 x monthly basic rate of pay) / (52 x 44)
+ * The 44 is MOM's fixed divisor for this formula — it is NOT the employee's
+ * own weekly hours, so it does not vary with work_days_per_week.
+ */
+function hourlyBasicRate(baseSalary: number): number {
+  if (!baseSalary) return 0;
+  return (12 * baseSalary) / (52 * 44);
+}
+
+/** Statutory minimum overtime pay: at least 1.5x the hourly basic rate. */
+const OT_MULTIPLIER = 1.5;
+/** MOM caps overtime at 72 hours a month absent an exemption. */
+const OT_MONTHLY_HOUR_CAP = 72;
+/**
+ * Part IV overtime entitlement thresholds on monthly basic salary. Above these
+ * the employee is outside the statutory regime and any overtime is whatever
+ * their contract says — so the report flags it rather than suggesting a figure.
+ */
+const OT_CAP_NON_WORKMAN = 2600;
+const OT_CAP_WORKMAN = 4500;
+
+/**
  * The pre-run worksheet: everything that has to be keyed into a payslip by hand
  * because it cannot be derived from the employee record.
  *
@@ -714,6 +737,26 @@ export async function downloadPayrollPrepAction(
 
   const employees = employeesRes.data ?? [];
   const byId = new Map(employees.map((e) => [e.id, e]));
+
+  // What is already on this run's payslips. Without this the report can say
+  // what needs keying in but not what has been done, so re-running it after an
+  // afternoon of data entry would hand back the same list unchanged.
+  const { data: existingPayslips } = await supabase
+    .from("payslips")
+    .select("employee_id, unpaid_leave, salary_advance_deduction, bonus, overtime_amount")
+    .eq("payroll_run_id", runId);
+  const onPayslip = new Map(
+    (existingPayslips ?? []).map((p) => [
+      p.employee_id,
+      {
+        unpaidLeave: Number(p.unpaid_leave),
+        advance: Number(p.salary_advance_deduction),
+        bonus: Number(p.bonus),
+        overtime: Number(p.overtime_amount),
+      },
+    ])
+  );
+  const payslipsExist = (existingPayslips ?? []).length > 0;
   const name = (id: string) => byId.get(id)?.full_name ?? "(inactive employee)";
 
   /* ---------- No-pay leave ---------- */
@@ -815,7 +858,11 @@ export async function downloadPayrollPrepAction(
     .map((o) => ({
       "Employee": name(o.employee_id),
       "Date": o.work_date,
-      "Period": o.period ?? "",
+      // Period is free text typed by a supervisor and Hours is the figure that
+      // counts. They are shown side by side on purpose: where they disagree
+      // (e.g. "3:00PM to 4:00PM" logged as 4 hours) only a human can say which
+      // is right, and that has to be settled before the hours are paid.
+      "Period (as logged)": o.period ?? "",
       "Hours": o.hours != null ? Number(o.hours) : "",
       "Comment": o.comment ?? "",
     }))
@@ -826,6 +873,56 @@ export async function downloadPayrollPrepAction(
   const otLogHours = new Map<string, number>();
   for (const o of otLogRes.data ?? []) {
     otLogHours.set(o.employee_id, (otLogHours.get(o.employee_id) ?? 0) + Number(o.hours ?? 0));
+  }
+
+  /* ---------- Overtime to key in: hours -> a suggested dollar figure ----------
+   * Supervisors log HOURS in ot_entries; payroll pays DOLLARS from
+   * overtime_records. Nothing joins the two, so logged overtime reaches a
+   * payslip only if someone works out the amount and types it in. This sheet is
+   * that calculation, shown with its inputs so it can be checked rather than
+   * trusted.
+   */
+  const otPayRows = [...otLogHours.entries()]
+    .map(([employeeId, hours]) => {
+      const emp = byId.get(employeeId);
+      const base = Number(emp?.base_salary ?? 0);
+      const hourly = hourlyBasicRate(base);
+      const otRate = hourly * OT_MULTIPLIER;
+      const rounded = Math.round(hours * 10) / 10;
+      const notes: string[] = [];
+      if (base > OT_CAP_WORKMAN) {
+        notes.push(
+          `Basic above $${OT_CAP_WORKMAN} — outside Part IV, pay per contract, not this formula`
+        );
+      } else if (base > OT_CAP_NON_WORKMAN) {
+        notes.push(
+          `Basic above $${OT_CAP_NON_WORKMAN} — statutory OT applies only if a workman`
+        );
+      }
+      if (rounded > OT_MONTHLY_HOUR_CAP) {
+        notes.push(`Over MOM's ${OT_MONTHLY_HOUR_CAP}-hour monthly limit — check before paying`);
+      }
+      const alreadyPaid = otTotals.get(employeeId) ?? 0;
+      return {
+        "Employee": name(employeeId),
+        "OT Hours Logged": rounded,
+        "Basic Salary": money(base),
+        "Hourly Basic Rate": money(hourly),
+        "OT Rate (1.5x)": money(otRate),
+        "Suggested OT Amount": money(otRate * rounded),
+        "Already On Payslip": alreadyPaid ? money(alreadyPaid) : "",
+        "Check": notes.join("; "),
+      };
+    })
+    .sort((a, b) => a["Employee"].localeCompare(b["Employee"]));
+
+  const otSuggested = new Map<string, number>();
+  for (const [employeeId, hours] of otLogHours.entries()) {
+    const base = Number(byId.get(employeeId)?.base_salary ?? 0);
+    otSuggested.set(
+      employeeId,
+      hourlyBasicRate(base) * OT_MULTIPLIER * (Math.round(hours * 10) / 10)
+    );
   }
 
   /* ---------- Summary: one row per employee needing something keyed in ---------- */
@@ -865,17 +962,52 @@ export async function downloadPayrollPrepAction(
         otTotals.has(e.id) ||
         otLogHours.has(e.id)
     )
-    .map((e) => ({
-      "Employee": e.full_name,
-      "No-Pay Days": noPayTotals.get(e.id)?.days ?? "",
-      "No-Pay Deduction": noPayTotals.has(e.id) ? money(noPayTotals.get(e.id)!.amount) : "",
-      "Salary Advance Deduction": advanceTotals.has(e.id) ? money(advanceTotals.get(e.id)!) : "",
-      "Anniversary Bonus Due": bonusNote.get(e.id) ?? "",
-      "Overtime $ (auto-filled)": otTotals.has(e.id) ? money(otTotals.get(e.id)!) : "",
-      "OT Hours Logged (NOT auto-filled)": otLogHours.has(e.id)
-        ? Math.round(otLogHours.get(e.id)! * 10) / 10
-        : "",
-    }))
+    .map((e) => {
+      const actual = onPayslip.get(e.id);
+      const expectedNoPay = noPayTotals.has(e.id) ? money(noPayTotals.get(e.id)!.amount) : 0;
+      const expectedAdvance = advanceTotals.has(e.id) ? money(advanceTotals.get(e.id)!) : 0;
+      const expectedOt = otSuggested.has(e.id) ? money(otSuggested.get(e.id)!) : 0;
+      const needsBonus = bonusNote.has(e.id);
+
+      // "Done" means every figure this employee needs is present on the payslip.
+      // A bonus cannot be checked against an expected amount — only the manager
+      // knows what it should be — so its test is simply that something non-zero
+      // was entered.
+      let status: string;
+      if (!payslipsExist) {
+        status = "payslips not generated yet";
+      } else if (!actual) {
+        status = "NO PAYSLIP for this employee";
+      } else {
+        const outstanding: string[] = [];
+        if (expectedNoPay > 0 && Math.abs(actual.unpaidLeave - expectedNoPay) > 0.01) {
+          outstanding.push(`no-pay (${money(actual.unpaidLeave)} vs ${expectedNoPay})`);
+        }
+        if (expectedAdvance > 0 && Math.abs(actual.advance - expectedAdvance) > 0.01) {
+          outstanding.push(`advance (${money(actual.advance)} vs ${expectedAdvance})`);
+        }
+        if (expectedOt > 0 && actual.overtime <= 0.01) {
+          outstanding.push(`OT (0 vs suggested ${expectedOt})`);
+        }
+        if (needsBonus && actual.bonus <= 0.01) {
+          outstanding.push("bonus (nothing entered)");
+        }
+        status = outstanding.length ? "TO DO: " + outstanding.join(", ") : "done";
+      }
+
+      return {
+        "Employee": e.full_name,
+        "No-Pay Days": noPayTotals.get(e.id)?.days ?? "",
+        "No-Pay Deduction": expectedNoPay || "",
+        "Salary Advance Deduction": expectedAdvance || "",
+        "Anniversary Bonus Due": bonusNote.get(e.id) ?? "",
+        "OT Hours Logged": otLogHours.has(e.id)
+          ? Math.round(otLogHours.get(e.id)! * 10) / 10
+          : "",
+        "Suggested OT Amount": expectedOt || "",
+        "Status": status,
+      };
+    })
     .sort((a, b) => a["Employee"].localeCompare(b["Employee"]));
 
   /* ---------- Build the workbook ---------- */
@@ -897,8 +1029,14 @@ export async function downloadPayrollPrepAction(
   addSheet(
     needsAttention,
     "Summary",
-    [28, 12, 18, 24, 42, 20, 30],
+    [28, 12, 18, 24, 42, 16, 20, 46],
     `Nothing to key in for ${monthName}.`
+  );
+  addSheet(
+    otPayRows,
+    "OT To Key In",
+    [28, 16, 14, 18, 16, 20, 18, 52],
+    `No overtime hours logged in ${monthName}.`
   );
   addSheet(
     noPayRows,
@@ -927,8 +1065,8 @@ export async function downloadPayrollPrepAction(
   );
   addSheet(
     otLogRows,
-    "OT Log (hours)",
-    [28, 12, 16, 10, 40],
+    "OT Log (raw)",
+    [28, 12, 22, 10, 40],
     `No supervisor OT logged in ${monthName}.`
   );
 
