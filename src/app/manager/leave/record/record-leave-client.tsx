@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createLeaveForEmployeeAction } from "../actions";
@@ -19,22 +19,30 @@ export function RecordLeaveClient({
 }) {
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(createLeaveForEmployeeAction, {});
+  // Every field is controlled deliberately: React 19 resets uncontrolled fields in a
+  // <form action={serverAction}> once the action returns, so anything left uncontrolled
+  // would be wiped when the over-entitlement prompt comes back and the manager would
+  // have to re-enter it before confirming.
+  const [employeeId, setEmployeeId] = useState("");
   const [leaveType, setLeaveType] = useState("");
+  const [chargeOffset, setChargeOffset] = useState(0);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [halfDay, setHalfDay] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [reason, setReason] = useState("");
   // Set when the manager declines the over-entitlement prompt, so the stale
   // `state.confirm` from the last submit stops showing once the form is cleared.
   const [declined, setDeclined] = useState(false);
   const showConfirm = Boolean(state.confirm) && !declined;
 
   function clearForm() {
-    formRef.current?.reset();
+    setEmployeeId("");
     setLeaveType("");
+    setChargeOffset(0);
     setStartDate("");
     setEndDate("");
     setHalfDay(false);
+    setReason("");
     setDeclined(true);
   }
 
@@ -46,7 +54,6 @@ export function RecordLeaveClient({
           {t("leave.recordLeaveHint")}
         </p>
         <form
-          ref={formRef}
           action={formAction}
           onSubmit={() => setDeclined(false)}
           className="space-y-4 rounded-xl bg-white p-4 shadow-sm"
@@ -55,7 +62,14 @@ export function RecordLeaveClient({
             <label className={labelClass} htmlFor="employeeId">
               {t("employees.title")}
             </label>
-            <select id="employeeId" name="employeeId" required className={inputClass} defaultValue="">
+            <select
+              id="employeeId"
+              name="employeeId"
+              required
+              className={inputClass}
+              value={employeeId}
+              onChange={(e) => setEmployeeId(e.target.value)}
+            >
               <option value="" disabled>{t("leave.selectEmployee")}</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.id}>{e.full_name}</option>
@@ -78,7 +92,9 @@ export function RecordLeaveClient({
             </select>
           </div>
 
-          {leaveType === "annual" && <ChargePeriodField />}
+          {leaveType === "annual" && (
+            <ChargePeriodField value={chargeOffset} onChange={setChargeOffset} />
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className={halfDay ? "col-span-2 min-w-0" : "min-w-0"}>
@@ -126,7 +142,14 @@ export function RecordLeaveClient({
             <label className={labelClass} htmlFor="reason">
               {t("leave.reason")}
             </label>
-            <textarea id="reason" name="reason" rows={2} className={inputClass} />
+            <textarea
+              id="reason"
+              name="reason"
+              rows={2}
+              className={inputClass}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
           </div>
 
           {state.error && (

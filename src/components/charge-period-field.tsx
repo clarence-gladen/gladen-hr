@@ -7,13 +7,28 @@
  *   0  = current period (default)
  *  -1  = previous period
  *  +1  = upcoming period
+ *
+ * Pass `value` + `onChange` to drive it as a controlled field. Inside a
+ * `<form action={serverAction}>`, React 19 resets uncontrolled fields once the
+ * action returns, which would silently snap a chosen period back to "current"
+ * on any re-submit. Left uncontrolled (no `value`) it keeps the original
+ * defaultChecked behaviour for forms that never re-render mid-flow.
  */
-export function ChargePeriodField({ defaultOffset = 0 }: { defaultOffset?: number }) {
+export function ChargePeriodField({
+  defaultOffset = 0,
+  value,
+  onChange,
+}: {
+  defaultOffset?: number;
+  value?: number;
+  onChange?: (value: number) => void;
+}) {
   const options: { value: number; label: string }[] = [
     { value: 0, label: "Current period (default)" },
     { value: -1, label: "Previous period" },
     { value: 1, label: "Upcoming period" },
   ];
+  const isControlled = value !== undefined;
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-foreground">
@@ -26,7 +41,9 @@ export function ChargePeriodField({ defaultOffset = 0 }: { defaultOffset?: numbe
               type="radio"
               name="annualChargeOffset"
               value={o.value}
-              defaultChecked={o.value === defaultOffset}
+              {...(isControlled
+                ? { checked: value === o.value, onChange: () => onChange?.(o.value) }
+                : { defaultChecked: o.value === defaultOffset })}
               className="h-4 w-4 accent-brand"
             />
             {o.label}
