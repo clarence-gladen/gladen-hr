@@ -76,6 +76,30 @@ export function getAvailableAnnualLeave(startDateStr: string, refDateStr: string
   return getAnnualLeaveForYear(empYear);
 }
 
+/**
+ * Annual leave entitlement for the employment year a leave is being CHARGED to,
+ * which is not always the year the leave falls in (managers may charge annual leave
+ * to an adjacent employment period).
+ *
+ * Year 1 accrues monthly, so a first-year employee is entitled only to what she has
+ * earned by the leave date. Both the employee apply flow and the manager record flow
+ * must use this, or the two sides of the app disagree about the same request.
+ *
+ * When an earlier year is charged from a later one that year is already complete, so
+ * the full first-year entitlement applies rather than an accrual as at the leave date.
+ */
+export function annualEntitlementForCharge(
+  startDateStr: string,
+  targetYear: number,
+  naturalYear: number,
+  refDateStr: string
+): number {
+  if (targetYear !== 1) return getAnnualLeaveForYear(targetYear);
+  return naturalYear === 1
+    ? getAvailableAnnualLeave(startDateStr, refDateStr)
+    : FIRST_YEAR_ANNUAL_LEAVE;
+}
+
 /** True if the employee is still within their 3-month probation period. */
 export function isOnProbation(startDateStr: string, refDateStr: string): boolean {
   return monthsCompleted(startDateStr, refDateStr) < PROBATION_MONTHS;

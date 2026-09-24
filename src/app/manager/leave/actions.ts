@@ -8,6 +8,7 @@ import {
   getEmploymentYearNumber,
   getEmploymentYearBounds,
   getAnnualLeaveForYear,
+  annualEntitlementForCharge,
   SICK_LEAVE_PER_YEAR,
   HOSPITALIZATION_PER_YEAR,
 } from "@/lib/leave/entitlement";
@@ -129,9 +130,9 @@ export async function editApprovedLeaveRequestAction(
 }
 
 export async function createLeaveForEmployeeAction(
-  _prev: { error?: string; warning?: string },
+  _prev: { error?: string; warning?: string; confirm?: string },
   formData: FormData
-): Promise<{ error?: string; warning?: string }> {
+): Promise<{ error?: string; warning?: string; confirm?: string }> {
   const supabase = await createClient();
 
   const employeeId = formData.get("employeeId") as string;
@@ -156,6 +157,15 @@ export async function createLeaveForEmployeeAction(
     : countWorkingDays(startDate, endDate, workDays, restDay, publicHolidays2);
   if (days === 0) return { error: "No working days in selected range." };
 
+  // Over-entitlement is checked BEFORE anything is written, so that declining the
+  // confirmation leaves no trace. Only once the manager confirms do we record.
+  if (formData.get("confirmOverBalance") !== "true") {
+    const confirm = await overBalanceConfirm(
+      supabase, employeeId, leaveType, startDate, days, annualChargeOffset
+    );
+    if (confirm) return { confirm };
+  }
+
   const { data: request, error: insertError } = await supabase
     .from("leave_requests")
     .insert({ employee_id: employeeId, leave_type: leaveType, start_date: startDate, end_date: endDate, days, reason, status: "pending" })
@@ -170,23 +180,22 @@ export async function createLeaveForEmployeeAction(
   });
   if (approveError) return { error: approveError.message };
 
-  // Warning (still recorded): the charged period's balance is now over entitlement.
-  const warning = await overBalanceWarning(supabase, employeeId, leaveType, startDate, annualChargeOffset);
-
   revalidatePath("/manager/leave");
-  if (warning) return { warning };
   redirect("/manager/leave");
 }
 
 /**
- * Returns a warning string if the given (already-approved) leave has pushed the
- * charged employment year's usage over its entitlement. Annual/sick/hospitalisation only.
+ * Returns a confirmation prompt if recording this leave would take the charged
+ * employment year past its entitlement. Called BEFORE any write, so that a manager
+ * who declines leaves nothing behind. Annual/sick/hospitalisation only — no-pay and
+ * off-day have no entitlement to exceed.
  */
-async function overBalanceWarning(
+async function overBalanceConfirm(
   supabase: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   leaveType: string,
   startDate: string,
+  days: number,
   annualChargeOffset: number
 ): Promise<string | undefined> {
   if (!["annual", "sick", "hospitalization"].includes(leaveType)) return undefined;
@@ -210,24 +219,35 @@ async function overBalanceWarning(
     .eq("employee_id", employeeId)
     .eq("year_start", yearStart)
     .maybeSingle();
-  if (!bal) return undefined;
 
+  const label =
+    leaveType === "annual" ? "annual" : leaveType === "sick" ? "sick" : "hospitalisation";
+
+  let entitlement: number;
+  let used: number;
   if (leaveType === "annual") {
-    const ent = getAnnualLeaveForYear(targetYear);
-    if (Number(bal.annual_used) > ent) {
-      return `Recorded. Note: this employee's annual leave for the charged period is now over the ${ent}-day entitlement.`;
-    }
+    entitlement = annualEntitlementForCharge(empStart, targetYear, naturalYear, startDate);
+    used = Number(bal?.annual_used ?? 0);
   } else if (leaveType === "sick") {
-    const used = Number(bal.sick_used) + Number(bal.hospitalization_used);
-    if (used > SICK_LEAVE_PER_YEAR) {
-      return `Recorded. Note: sick leave is now over the ${SICK_LEAVE_PER_YEAR}-day entitlement — consider changing the excess to no-pay leave.`;
-    }
+    entitlement = SICK_LEAVE_PER_YEAR;
+    // Per MOM, hospitalisation leave consumes sick leave concurrently.
+    used = Number(bal?.sick_used ?? 0) + Number(bal?.hospitalization_used ?? 0);
   } else {
-    if (Number(bal.hospitalization_used) > HOSPITALIZATION_PER_YEAR) {
-      return `Recorded. Note: hospitalisation leave is now over the ${HOSPITALIZATION_PER_YEAR}-day entitlement — consider changing the excess to no-pay leave.`;
-    }
+    entitlement = HOSPITALIZATION_PER_YEAR;
+    used = Number(bal?.hospitalization_used ?? 0);
   }
-  return undefined;
+
+  const available = Math.max(0, entitlement - used);
+  if (days <= available) return undefined;
+
+  const over = days - available;
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  return (
+    `This is over entitlement. For the charged period this employee has ` +
+    `${fmt(entitlement)} day(s) of ${label} leave, ${fmt(used)} already used, ` +
+    `so ${fmt(available)} day(s) available — this request is ${fmt(days)} day(s), ` +
+    `which is ${fmt(over)} day(s) over. Ok to proceed?`
+  );
 }
 
 async function getEmployeeWorkSchedule(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createLeaveForEmployeeAction } from "../actions";
@@ -23,6 +23,20 @@ export function RecordLeaveClient({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [halfDay, setHalfDay] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Set when the manager declines the over-entitlement prompt, so the stale
+  // `state.confirm` from the last submit stops showing once the form is cleared.
+  const [declined, setDeclined] = useState(false);
+  const showConfirm = Boolean(state.confirm) && !declined;
+
+  function clearForm() {
+    formRef.current?.reset();
+    setLeaveType("");
+    setStartDate("");
+    setEndDate("");
+    setHalfDay(false);
+    setDeclined(true);
+  }
 
   return (
     <>
@@ -31,7 +45,12 @@ export function RecordLeaveClient({
         <p className="mb-4 text-sm text-foreground/60">
           {t("leave.recordLeaveHint")}
         </p>
-        <form action={formAction} className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
+        <form
+          ref={formRef}
+          action={formAction}
+          onSubmit={() => setDeclined(false)}
+          className="space-y-4 rounded-xl bg-white p-4 shadow-sm"
+        >
           <div>
             <label className={labelClass} htmlFor="employeeId">
               {t("employees.title")}
@@ -117,13 +136,41 @@ export function RecordLeaveClient({
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">{state.warning}</p>
           )}
 
-          <button
-            type="submit"
-            disabled={pending}
-            className="w-full rounded-lg bg-brand py-3 text-base font-semibold text-white transition disabled:opacity-60"
-          >
-            {pending ? t("common.loading") : t("leave.recordLeaveSubmit")}
-          </button>
+          {showConfirm ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <p className="text-sm text-amber-800">{state.confirm}</p>
+              <p className="mt-1 text-xs text-amber-700/80">
+                Nothing has been recorded yet.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="submit"
+                  name="confirmOverBalance"
+                  value="true"
+                  disabled={pending}
+                  className="flex-1 rounded-lg bg-brand py-3 text-sm font-semibold text-white transition disabled:opacity-60"
+                >
+                  {pending ? t("common.loading") : "Yes, record it"}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearForm}
+                  disabled={pending}
+                  className="flex-1 rounded-lg border border-black/15 bg-white py-3 text-sm font-semibold text-foreground/80 transition disabled:opacity-60"
+                >
+                  No, clear form
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={pending}
+              className="w-full rounded-lg bg-brand py-3 text-base font-semibold text-white transition disabled:opacity-60"
+            >
+              {pending ? t("common.loading") : t("leave.recordLeaveSubmit")}
+            </button>
+          )}
         </form>
       </main>
     </>
