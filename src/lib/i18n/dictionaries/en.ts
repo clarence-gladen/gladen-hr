@@ -270,6 +270,7 @@ const en = {
     netPay: "Net Pay",
     save: "Save",
     payslipSaved: "Payslip saved",
+    savedRefreshPending: "Saved, but the updated figures have not loaded yet. Reload the page before editing this payslip again.",
     back: "Back to Payroll Runs",
     finalise: "Finalise Payroll & Generate PDFs",
     completedBanner: "This payroll run is completed.",

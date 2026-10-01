@@ -22,6 +22,7 @@ import {
   getAnnualLeaveForYear,
 } from "@/lib/leave/entitlement";
 import { countWorkingDays } from "@/lib/leave/counting";
+import { parseAmount } from "@/lib/payroll/amount";
 import {
   anniversaryMonthsFor,
   employeesWithAnniversaryIn,
@@ -215,6 +216,25 @@ export async function updatePayslipAction(
   _prevState: { error?: string },
   formData: FormData
 ): Promise<{ error?: string }> {
+  const fieldLabels = {
+    basicSalary: "Basic Salary",
+    transportAllowance: "Transport Allowance",
+    allowances: "Other Allowance",
+    overtimeAmount: "Overtime",
+    bonus: "Bonus",
+    reimbursement: "Reimbursement",
+    midMonthPayment: "Mid-Month Payment",
+    salaryAdvanceDeduction: "Salary Loan",
+    unpaidLeave: "Unpaid Leave",
+    deductions: "Other Deductions",
+  } as const;
+  const amounts = {} as Record<keyof typeof fieldLabels, number>;
+  for (const [field, label] of Object.entries(fieldLabels) as [keyof typeof fieldLabels, string][]) {
+    const value = parseAmount(formData.get(field));
+    if (value === null) return { error: `${label}: "${formData.get(field)}" is not a valid amount.` };
+    amounts[field] = value;
+  }
+
   const supabase = await createClient();
 
   const { data: payslip } = await supabase
@@ -244,16 +264,7 @@ export async function updatePayslipAction(
 
   const result = calculatePayslip(
     {
-      basicSalary: Number(formData.get("basicSalary")) || 0,
-      transportAllowance: Number(formData.get("transportAllowance")) || 0,
-      allowances: Number(formData.get("allowances")) || 0,
-      overtimeAmount: Number(formData.get("overtimeAmount")) || 0,
-      bonus: Number(formData.get("bonus")) || 0,
-      reimbursement: Number(formData.get("reimbursement")) || 0,
-      midMonthPayment: Number(formData.get("midMonthPayment")) || 0,
-      salaryAdvanceDeduction: Number(formData.get("salaryAdvanceDeduction")) || 0,
-      unpaidLeave: Number(formData.get("unpaidLeave")) || 0,
-      deductions: Number(formData.get("deductions")) || 0,
+      ...amounts,
       dateOfBirth: employee.date_of_birth,
       residencyStatus: employee.residency_status,
       skillLevel: employee.skill_level,

@@ -272,6 +272,7 @@ const zh: Partial<Dictionary> = {
     netPay: "实发工资",
     save: "保存",
     payslipSaved: "工资单已保存",
+    savedRefreshPending: "已保存，但最新数据尚未加载。请先刷新页面，再修改此工资单。",
     back: "返回薪资周期",
     finalise: "完成薪资并生成PDF",
     completedBanner: "此薪资周期已完成。",

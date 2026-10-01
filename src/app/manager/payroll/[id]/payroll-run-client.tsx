@@ -108,6 +108,31 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
   const [saving, startSaveTransition] = useTransition();
   const cardRef = useRef<HTMLLIElement>(null);
   const collapsedBySave = useRef(false);
+  // The payslip as it was when Save was clicked. The card only collapses once
+  // router.refresh() delivers a newer one: collapsing earlier meant reopening
+  // the card showed the old figures, and saving again from there overwrote
+  // the first save with them.
+  const [awaitingFresh, setAwaitingFresh] = useState(false);
+  const [refreshStalled, setRefreshStalled] = useState(false);
+  const savedFrom = useRef(payslip);
+
+  useEffect(() => {
+    if (!awaitingFresh || payslip === savedFrom.current) return;
+    setAwaitingFresh(false);
+    collapsedBySave.current = true;
+    setExpanded(false);
+  }, [awaitingFresh, payslip]);
+
+  // If the refresh never lands, don't leave the button stuck on "Saving".
+  // The save itself succeeded; the card stays open with what was typed.
+  useEffect(() => {
+    if (!awaitingFresh) return;
+    const timer = setTimeout(() => {
+      setAwaitingFresh(false);
+      setRefreshStalled(true);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [awaitingFresh]);
 
   // The Save button sits at the bottom of a long form, so the viewport is deep
   // inside the card when it collapses. Without this the manager is left
@@ -122,6 +147,7 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaveError(null);
+    setRefreshStalled(false);
     const formData = new FormData(e.currentTarget);
     startSaveTransition(async () => {
       const result = await updatePayslipAction(payslip.id, {}, formData);
@@ -132,8 +158,9 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
       }
       // Collapse back to the summary row — the edit is done, and leaving the
       // form open makes the manager scroll past it to reach the next employee.
-      collapsedBySave.current = true;
-      setExpanded(false);
+      // The collapse itself waits for the fresh figures (see awaitingFresh).
+      savedFrom.current = payslip;
+      setAwaitingFresh(true);
       addToast(t("payroll.payslipSaved"));
       router.refresh();
     });
@@ -153,6 +180,7 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
+          disabled={awaitingFresh}
           className="flex flex-1 items-start justify-between gap-3 text-left"
         >
           <span className="font-semibold text-foreground">{employeeName(payslip)}</span>
@@ -284,11 +312,12 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
           </div>
 
           {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+          {refreshStalled && <p className="text-sm text-amber-700">{t("payroll.savedRefreshPending")}</p>}
 
           {!locked && (
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || awaitingFresh}
               className="w-full rounded-lg bg-brand py-2 text-sm font-semibold text-white transition disabled:opacity-60">
-              {saving ? t("common.loading") : t("payroll.save")}
+              {saving || awaitingFresh ? t("common.loading") : t("payroll.save")}
             </button>
           )}
         </form>
