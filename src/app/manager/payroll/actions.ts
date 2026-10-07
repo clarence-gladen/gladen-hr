@@ -44,6 +44,123 @@ function periodLabel(month: number, year: number): string {
   return `${ord(1)} ${monthName} ${year} to ${ord(lastDay)} ${monthName} ${year}`;
 }
 
+const PDF_PAYSLIP_FIELDS =
+  "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name, nric_last4, date_of_birth, employment_start_date, residency_status)";
+
+interface PdfPayslipRow {
+  id: string;
+  employee_id: string;
+  basic_salary: number | string;
+  transport_allowance: number | string;
+  allowances: number | string;
+  overtime_amount: number | string;
+  bonus: number | string;
+  reimbursement: number | string;
+  mid_month_payment: number | string;
+  salary_advance_deduction: number | string;
+  unpaid_leave: number | string;
+  deductions: number | string;
+  cpf_employee: number | string;
+  cpf_employer: number | string;
+  net_pay: number | string;
+  employees: unknown;
+}
+
+/**
+ * Generate each payslip's PDF and upload it to storage (overwriting any
+ * existing one). One employee's failure must NOT abort the rest — failures
+ * are collected and returned as employee names.
+ */
+async function uploadPayslipPdfs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  run: { month: number; year: number },
+  payslips: PdfPayslipRow[]
+): Promise<string[]> {
+  const label = periodLabel(run.month, run.year);
+  const payDate = payDateForRun(run.month, run.year);
+  const cpfRates = await getCpfRates(supabase, payDate);
+
+  const employeeIds = payslips.map((p) => p.employee_id);
+  const { data: leaveBalancesData } = await supabase
+    .from("leave_balances")
+    .select("employee_id, annual_used, sick_used, hospitalization_used")
+    .in("employee_id", employeeIds)
+    .lte("year_start", payDate)
+    .gte("year_end", payDate);
+  const leaveBalanceMap = new Map(
+    (leaveBalancesData ?? []).map((lb) => [lb.employee_id, lb])
+  );
+
+  const pdfFailures: string[] = [];
+  for (const payslip of payslips) {
+    const emp = (Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees) as {
+      full_name?: string;
+      nric_last4?: string;
+      date_of_birth?: string;
+      employment_start_date?: string;
+      residency_status?: string;
+    } | null;
+    const empName = emp?.full_name ?? "Unknown";
+    const dob = emp?.date_of_birth ?? "";
+    const startDate = emp?.employment_start_date ?? "";
+    const residency = emp?.residency_status ?? "";
+    const nricLast4 = emp?.nric_last4 ?? "";
+
+    const isCpfEligible = residency === "citizen" || residency === "pr";
+    const age = dob ? calculateAge(dob, payDate.slice(0, 8) + "01") : null;
+    const bracket = isCpfEligible && age !== null ? getCpfBracket(age, cpfRates) : null;
+
+    const lb = leaveBalanceMap.get(payslip.employee_id);
+    const onProbation = startDate ? isOnProbation(startDate, payDate) : true;
+    const annualEntitlement = startDate && !onProbation ? getAvailableAnnualLeave(startDate, payDate) : 0;
+    const sickEntitlement = startDate && !onProbation ? getAvailableSickLeave(startDate, payDate) : 0;
+    const hospEntitlement = startDate && !onProbation ? getAvailableHospitalizationLeave(startDate, payDate) : 0;
+
+    try {
+      const pdfBuffer = await generatePayslipPdf({
+        employeeName: empName,
+        nricMasked: nricLast4 ? `*****${nricLast4}` : "N/A",
+        dateOfBirth: dob,
+        employmentStartDate: startDate,
+        cpfEmployeeRate: bracket?.employee_rate ?? 0,
+        cpfEmployerRate: bracket?.employer_rate ?? 0,
+        periodLabel: label,
+        basicSalary: Number(payslip.basic_salary),
+        transportAllowance: Number(payslip.transport_allowance),
+        allowances: Number(payslip.allowances),
+        overtimeAmount: Number(payslip.overtime_amount),
+        bonus: Number(payslip.bonus),
+        reimbursement: Number(payslip.reimbursement),
+        midMonthPayment: Number(payslip.mid_month_payment),
+        salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
+        unpaidLeave: Number(payslip.unpaid_leave),
+        deductions: Number(payslip.deductions),
+        cpfEmployee: Number(payslip.cpf_employee),
+        cpfEmployer: Number(payslip.cpf_employer),
+        netPay: Number(payslip.net_pay),
+        annualLeaveBalance: Math.max(0, annualEntitlement - Number(lb?.annual_used ?? 0)),
+        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0) - Number(lb?.hospitalization_used ?? 0)),
+        hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
+      });
+
+      const path = `${payslip.employee_id}/${payslip.id}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("payslips")
+        .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) {
+        pdfFailures.push(empName);
+        continue;
+      }
+
+      await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
+    } catch {
+      pdfFailures.push(empName);
+    }
+  }
+  return pdfFailures;
+}
+
 export async function createPayrollRunAction(
   _prevState: { error?: string },
   formData: FormData
@@ -240,7 +357,7 @@ export async function updatePayslipAction(
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "payroll_run_id, employees(date_of_birth, residency_status, skill_level, spr_effective_date), payroll_runs(month, year)"
+      "payroll_run_id, salary_advance_deduction, employees(date_of_birth, residency_status, skill_level, spr_effective_date), payroll_runs(month, year, status)"
     )
     .eq("id", payslipId)
     .single();
@@ -251,6 +368,13 @@ export async function updatePayslipAction(
   const run = Array.isArray(payslip.payroll_runs) ? payslip.payroll_runs[0] : payslip.payroll_runs;
 
   if (!employee || !run) return { error: "Payslip is missing related records." };
+
+  // Salary advance repayments are recorded against the payslip when the run is
+  // finalised, so changing the loan deduction afterwards would leave them out of step.
+  const isCompleted = run.status === "completed";
+  if (isCompleted && amounts.salaryAdvanceDeduction !== Number(payslip.salary_advance_deduction)) {
+    return { error: "Salary Loan cannot be changed after the payroll run is finalised." };
+  }
 
   const payDate = payDateForRun(run.month, run.year);
 
@@ -296,6 +420,19 @@ export async function updatePayslipAction(
     .eq("id", payslipId);
 
   if (error) return { error: error.message };
+
+  // A finalised payslip has already been issued, so replace the employee's PDF too.
+  if (isCompleted) {
+    const { data: updated } = await supabase
+      .from("payslips")
+      .select(PDF_PAYSLIP_FIELDS)
+      .eq("id", payslipId)
+      .single();
+    const failures = updated ? await uploadPayslipPdfs(supabase, run, [updated]) : ["this payslip"];
+    if (failures.length > 0) {
+      return { error: "Figures saved, but the PDF could not be regenerated. Please try saving again." };
+    }
+  }
   return {};
 }
 
@@ -311,93 +448,14 @@ export async function regeneratePdfsAction(runId: string): Promise<{ error?: str
 
   if (!run) return { error: "Payroll run not found." };
 
-  const label = periodLabel(run.month, run.year);
-  const payDate = payDateForRun(run.month, run.year);
-
   const { data: payslips } = await supabase
     .from("payslips")
-    .select(
-      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name, nric_last4, date_of_birth, employment_start_date, residency_status)"
-    )
+    .select(PDF_PAYSLIP_FIELDS)
     .eq("payroll_run_id", runId);
 
   if (!payslips || payslips.length === 0) return { error: "No payslips found." };
 
-  const cpfRates = await getCpfRates(supabase, payDate);
-  const employeeIds = payslips.map((p) => p.employee_id);
-  const { data: leaveBalancesData } = await supabase
-    .from("leave_balances")
-    .select("employee_id, annual_used, sick_used, hospitalization_used")
-    .in("employee_id", employeeIds)
-    .lte("year_start", payDate)
-    .gte("year_end", payDate);
-  const leaveBalanceMap = new Map(
-    (leaveBalancesData ?? []).map((lb) => [lb.employee_id, lb])
-  );
-
-  const pdfFailures: string[] = [];
-  for (const payslip of payslips) {
-    const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
-    const empName = (emp as { full_name?: string } | null)?.full_name ?? "Unknown";
-    const dob = (emp as { date_of_birth?: string } | null)?.date_of_birth ?? "";
-    const startDate = (emp as { employment_start_date?: string } | null)?.employment_start_date ?? "";
-    const residency = (emp as { residency_status?: string } | null)?.residency_status ?? "";
-    const nricLast4 = (emp as { nric_last4?: string } | null)?.nric_last4 ?? "";
-
-    const isCpfEligible = residency === "citizen" || residency === "pr";
-    const age = dob ? calculateAge(dob, payDate.slice(0, 8) + "01") : null;
-    const bracket = isCpfEligible && age !== null ? getCpfBracket(age, cpfRates) : null;
-
-    const lb = leaveBalanceMap.get(payslip.employee_id);
-    const onProbation = startDate ? isOnProbation(startDate, payDate) : true;
-    const annualEntitlement = startDate && !onProbation ? getAvailableAnnualLeave(startDate, payDate) : 0;
-    const sickEntitlement = startDate && !onProbation ? getAvailableSickLeave(startDate, payDate) : 0;
-    const hospEntitlement = startDate && !onProbation ? getAvailableHospitalizationLeave(startDate, payDate) : 0;
-
-    try {
-      const pdfBuffer = await generatePayslipPdf({
-        employeeName: empName,
-        nricMasked: nricLast4 ? `*****${nricLast4}` : "N/A",
-        dateOfBirth: dob,
-        employmentStartDate: startDate,
-        cpfEmployeeRate: bracket?.employee_rate ?? 0,
-        cpfEmployerRate: bracket?.employer_rate ?? 0,
-        periodLabel: label,
-        basicSalary: Number(payslip.basic_salary),
-        transportAllowance: Number(payslip.transport_allowance),
-        allowances: Number(payslip.allowances),
-        overtimeAmount: Number(payslip.overtime_amount),
-        bonus: Number(payslip.bonus),
-        reimbursement: Number(payslip.reimbursement),
-        midMonthPayment: Number(payslip.mid_month_payment),
-        salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
-        unpaidLeave: Number(payslip.unpaid_leave),
-        deductions: Number(payslip.deductions),
-        cpfEmployee: Number(payslip.cpf_employee),
-        cpfEmployer: Number(payslip.cpf_employer),
-        netPay: Number(payslip.net_pay),
-        annualLeaveBalance: Math.max(0, annualEntitlement - Number(lb?.annual_used ?? 0)),
-        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0) - Number(lb?.hospitalization_used ?? 0)),
-        hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
-      });
-
-      const path = `${payslip.employee_id}/${payslip.id}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("payslips")
-        .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
-
-      if (uploadError) {
-        pdfFailures.push(empName);
-        continue;
-      }
-
-      await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
-    } catch {
-      pdfFailures.push(empName);
-      continue;
-    }
-  }
-
+  const pdfFailures = await uploadPayslipPdfs(supabase, run, payslips);
   if (pdfFailures.length > 0) {
     return { error: `PDFs could not be generated for: ${pdfFailures.join(", ")}. Please check their employee records and try again.` };
   }
@@ -417,96 +475,15 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
   if (!run) return { error: "Payroll run not found." };
   if (run.status === "completed") return {};
 
-  const label = periodLabel(run.month, run.year);
-
   const { data: payslips } = await supabase
     .from("payslips")
-    .select(
-      "id, employee_id, basic_salary, transport_allowance, allowances, overtime_amount, bonus, reimbursement, mid_month_payment, salary_advance_deduction, unpaid_leave, deductions, cpf_employee, cpf_employer, net_pay, employees(full_name, nric_last4, date_of_birth, employment_start_date, residency_status)"
-    )
+    .select(PDF_PAYSLIP_FIELDS)
     .eq("payroll_run_id", runId);
 
   if (!payslips || payslips.length === 0) return { error: "No payslips to finalise." };
 
-  const payDate = payDateForRun(run.month, run.year);
-  const cpfRates = await getCpfRates(supabase, payDate);
-
   const employeeIds = payslips.map((p) => p.employee_id);
-  const { data: leaveBalancesData } = await supabase
-    .from("leave_balances")
-    .select("employee_id, annual_used, sick_used, hospitalization_used")
-    .in("employee_id", employeeIds)
-    .lte("year_start", payDate)
-    .gte("year_end", payDate);
-  const leaveBalanceMap = new Map(
-    (leaveBalancesData ?? []).map((lb) => [lb.employee_id, lb])
-  );
-
-  // Generate and upload PDFs. A single employee's failure must NOT abort the
-  // whole run — collect failures and keep going so everyone else still gets a PDF.
-  const pdfFailures: string[] = [];
-  for (const payslip of payslips) {
-    const emp = Array.isArray(payslip.employees) ? payslip.employees[0] : payslip.employees;
-    const empName = (emp as { full_name?: string } | null)?.full_name ?? "Unknown";
-
-    const dob = (emp as { date_of_birth?: string } | null)?.date_of_birth ?? "";
-    const startDate = (emp as { employment_start_date?: string } | null)?.employment_start_date ?? "";
-    const residency = (emp as { residency_status?: string } | null)?.residency_status ?? "";
-    const nricLast4 = (emp as { nric_last4?: string } | null)?.nric_last4 ?? "";
-
-    const isCpfEligible = residency === "citizen" || residency === "pr";
-    const age = dob ? calculateAge(dob, payDate.slice(0, 8) + "01") : null;
-    const bracket = isCpfEligible && age !== null ? getCpfBracket(age, cpfRates) : null;
-
-    const lb = leaveBalanceMap.get(payslip.employee_id);
-    const onProbation = startDate ? isOnProbation(startDate, payDate) : true;
-    const annualEntitlement = startDate && !onProbation ? getAvailableAnnualLeave(startDate, payDate) : 0;
-    const sickEntitlement = startDate && !onProbation ? getAvailableSickLeave(startDate, payDate) : 0;
-    const hospEntitlement = startDate && !onProbation ? getAvailableHospitalizationLeave(startDate, payDate) : 0;
-
-    try {
-      const pdfBuffer = await generatePayslipPdf({
-        employeeName: empName,
-        nricMasked: nricLast4 ? `*****${nricLast4}` : "N/A",
-        dateOfBirth: dob,
-        employmentStartDate: startDate,
-        cpfEmployeeRate: bracket?.employee_rate ?? 0,
-        cpfEmployerRate: bracket?.employer_rate ?? 0,
-        periodLabel: label,
-        basicSalary: Number(payslip.basic_salary),
-        transportAllowance: Number(payslip.transport_allowance),
-        allowances: Number(payslip.allowances),
-        overtimeAmount: Number(payslip.overtime_amount),
-        bonus: Number(payslip.bonus),
-        reimbursement: Number(payslip.reimbursement),
-        midMonthPayment: Number(payslip.mid_month_payment),
-        salaryAdvanceDeduction: Number(payslip.salary_advance_deduction),
-        unpaidLeave: Number(payslip.unpaid_leave),
-        deductions: Number(payslip.deductions),
-        cpfEmployee: Number(payslip.cpf_employee),
-        cpfEmployer: Number(payslip.cpf_employer),
-        netPay: Number(payslip.net_pay),
-        annualLeaveBalance: Math.max(0, annualEntitlement - Number(lb?.annual_used ?? 0)),
-        sickLeaveBalance: Math.max(0, sickEntitlement - Number(lb?.sick_used ?? 0) - Number(lb?.hospitalization_used ?? 0)),
-        hospitalizationLeaveBalance: Math.max(0, hospEntitlement - Number(lb?.hospitalization_used ?? 0)),
-      });
-
-      const path = `${payslip.employee_id}/${payslip.id}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("payslips")
-        .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
-
-      if (uploadError) {
-        pdfFailures.push(empName);
-        continue;
-      }
-
-      await supabase.from("payslips").update({ pdf_url: path }).eq("id", payslip.id);
-    } catch {
-      pdfFailures.push(empName);
-      continue;
-    }
-  }
+  const pdfFailures = await uploadPayslipPdfs(supabase, run, payslips);
 
   // Record salary advance repayments
   const outstandingAdvances = await getOutstandingAdvances(supabase);

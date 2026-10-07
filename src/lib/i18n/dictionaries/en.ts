@@ -274,6 +274,8 @@ const en = {
     back: "Back to Payroll Runs",
     finalise: "Finalise Payroll & Generate PDFs",
     completedBanner: "This payroll run is completed.",
+    editFinalised: "Edit this payslip",
+    editFinalisedWarning: "This payslip has already been issued. Saving recalculates CPF and replaces the employee's PDF. Salary Loan cannot be changed. Afterwards, download the CPF and GIRO files again and pay or recover any difference by hand.",
     step1: "Generate",
     step2: "Review & Edit",
     step3: "Finalise",

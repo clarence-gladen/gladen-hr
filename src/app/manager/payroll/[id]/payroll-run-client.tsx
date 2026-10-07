@@ -104,6 +104,9 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
   const router = useRouter();
   const { addToast } = useToast();
   const [expanded, setExpanded] = useState(false);
+  // A finalised payslip is read-only until the manager deliberately unlocks it.
+  const [unlocked, setUnlocked] = useState(false);
+  const editable = !locked || unlocked;
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, startSaveTransition] = useTransition();
   const cardRef = useRef<HTMLLIElement>(null);
@@ -121,6 +124,7 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
     setAwaitingFresh(false);
     collapsedBySave.current = true;
     setExpanded(false);
+    setUnlocked(false);
   }, [awaitingFresh, payslip]);
 
   // If the refresh never lands, don't leave the button stuck on "Saving".
@@ -179,7 +183,10 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => {
+            setExpanded((v) => !v);
+            setUnlocked(false);
+          }}
           disabled={awaitingFresh}
           className="flex flex-1 items-start justify-between gap-3 text-left"
         >
@@ -212,42 +219,42 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
                   {t("payroll.basicSalary")}
                 </label>
                 <input id={`basicSalary-${payslip.id}`} name="basicSalary" type="text" inputMode="decimal"
-                  defaultValue={payslip.basic_salary} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.basic_salary} className={inputClass} disabled={!editable} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`transportAllowance-${payslip.id}`}>
                   {t("payroll.transportAllowance")}
                 </label>
                 <input id={`transportAllowance-${payslip.id}`} name="transportAllowance" type="text" inputMode="decimal"
-                  defaultValue={payslip.transport_allowance} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.transport_allowance} className={inputClass} disabled={!editable} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`allowances-${payslip.id}`}>
                   {t("payroll.otherAllowance")}
                 </label>
                 <input id={`allowances-${payslip.id}`} name="allowances" type="text" inputMode="decimal"
-                  defaultValue={payslip.allowances} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.allowances} className={inputClass} disabled={!editable} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`overtimeAmount-${payslip.id}`}>
                   {t("payroll.overtime")}
                 </label>
                 <input id={`overtimeAmount-${payslip.id}`} name="overtimeAmount" type="text" inputMode="decimal"
-                  defaultValue={payslip.overtime_amount} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.overtime_amount} className={inputClass} disabled={!editable} />
               </div>
               <div className="col-span-2">
                 <label className={labelClass} htmlFor={`bonus-${payslip.id}`}>
                   Bonus / Leave Encashment (AW — CPF applies)
                 </label>
                 <input id={`bonus-${payslip.id}`} name="bonus" type="text" inputMode="decimal"
-                  defaultValue={payslip.bonus} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.bonus} className={inputClass} disabled={!editable} />
               </div>
               <div className="col-span-2">
                 <label className={labelClass} htmlFor={`reimbursement-${payslip.id}`}>
                   Reimbursement (Tax-Exempt)
                 </label>
                 <input id={`reimbursement-${payslip.id}`} name="reimbursement" type="text" inputMode="decimal"
-                  defaultValue={payslip.reimbursement} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.reimbursement} className={inputClass} disabled={!editable} />
               </div>
             </div>
           </div>
@@ -261,28 +268,29 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
                   {t("payroll.midMonthPayment")}
                 </label>
                 <input id={`midMonthPayment-${payslip.id}`} name="midMonthPayment" type="text" inputMode="decimal"
-                  defaultValue={payslip.mid_month_payment} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.mid_month_payment} className={inputClass} disabled={!editable} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`salaryAdvanceDeduction-${payslip.id}`}>
                   {t("payroll.salaryLoan")}
                 </label>
                 <input id={`salaryAdvanceDeduction-${payslip.id}`} name="salaryAdvanceDeduction" type="text" inputMode="decimal"
-                  defaultValue={payslip.salary_advance_deduction} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.salary_advance_deduction} className={inputClass} disabled={!editable}
+                  readOnly={locked} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`unpaidLeave-${payslip.id}`}>
                   Unpaid Leave
                 </label>
                 <input id={`unpaidLeave-${payslip.id}`} name="unpaidLeave" type="text" inputMode="decimal"
-                  defaultValue={payslip.unpaid_leave} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.unpaid_leave} className={inputClass} disabled={!editable} />
               </div>
               <div>
                 <label className={labelClass} htmlFor={`deductions-${payslip.id}`}>
                   {t("payroll.otherDeductions")}
                 </label>
                 <input id={`deductions-${payslip.id}`} name="deductions" type="text" inputMode="decimal"
-                  defaultValue={payslip.deductions} className={inputClass} disabled={locked} />
+                  defaultValue={payslip.deductions} className={inputClass} disabled={!editable} />
               </div>
             </div>
           </div>
@@ -314,10 +322,21 @@ function PayslipCard({ payslip, downloadUrl, locked }: { payslip: PayslipRow; do
           {saveError && <p className="text-sm text-red-600">{saveError}</p>}
           {refreshStalled && <p className="text-sm text-amber-700">{t("payroll.savedRefreshPending")}</p>}
 
-          {!locked && (
+          {locked && unlocked && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-800">
+              {t("payroll.editFinalisedWarning")}
+            </p>
+          )}
+
+          {editable ? (
             <button type="submit" disabled={saving || awaitingFresh}
               className="w-full rounded-lg bg-brand py-2 text-sm font-semibold text-white transition disabled:opacity-60">
               {saving || awaitingFresh ? t("common.loading") : t("payroll.save")}
+            </button>
+          ) : (
+            <button type="button" onClick={() => setUnlocked(true)}
+              className="w-full rounded-lg border border-brand/30 bg-brand/5 py-2 text-sm font-semibold text-brand">
+              {t("payroll.editFinalised")}
             </button>
           )}
         </form>

@@ -276,6 +276,8 @@ const zh: Partial<Dictionary> = {
     back: "返回薪资周期",
     finalise: "完成薪资并生成PDF",
     completedBanner: "此薪资周期已完成。",
+    editFinalised: "修改此工资单",
+    editFinalisedWarning: "此工资单已发放。保存后将重新计算公积金，并替换员工的PDF工资单。薪资贷款不可修改。保存后请重新下载公积金和GIRO文件，并手动补发或扣回差额。",
     step1: "生成",
     step2: "审核与编辑",
     step3: "完成",
