@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { Header } from "@/components/header";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { createLeaveForEmployeeAction } from "../actions";
@@ -19,10 +19,12 @@ export function RecordLeaveClient({
 }) {
   const { t } = useLanguage();
   const [state, formAction, pending] = useActionState(createLeaveForEmployeeAction, {});
-  // Every field is controlled deliberately: React 19 resets uncontrolled fields in a
-  // <form action={serverAction}> once the action returns, so anything left uncontrolled
-  // would be wiped when the over-entitlement prompt comes back and the manager would
-  // have to re-enter it before confirming.
+  // Every field is controlled, and the form is submitted via onSubmit rather than
+  // <form action={...}>. React 19 calls form.reset() after a form action returns; a
+  // reset <select> whose placeholder is disabled falls back to its first enabled option
+  // while React state still holds the old value, so the over-entitlement "Yes, record
+  // it" resubmit silently sent the first employee in the list (BABU) instead of the
+  // one chosen. Calling the action ourselves skips that reset.
   const [employeeId, setEmployeeId] = useState("");
   const [leaveType, setLeaveType] = useState("");
   const [chargeOffset, setChargeOffset] = useState(0);
@@ -54,8 +56,13 @@ export function RecordLeaveClient({
           {t("leave.recordLeaveHint")}
         </p>
         <form
-          action={formAction}
-          onSubmit={() => setDeclined(false)}
+          onSubmit={(e) => {
+            e.preventDefault();
+            setDeclined(false);
+            // Pass the submitter so "Yes, record it" includes confirmOverBalance=true.
+            const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+            startTransition(() => formAction(fd));
+          }}
           className="space-y-4 rounded-xl bg-white p-4 shadow-sm"
         >
           <div>
