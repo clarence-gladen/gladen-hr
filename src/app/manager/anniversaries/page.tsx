@@ -21,7 +21,7 @@ export default async function AnniversariesPage() {
   // Singapore business date — the server runs in UTC, so on the 1st of a month
   // an unpinned date would still be in the previous month until 8am local time.
   const todayStr = todaySG();
-  const [thisMonth, lastMonth] = anniversaryMonths(todayStr);
+  const [thisMonth, lastMonth, twoMonthsAgo] = anniversaryMonths(todayStr);
 
   const { data: employees } = await supabase
     .from("employees")
@@ -33,7 +33,8 @@ export default async function AnniversariesPage() {
 
   const thisMonthEmps = matching(thisMonth);
   const lastMonthEmps = matching(lastMonth);
-  const empIds = [...thisMonthEmps, ...lastMonthEmps].map((e) => e.id);
+  const twoMonthsAgoEmps = matching(twoMonthsAgo);
+  const empIds = [...thisMonthEmps, ...lastMonthEmps, ...twoMonthsAgoEmps].map((e) => e.id);
 
   const { data: leaveRows } = empIds.length
     ? await supabase
@@ -43,6 +44,17 @@ export default async function AnniversariesPage() {
         .eq("status", "approved")
     : { data: [] };
 
+  // Bonus Paid/Unpaid flags, keyed "employeeId|YYYY-MM-DD". No row = Unpaid.
+  const { data: bonusRows } = empIds.length
+    ? await supabase
+        .from("anniversary_bonus_payments")
+        .select("employee_id, anniversary_date, paid")
+        .in("employee_id", empIds)
+    : { data: [] };
+  const paidKeys = new Set(
+    (bonusRows ?? []).filter((r) => r.paid).map((r) => `${r.employee_id}|${r.anniversary_date}`)
+  );
+
   function enrich(emps: NonNullable<typeof employees>, target: AnniversaryMonth) {
     return enrichAnniversaries(
       emps,
@@ -50,7 +62,7 @@ export default async function AnniversariesPage() {
       target,
       getEmploymentYearBounds,
       getAnnualLeaveForYear
-    );
+    ).map((emp) => ({ ...emp, bonusPaid: paidKeys.has(`${emp.id}|${emp.anniversaryDate}`) }));
   }
 
   const groups: AnniversaryGroup[] = [
@@ -67,6 +79,13 @@ export default async function AnniversariesPage() {
       monthLabel: monthLabel(lastMonth.year, lastMonth.month),
       note: `Credit the bonus and unused leave in the ${monthLabel(lastMonth.year, lastMonth.month)} payroll run.`,
       employees: enrich(lastMonthEmps, lastMonth),
+    },
+    {
+      key: "twoAgo",
+      heading: "2 months ago",
+      monthLabel: monthLabel(twoMonthsAgo.year, twoMonthsAgo.month),
+      note: `Credit the bonus and unused leave in the ${monthLabel(twoMonthsAgo.year, twoMonthsAgo.month)} payroll run if not yet paid.`,
+      employees: enrich(twoMonthsAgoEmps, twoMonthsAgo),
     },
   ];
 

@@ -1,15 +1,17 @@
 /**
  * Employment anniversaries.
  *
- * The business needs two months at once, for two different jobs:
- *   · LAST month, because the anniversary bonus and unused-leave payout are
- *     credited in the payroll run made in the following month (July's
- *     anniversaries are settled when July payroll is run on 5 August).
+ * The anniversaries screen shows three months:
  *   · THIS month, so a manager can answer "is it my anniversary?" at any point
  *     during the month.
+ *   · LAST month and the month BEFORE it, because the anniversary bonus and
+ *     unused-leave payout are credited in a later payroll run, and admin may
+ *     settle them a month late. Each card carries a Bonus Paid/Unpaid flag.
  *
- * Both the dashboard count and /manager/anniversaries use these helpers so the
- * number on the tile can never disagree with the list behind it.
+ * Payroll still settles two months per run (see anniversaryMonthsFor).
+ *
+ * Both the dashboard count and /manager/anniversaries use anniversaryMonths so
+ * the number on the tile can never disagree with the list behind it.
  */
 
 export interface AnniversaryMonth {
@@ -47,11 +49,16 @@ export function anniversaryMonthsFor(
 }
 
 /**
- * The two months an anniversary list covers, given a Singapore business date
- * ("YYYY-MM-DD"): this month first, then last month.
+ * The three months the anniversaries screen covers, given a Singapore business
+ * date ("YYYY-MM-DD"): this month first, then last month, then the month before.
  */
-export function anniversaryMonths(todayStr: string): [AnniversaryMonth, AnniversaryMonth] {
-  return anniversaryMonthsFor(Number(todayStr.slice(0, 4)), Number(todayStr.slice(5, 7)));
+export function anniversaryMonths(
+  todayStr: string
+): [AnniversaryMonth, AnniversaryMonth, AnniversaryMonth] {
+  const year = Number(todayStr.slice(0, 4));
+  const month = Number(todayStr.slice(5, 7));
+  const [m1, m2, m3] = [0, -1, -2].map((d) => shiftMonth(year, month, d));
+  return [toMonth(m1.year, m1.month), toMonth(m2.year, m2.month), toMonth(m3.year, m3.month)];
 }
 
 /**

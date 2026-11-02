@@ -17,20 +17,25 @@ describe("shiftMonth", () => {
 });
 
 describe("anniversaryMonths", () => {
-  it("returns this month then last month", () => {
+  it("returns this month, last month, then the month before", () => {
     expect(anniversaryMonths("2026-08-27")).toEqual([
       { year: 2026, month: 8, mm: "08" },
       { year: 2026, month: 7, mm: "07" },
+      { year: 2026, month: 6, mm: "06" },
     ]);
   });
 
   it("reaches into the previous year in January", () => {
-    // The 5 January payroll run settles December's anniversaries, so the
-    // December entry must carry 2025, not 2026.
+    // December and November anniversaries viewed in January must carry 2025.
     expect(anniversaryMonths("2026-01-05")).toEqual([
       { year: 2026, month: 1, mm: "01" },
       { year: 2025, month: 12, mm: "12" },
+      { year: 2025, month: 11, mm: "11" },
     ]);
+  });
+
+  it("reaches back two months across the year boundary in February", () => {
+    expect(anniversaryMonths("2026-02-10")[2]).toEqual({ year: 2025, month: 12, mm: "12" });
   });
 });
 

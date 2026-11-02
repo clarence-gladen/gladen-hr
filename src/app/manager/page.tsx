@@ -57,7 +57,7 @@ export default async function ManagerDashboardPage() {
 
   const firstName = profileRes.data?.full_name?.split(" ")[0] ?? null;
 
-  // This month and last month — the same two the anniversaries page lists, so
+  // This month and the two before — the same three the anniversaries page lists, so
   // the tile's number always matches what is behind it.
   const months = anniversaryMonths(todayStr);
   const anniversaryCount = (allEmpsRes.data ?? []).filter((emp) =>
