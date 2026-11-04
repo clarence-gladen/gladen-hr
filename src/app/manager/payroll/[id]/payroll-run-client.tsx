@@ -13,11 +13,47 @@ import {
   downloadGiroAction,
   downloadPayrollExcelAction,
   downloadPayrollPrepAction,
-  finalisePayrollAction,
+  finaliseCompleteAction,
+  finalisePdfBatchAction,
+  finaliseStartAction,
   generatePayslipsAction,
+  listGenerateTargetsAction,
   updatePayslipAction,
 } from "../actions";
 import type { PayrollStatus } from "@/lib/types/database";
+
+/** Runs `items` through `work` in batches of `size`, reporting after each batch. */
+async function inBatches<T>(
+  items: T[],
+  size: number,
+  work: (batch: T[]) => Promise<void>,
+  onProgress: (done: number) => void
+) {
+  for (let i = 0; i < items.length; i += size) {
+    await work(items.slice(i, i + size));
+    onProgress(Math.min(items.length, i + size));
+  }
+}
+
+type Progress = { title: string; detail: string; percent: number };
+
+function ProgressBar({ progress }: { progress: Progress }) {
+  return (
+    <div className="rounded-lg border border-brand/20 bg-brand/5 p-3" role="status" aria-live="polite">
+      <div className="mb-1.5 flex items-baseline justify-between text-sm">
+        <span className="font-semibold text-brand">{progress.title}</span>
+        <span className="g-num font-semibold text-brand">{progress.percent}%</span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-brand/15">
+        <div
+          className="h-full rounded-full bg-brand transition-[width] duration-500"
+          style={{ width: `${progress.percent}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-xs text-muted">{progress.detail} · Please keep this page open.</p>
+    </div>
+  );
+}
 
 interface PayslipRow {
   id: string;
@@ -358,6 +394,8 @@ export function PayrollRunClient({
   const [isPending, startTransition] = useTransition();
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [finaliseMsg, setFinaliseMsg] = useState<{ error?: string } | null>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const runRouter = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
   const [excelError, setExcelError] = useState<string | null>(null);
@@ -374,19 +412,74 @@ export function PayrollRunClient({
   const isCompleted = run.status === "completed";
   const hasPayslips = payslips.length > 0;
 
+  // Both long steps are driven from here in batches so the bar reflects real work
+  // done, not a timer. A batch error stops the loop and is shown under the button.
   function handleGenerate() {
     setGenerateError(null);
     startTransition(async () => {
-      const result = await generatePayslipsAction(run.id);
-      if (result?.error) setGenerateError(result.error);
+      setProgress({ title: "Generating payslips", detail: "Preparing…", percent: 0 });
+      try {
+        const targets = await listGenerateTargetsAction(run.id);
+        if (targets.error || !targets.employeeIds) throw new Error(targets.error ?? "Failed to start.");
+        const ids = targets.employeeIds;
+        await inBatches(
+          ids,
+          10,
+          async (batch) => {
+            const res = await generatePayslipsAction(run.id, batch);
+            if (res.error) throw new Error(res.error);
+          },
+          (done) =>
+            setProgress({
+              title: "Generating payslips",
+              detail: `${done} of ${ids.length} employees`,
+              percent: Math.round((done / Math.max(1, ids.length)) * 100),
+            })
+        );
+        runRouter.refresh();
+      } catch (e) {
+        setGenerateError(e instanceof Error ? e.message : "Failed to generate payslips.");
+      } finally {
+        setProgress(null);
+      }
     });
   }
 
   function handleFinalise() {
     setFinaliseMsg(null);
     startTransition(async () => {
-      const result = await finalisePayrollAction(run.id);
-      if (result.error) setFinaliseMsg(result);
+      setProgress({ title: "Finalising payroll", detail: "Preparing…", percent: 0 });
+      try {
+        const start = await finaliseStartAction(run.id);
+        if (start.error || !start.payslipIds) throw new Error(start.error ?? "Failed to start.");
+        const ids = start.payslipIds;
+        const failures: string[] = [];
+        // PDFs are the slow part: 0–95%. The completion step takes the last 5%.
+        await inBatches(
+          ids,
+          5,
+          async (batch) => {
+            const res = await finalisePdfBatchAction(run.id, batch);
+            if (res.error) throw new Error(res.error);
+            failures.push(...(res.failures ?? []));
+          },
+          (done) =>
+            setProgress({
+              title: "Finalising payroll",
+              detail: `Payslip PDFs ${done} of ${ids.length}`,
+              percent: Math.round((done / ids.length) * 95),
+            })
+        );
+        setProgress({ title: "Finalising payroll", detail: "Recording and notifying employees", percent: 97 });
+        const result = await finaliseCompleteAction(run.id, failures);
+        setProgress({ title: "Finalising payroll", detail: "Done", percent: 100 });
+        if (result.error) setFinaliseMsg(result);
+        runRouter.refresh();
+      } catch (e) {
+        setFinaliseMsg({ error: e instanceof Error ? e.message : "Failed to finalise payroll." });
+      } finally {
+        setProgress(null);
+      }
     });
   }
 
@@ -539,6 +632,8 @@ export function PayrollRunClient({
             </div>
 
             {/* Step 1: Generate payslips (only if none exist) */}
+            {progress && <div className="mb-3"><ProgressBar progress={progress} /></div>}
+
             {!hasPayslips && (
               <div>
                 <button type="button" disabled={isPending} onClick={handleGenerate}

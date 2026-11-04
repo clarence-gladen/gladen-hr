@@ -199,7 +199,30 @@ export async function createPayrollRunAction(
   redirect(`/manager/payroll/${run.id}`);
 }
 
-export async function generatePayslipsAction(runId: string): Promise<{ error?: string }> {
+/**
+ * Active employee ids a run's payslips are generated for. The client generates
+ * them in batches (generatePayslipsAction with a subset) so it can show progress.
+ */
+export async function listGenerateTargetsAction(
+  runId: string
+): Promise<{ employeeIds?: string[]; error?: string }> {
+  const supabase = await createClient();
+  const { data: run } = await supabase.from("payroll_runs").select("id").eq("id", runId).single();
+  if (!run) return { error: "Payroll run not found." };
+  const { data, error } = await supabase.from("employees").select("id").eq("status", "active");
+  if (error) return { error: error.message };
+  return { employeeIds: (data ?? []).map((e) => e.id) };
+}
+
+/**
+ * Creates payslips for a run — for every active employee, or only `employeeIds`
+ * when given (one batch of a progress-tracked generate). Called programmatically,
+ * so no revalidatePath; the client calls router.refresh() when all batches finish.
+ */
+export async function generatePayslipsAction(
+  runId: string,
+  employeeIds?: string[]
+): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const { data: run } = await supabase
@@ -221,10 +244,13 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
     getCpfRates(supabase, payDate),
     getFwlRates(supabase, payDate),
     getSdlConfig(supabase, payDate),
-    supabase
-      .from("employees")
-      .select("id, base_salary, date_of_birth, residency_status, skill_level, spr_effective_date")
-      .eq("status", "active"),
+    (() => {
+      const q = supabase
+        .from("employees")
+        .select("id, base_salary, date_of_birth, residency_status, skill_level, spr_effective_date")
+        .eq("status", "active");
+      return employeeIds ? q.in("id", employeeIds) : q;
+    })(),
     supabase
       .from("overtime_records")
       .select("employee_id, amount")
@@ -320,11 +346,13 @@ export async function generatePayslipsAction(runId: string): Promise<{ error?: s
   });
 
   if (rows.length > 0) {
-    await supabase.from("payslips").upsert(rows, { onConflict: "payroll_run_id,employee_id" });
+    const { error: upsertError } = await supabase
+      .from("payslips")
+      .upsert(rows, { onConflict: "payroll_run_id,employee_id" });
+    if (upsertError) return { error: upsertError.message };
   }
 
   await supabase.from("payroll_runs").update({ status: "processing" }).eq("id", runId);
-  revalidatePath(`/manager/payroll/${runId}`);
   return {};
 }
 
@@ -462,8 +490,58 @@ export async function regeneratePdfsAction(runId: string): Promise<{ error?: str
   return {};
 }
 
-/** Step 3: generate PDFs + record advance repayments + mark completed — all in one. */
-export async function finalisePayrollAction(runId: string): Promise<{ error?: string }> {
+/*
+ * Step 3, finalise, runs as three client-driven calls so the manager sees real
+ * progress instead of a ~2 minute spinner:
+ *   1. finaliseStartAction     — the payslip ids to build PDFs for
+ *   2. finalisePdfBatchAction  — PDFs for one batch of ids (repeated)
+ *   3. finaliseCompleteAction  — advance repayments, mark completed, notify
+ * Only step 3 has side effects beyond (re)writing PDFs, and it is a no-op once
+ * the run is completed, so an interrupted finalise can simply be run again.
+ */
+
+export async function finaliseStartAction(
+  runId: string
+): Promise<{ payslipIds?: string[]; error?: string }> {
+  const supabase = await createClient();
+  const { data: run } = await supabase.from("payroll_runs").select("status").eq("id", runId).single();
+  if (!run) return { error: "Payroll run not found." };
+  if (run.status === "completed") return { error: "This payroll run is already finalised." };
+  const { data: payslips } = await supabase.from("payslips").select("id").eq("payroll_run_id", runId);
+  if (!payslips || payslips.length === 0) return { error: "No payslips to finalise." };
+  return { payslipIds: payslips.map((p) => p.id) };
+}
+
+/** Builds and uploads PDFs for one batch. Returns names whose PDF failed. */
+export async function finalisePdfBatchAction(
+  runId: string,
+  payslipIds: string[]
+): Promise<{ failures?: string[]; error?: string }> {
+  const supabase = await createClient();
+  const { data: run } = await supabase
+    .from("payroll_runs")
+    .select("month, year, status")
+    .eq("id", runId)
+    .single();
+  if (!run) return { error: "Payroll run not found." };
+  if (run.status === "completed") return { error: "This payroll run is already finalised." };
+  const { data: payslips } = await supabase
+    .from("payslips")
+    .select(PDF_PAYSLIP_FIELDS)
+    .eq("payroll_run_id", runId)
+    .in("id", payslipIds);
+  if (!payslips || payslips.length === 0) return { failures: [] };
+  return { failures: await uploadPayslipPdfs(supabase, run, payslips) };
+}
+
+/**
+ * Records advance repayments, marks the run completed and notifies employees.
+ * `pdfFailures` (from the batches) is only used for the returned message.
+ */
+export async function finaliseCompleteAction(
+  runId: string,
+  pdfFailures: string[] = []
+): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const { data: run } = await supabase
@@ -473,6 +551,7 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
     .single();
 
   if (!run) return { error: "Payroll run not found." };
+  // Never record advance repayments twice.
   if (run.status === "completed") return {};
 
   const { data: payslips } = await supabase
@@ -483,7 +562,6 @@ export async function finalisePayrollAction(runId: string): Promise<{ error?: st
   if (!payslips || payslips.length === 0) return { error: "No payslips to finalise." };
 
   const employeeIds = payslips.map((p) => p.employee_id);
-  const pdfFailures = await uploadPayslipPdfs(supabase, run, payslips);
 
   // Record salary advance repayments
   const outstandingAdvances = await getOutstandingAdvances(supabase);
